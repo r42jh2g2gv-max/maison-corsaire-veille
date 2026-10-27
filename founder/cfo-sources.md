@@ -5,7 +5,7 @@
 | Rhum HSE 55° AOC, 400 ml par bouteille | 5,88 € | Prix Metro 14,69 €/L HT (Drive, « Comptabilité matières — entrées ») |
 | Matières (purées, sucre, sel, arômes), moyenne des 3 cuvées | environ 3,12 € | Prix Metro et recettes de septembre (Drive). Suroît incomplet : caramel et orange sans prix |
 | Habillage | 4,20 € | Plafond donné par le fondateur le 27 octobre 2026 |
-| Façonnage | 4,00 € | **ESTIMATION** : aucun devis. À remplacer par le prix d'Éric ou de KEVAS |
+| Façonnage | 4,00 € (base prudente), 3,50 € en valeur centrale | **ESTIMATION** : aucun tarif public trouvé, fourchette raisonnée de 2,50 à 5 €. À remplacer par un devis |
 | Frais de carte | 0,35 € | **ESTIMATION** : environ 1,75 % sur la vente directe |
 | Cotisations micro-entreprise | 12,3 % du CA | **ESTIMATION** : taux usuel pour la vente de marchandises, à confirmer avec l'URSSAF |
 | Accises | 0 € en plus | **HYPOTHÈSE** : les droits sont payés avec le rhum (droits acquittés). Question ouverte avec les douanes |

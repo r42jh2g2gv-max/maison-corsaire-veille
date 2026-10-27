@@ -2,7 +2,24 @@
 
 Les montants en « $ » du rapport de l'outil sont des euros, hors taxes. **La plupart des coûts sont des estimations** : seuls le liquide (prix Metro) et l'habillage (plafond de 4,20 € donné par toi) sont des chiffres réels. Le détail est dans `founder/cfo-sources.md`.
 
-## La marge
+## Estimation du façonnage (27 octobre 2026)
+
+Aucun tarif public de façonnage de rhum arrangé n'a été trouvé. Voici une estimation raisonnée, **à remplacer par un vrai devis** :
+- Ce que le partenaire ferait : filtrer, mettre en bouteille, poser l'étiquette et la capsule, par lots d'environ 40 bouteilles, sous son agrément d'entrepositaire. Tu fournis le rhum, les matières et l'habillage.
+- Un lot de 40 bouteilles demande environ 2 à 4 heures de travail, payées 35 à 45 € de l'heure. Le partenaire ajoute une part pour son agrément, sa comptabilité matières et son stockage. Cela donne **2,50 à 5 € par bouteille, avec 3,50 € comme valeur centrale.**
+- Si le partenaire fait aussi la macération (7 jours dans ses cuves), le prix sera plutôt dans le haut de la fourchette.
+
+| façonnage | 33 € TTC, mix 70/30 | 35 € TTC, mix 70/30 | 35 € TTC, 100 % direct, 200 bouteilles |
+| ---: | ---: | ---: | ---: |
+| 2,50 € | seuil 245 bouteilles, -667 € | seuil 212, -518 € | seuil 170, **+286 €** |
+| **3,50 €** | seuil 288, -811 € | seuil 244, -662 € | seuil 190, **+86 €** |
+| 5,00 € | seuil 393, -1 027 € | seuil 315, -878 € | seuil 230, -214 € |
+
+Les montants sont le résultat d'exploitation de l'année 1, avant les 1 040 € de démarrage. Détail dans `founder/cfo-faconnage.txt`.
+
+**En résumé : avec un façonnage autour de 3,50 € et 100 à 200 bouteilles, l'année 1 est à l'équilibre au mieux,** et seulement en vendant surtout en direct à 35 €. **N'accepte pas un devis au-dessus de 4 € par bouteille sans revoir le plan.**
+
+## La marge (base de calcul : façonnage à 4 €)
 - Le prix moyen est de **25,85 € HT** par bouteille. C'est un mélange de 70 % de vente directe (33 € TTC, soit 27,50 € HT) et de 30 % de vente aux pros (22 € HT). Ce mélange est une estimation.
 - Le coût par bouteille est de **20,73 €** : liquide 9,00, habillage 4,20, façonnage 4,00 (estimé), frais de carte 0,35, cotisations micro-entreprise 3,18.
 - **Chaque bouteille laisse 5,12 €** (20 %) pour payer les frais fixes.
