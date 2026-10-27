@@ -1,6 +1,10 @@
-"""Vidéo d'annonce Maison Corsaire — arrivée pour les fêtes de Noël.
+"""Vidéo d'annonce Maison Corsaire — arrivée pour Noël.
 
-Format vertical 1080x1920 (Reels / TikTok / Shorts), 15 s, 30 i/s.
+Respecte la charte graphique (version du 27/10/2026) : fonds bordeaux / vert forêt /
+brun, cuivre dorure, ivoire, Playfair Display + Montserrat, aplats sans dégradé,
+ni brillance, ni ombre portée, carte marine fine ton sur ton.
+
+Format story 1080x1920, 18 s, 30 i/s.
 Usage : python3 videos/noel/render.py  ->  videos/noel/maison-corsaire-noel.mp4
 """
 import math
@@ -12,24 +16,28 @@ import numpy as np
 from PIL import Image, ImageDraw, ImageFilter, ImageFont
 
 HERE = Path(__file__).parent
+ASSETS = HERE.parent / "assets"
 OUT = HERE / "maison-corsaire-noel.mp4"
 AUDIO = HERE / "musique.wav"
 
-W, H, FPS, DUR = 1080, 1920, 30, 15.0
+W, H, FPS, DUR = 1080, 1920, 30, 18.0
 NFRAMES = int(FPS * DUR)
 
-GOLD = (222, 181, 106)
-CREAM = (246, 236, 214)
-NAVY_TOP = np.array([6, 14, 28], float)
-NAVY_BOT = np.array([22, 16, 22], float)
+# palette de la charte
+IVOIRE = (247, 241, 231)
+CUIVRE = (208, 132, 84)  # cuivre dorure, sur fonds foncés
+BORDEAUX = (58, 11, 27)
+VERT = (15, 58, 39)
+BRUN = (79, 39, 17)
 
-FONTS = "/usr/share/fonts"
-SERIF_BOLD = f"{FONTS}/truetype/crosextra/Caladea-Bold.ttf"
-SERIF_ITALIC = f"{FONTS}/truetype/crosextra/Caladea-Italic.ttf"
-SANS_LIGHT = f"{FONTS}/opentype/inter/Inter-Light.otf"
-SANS_MED = f"{FONTS}/opentype/inter/Inter-Medium.otf"
+FONTS = ASSETS / "fonts"
+PLAYFAIR = str(FONTS / "playfair-display-latin-400-normal.woff")
+PLAYFAIR_IT = str(FONTS / "playfair-display-latin-400-italic.woff")
+PLAYFAIR_BOLD = str(FONTS / "playfair-display-latin-700-normal.woff")
+MONTSERRAT = str(FONTS / "montserrat-latin-500-normal.woff")
+MONTSERRAT_SEMI = str(FONTS / "montserrat-latin-600-normal.woff")
 
-rng = np.random.default_rng(7)
+rng = np.random.default_rng(11)
 
 
 # --- utilitaires d'animation -------------------------------------------------
@@ -39,11 +47,22 @@ def ease(x):
     return 1 - (1 - x) ** 3
 
 
-def window(t, start, end, fade_in=0.8, fade_out=0.6):
+def ease_io(x):
+    x = min(max(x, 0.0), 1.0)
+    return 3 * x * x - 2 * x * x * x
+
+
+def window(t, start, end, fade_in=0.9, fade_out=0.6):
     """Opacité 0..1 d'un élément visible entre start et end."""
     if t < start or t > end:
         return 0.0
-    return min(ease((t - start) / fade_in), ease((end - t) / fade_out) if fade_out else 1.0)
+    out = ease((end - t) / fade_out) if fade_out else 1.0
+    return min(ease((t - start) / fade_in), out)
+
+
+def tone(color, k):
+    """Couleur légèrement éclaircie, pour le ton sur ton."""
+    return tuple(int(c + (255 - c) * k) for c in color)
 
 
 # --- calques ------------------------------------------------------------------
@@ -57,37 +76,31 @@ class Layer:
         self.alpha = a[..., 3:4]
         self.h, self.w = a.shape[:2]
 
-    def draw(self, frame, cx, cy, opacity):
+    def draw(self, frame, cx, cy, opacity=1.0):
         if opacity <= 0.001:
             return
-        x0, y0 = int(cx - self.w / 2), int(cy - self.h / 2)
+        x0, y0 = int(round(cx - self.w / 2)), int(round(cy - self.h / 2))
         fx0, fy0 = max(x0, 0), max(y0, 0)
         fx1, fy1 = min(x0 + self.w, W), min(y0 + self.h, H)
         if fx0 >= fx1 or fy0 >= fy1:
             return
         sub = frame[fy0:fy1, fx0:fx1]
         a = self.alpha[fy0 - y0:fy1 - y0, fx0 - x0:fx1 - x0] * opacity
-        rgb = self.rgb[fy0 - y0:fy1 - y0, fx0 - x0:fx1 - x0]
         sub *= 1 - a
-        sub += rgb * a
+        sub += self.rgb[fy0 - y0:fy1 - y0, fx0 - x0:fx1 - x0] * a
 
 
-def text_image(text, font_path, size, color, tracking=0, glow=0):
+def text_image(text, font_path, size, color, tracking=0):
     font = ImageFont.truetype(font_path, size)
     widths = [font.getlength(c) for c in text]
     total = sum(widths) + tracking * (len(text) - 1)
     asc, desc = font.getmetrics()
-    pad = glow * 3 + 10
-    img = Image.new("RGBA", (int(total) + 2 * pad, asc + desc + 2 * pad), (0, 0, 0, 0))
+    img = Image.new("RGBA", (int(total) + 8, asc + desc + 8), (0, 0, 0, 0))
     d = ImageDraw.Draw(img)
-    x = pad
+    x = 4
     for c, w in zip(text, widths):
-        d.text((x, pad), c, font=font, fill=color + (255,))
+        d.text((x, 4), c, font=font, fill=color + (255,))
         x += w + tracking
-    if glow:
-        halo = Image.new("RGBA", img.size, GOLD + (0,))
-        halo.putalpha(img.getchannel("A").filter(ImageFilter.GaussianBlur(glow)).point(lambda v: int(v * 0.55)))
-        img = Image.alpha_composite(halo, img)
     return img
 
 
@@ -95,168 +108,155 @@ def text_layer(*args, **kw):
     return Layer(text_image(*args, **kw))
 
 
-def bottle_image():
-    """Bouteille de rhum arrangé stylisée : verre ambré, fruits, étiquette, ruban."""
-    s = 2  # sur-échantillonnage pour des bords propres
-    bw, bh = 520 * s, 1000 * s
-    img = Image.new("RGBA", (bw, bh), (0, 0, 0, 0))
+def solid(color):
+    return np.broadcast_to(np.array(color, np.float32) / 255.0, (H, W, 3)).copy()
+
+
+# --- carte marine -------------------------------------------------------------
+
+def chart_image(w, h, color, seed=0, coast=True):
+    """Carte marine très fine, ton sur ton : quadrillage, lignes de rhumb, côte."""
+    s = 2
+    img = Image.new("RGBA", (w * s, h * s), (0, 0, 0, 0))
     d = ImageDraw.Draw(img)
-    cx = bw // 2
-
-    body_w, body_top, body_bot = 420 * s, 400 * s, 980 * s
-    neck_w, neck_top = 120 * s, 110 * s
-
-    # silhouette (masque)
-    mask = Image.new("L", (bw, bh), 0)
-    m = ImageDraw.Draw(mask)
-    m.rounded_rectangle([cx - body_w // 2, body_top, cx + body_w // 2, body_bot], radius=60 * s, fill=255)
-    shoulder = [(cx - neck_w // 2, neck_top + 160 * s)]
-    for i in range(41):
-        a = i / 40
-        x = cx - neck_w // 2 - (body_w - neck_w) / 2 * math.sin(a * math.pi / 2)
-        y = neck_top + 160 * s + (body_top + 60 * s - neck_top - 160 * s) * (1 - math.cos(a * math.pi / 2))
-        shoulder.append((x, y))
-    right = [(2 * cx - x, y) for x, y in reversed(shoulder)]
-    m.polygon(shoulder + right, fill=255)
-    m.rectangle([cx - neck_w // 2, neck_top, cx + neck_w // 2, neck_top + 170 * s], fill=255)
-
-    # liquide ambré en dégradé
-    yy = np.linspace(0, 1, bh)[:, None]
-    xx = np.abs(np.linspace(-1, 1, bw))[None, :]
-    r = 120 + 110 * (1 - yy) - 40 * xx
-    g = 55 + 60 * (1 - yy) - 30 * xx
-    b = 18 + 15 * (1 - yy) + 0 * xx
-    liquid = np.dstack([r, g, b, np.full_like(r, 255)]).clip(0, 255).astype(np.uint8)
-    glass = Image.fromarray(liquid, "RGBA")
-    level = neck_top + 250 * s
-    glass_mask = mask.copy()
-    ImageDraw.Draw(glass_mask).rectangle([0, 0, bw, level], fill=0)
-    img.paste(glass, (0, 0), glass_mask)
-    # verre vide au-dessus du niveau
-    empty = Image.new("RGBA", (bw, bh), (40, 30, 30, 120))
-    top_mask = mask.copy()
-    ImageDraw.Draw(top_mask).rectangle([0, level, bw, bh], fill=0)
-    img.paste(empty, (0, 0), top_mask)
-
-    # fruits et épices dans le rhum
-    fruits = Image.new("RGBA", (bw, bh), (0, 0, 0, 0))
-    f = ImageDraw.Draw(fruits)
-    frng = np.random.default_rng(3)
-    for _ in range(26):
-        fx = cx + frng.uniform(-170, 170) * s
-        fy = frng.uniform(560, 950) * s
-        kind = frng.integers(0, 3)
-        if kind == 0:  # tranche d'orange
-            rr = frng.uniform(28, 42) * s
-            f.ellipse([fx - rr, fy - rr, fx + rr, fy + rr], fill=(240, 140, 40, 210))
-            f.ellipse([fx - rr * .8, fy - rr * .8, fx + rr * .8, fy + rr * .8], fill=(250, 175, 70, 200))
-            for k in range(8):
-                ang = k * math.pi / 4
-                f.line([fx, fy, fx + rr * .8 * math.cos(ang), fy + rr * .8 * math.sin(ang)], fill=(255, 225, 160, 200), width=2 * s)
-        elif kind == 1:  # morceau d'ananas
-            rr = frng.uniform(22, 32) * s
-            f.polygon([(fx, fy - rr), (fx + rr, fy + rr * .7), (fx - rr, fy + rr * .7)], fill=(250, 205, 70, 210))
-        else:  # bâton de vanille / cannelle
-            ang = frng.uniform(0, math.pi)
-            ln = frng.uniform(60, 110) * s
-            f.line([fx - ln * math.cos(ang), fy - ln * math.sin(ang), fx + ln * math.cos(ang), fy + ln * math.sin(ang)],
-                   fill=(70, 35, 20, 230), width=10 * s)
-    fruit_mask = Image.fromarray(np.minimum(np.asarray(glass_mask), np.asarray(fruits.getchannel("A"))))
-    img.paste(fruits, (0, 0), fruit_mask)
-
-    # reflet du verre
-    hl = Image.new("L", (bw, bh), 0)
-    ImageDraw.Draw(hl).rounded_rectangle([cx - body_w // 2 + 40 * s, body_top + 40 * s, cx - body_w // 2 + 75 * s, body_bot - 80 * s],
-                                         radius=20 * s, fill=110)
-    hl = hl.filter(ImageFilter.GaussianBlur(10 * s))
-    img.paste(Image.new("RGBA", (bw, bh), (255, 240, 220, 255)), (0, 0), hl)
-
-    # bouchon
-    d.rounded_rectangle([cx - 70 * s, 20 * s, cx + 70 * s, neck_top + 20 * s], radius=14 * s, fill=(96, 62, 38, 255))
-    d.rounded_rectangle([cx - 76 * s, neck_top - 10 * s, cx + 76 * s, neck_top + 30 * s], radius=10 * s, fill=GOLD + (255,))
-
-    # ruban rouge de Noël sur le col
-    d.rectangle([cx - neck_w // 2, neck_top + 110 * s, cx + neck_w // 2, neck_top + 145 * s], fill=(150, 18, 30, 255))
-    d.polygon([(cx, neck_top + 128 * s), (cx - 90 * s, neck_top + 80 * s), (cx - 90 * s, neck_top + 175 * s)], fill=(170, 24, 36, 255))
-    d.polygon([(cx, neck_top + 128 * s), (cx + 90 * s, neck_top + 80 * s), (cx + 90 * s, neck_top + 175 * s)], fill=(170, 24, 36, 255))
-    d.ellipse([cx - 22 * s, neck_top + 106 * s, cx + 22 * s, neck_top + 150 * s], fill=(120, 12, 22, 255))
-
-    # étiquette
-    lx0, ly0, lx1, ly1 = cx - 165 * s, 600 * s, cx + 165 * s, 860 * s
-    d.rounded_rectangle([lx0, ly0, lx1, ly1], radius=16 * s, fill=CREAM + (255,), outline=GOLD + (255,), width=5 * s)
-    d.rounded_rectangle([lx0 + 14 * s, ly0 + 14 * s, lx1 - 14 * s, ly1 - 14 * s], radius=10 * s, outline=(150, 110, 50, 255), width=2 * s)
-    f_mono = ImageFont.truetype(SERIF_BOLD, 74 * s)
-    f_small = ImageFont.truetype(SERIF_BOLD, 26 * s)
-    f_it = ImageFont.truetype(SERIF_ITALIC, 30 * s)
-    d.text((cx, ly0 + 80 * s), "MC", font=f_mono, fill=(70, 40, 20, 255), anchor="mm")
-    d.text((cx, ly0 + 158 * s), "MAISON CORSAIRE", font=f_small, fill=(70, 40, 20, 255), anchor="mm")
-    d.text((cx, ly0 + 205 * s), "Rhum arrangé", font=f_it, fill=(140, 30, 30, 255), anchor="mm")
-
-    # contour doré
-    edge = mask.filter(ImageFilter.FIND_EDGES).filter(ImageFilter.MaxFilter(5))
-    img.paste(Image.new("RGBA", (bw, bh), GOLD + (255,)), (0, 0), edge)
-
-    img = img.resize((bw // s, bh // s), Image.LANCZOS)
-    # halo chaud autour de la bouteille
-    halo = Image.new("RGBA", (img.width + 200, img.height + 200), (255, 170, 80, 0))
-    big = Image.new("L", halo.size, 0)
-    big.paste(img.getchannel("A"), (100, 100))
-    halo.putalpha(big.filter(ImageFilter.GaussianBlur(45)).point(lambda v: int(v * 0.5)))
-    halo.alpha_composite(img, (100, 100))
-    return halo
+    line = tone(color, 0.10) + (255,)
+    faint = tone(color, 0.06) + (255,)
+    for x in range(0, w * s, 135 * s):
+        d.line([(x, 0), (x, h * s)], fill=faint, width=s)
+    for y in range(0, h * s, 135 * s):
+        d.line([(0, y), (w * s, y)], fill=faint, width=s)
+    crng = np.random.default_rng(seed)
+    for _ in range(2):
+        ox, oy = crng.uniform(0.15, 0.85) * w * s, crng.uniform(0.15, 0.85) * h * s
+        for k in range(16):
+            ang = k * math.pi / 8
+            d.line([(ox, oy), (ox + 3000 * s * math.cos(ang), oy + 3000 * s * math.sin(ang))], fill=line, width=s)
+    if coast:
+        # côte stylisée et courbes de profondeur
+        base = crng.uniform(0.6, 0.8) * w * s
+        for off in (0, 26, 52, 78):
+            pts = []
+            for y in range(-20, h * s + 40, 12):
+                x = (base + off * s + 70 * s * math.sin(y / (180 * s) + seed)
+                     + 30 * s * math.sin(y / (63 * s) + 2 * seed) + 12 * s * math.sin(y / (23 * s)))
+                pts.append((x, y))
+            d.line(pts, fill=line if off == 0 else faint, width=2 * s if off == 0 else s)
+    return img.resize((w, h), Image.LANCZOS)
 
 
-# --- décor ---------------------------------------------------------------------
-
-def background():
-    y = np.linspace(0, 1, H)[:, None, None]
-    bg = NAVY_TOP * (1 - y) + NAVY_BOT * y
-    return np.broadcast_to(bg, (H, W, 3)).astype(np.float32) / 255.0
+def reveal_mask(w, h):
+    """Distance normalisée 0..1 pour faire apparaître la carte en diagonale."""
+    yy, xx = np.mgrid[0:h, 0:w].astype(np.float32)
+    return ((xx / w) * 0.4 + (1 - yy / h) * 0.6)[..., None]
 
 
-def radial_glow(cx, cy, radius, color):
-    yy, xx = np.mgrid[0:H, 0:W].astype(np.float32)
-    d = np.sqrt((xx - cx) ** 2 + (yy - cy) ** 2) / radius
-    g = np.exp(-d ** 2)[..., None]
-    return g * (np.array(color, np.float32) / 255.0)
+# --- éléments de marque ----------------------------------------------------------
+
+def logo_image(width):
+    mask = Image.open(ASSETS / "logo-masque.png").convert("L")
+    h = int(mask.height * width / mask.width)
+    mask = mask.resize((width, h), Image.LANCZOS)
+    img = Image.new("RGBA", mask.size, CUIVRE + (255,))
+    img.putalpha(mask)
+    return img
 
 
-N_SNOW = 260
+def frame_path(x0, y0, x1, y1):
+    """Périmètre d'un rectangle, partant du milieu haut, dans les deux sens."""
+    cx = (x0 + x1) / 2
+    left = [(cx, y0), (x0, y0), (x0, y1), (cx, y1)]
+    right = [(cx, y0), (x1, y0), (x1, y1), (cx, y1)]
+    return left, right
+
+
+def partial(path, frac):
+    segs = list(zip(path, path[1:]))
+    lengths = [math.dist(a, b) for a, b in segs]
+    remaining = sum(lengths) * frac
+    pts = [path[0]]
+    for (a, b), ln in zip(segs, lengths):
+        if remaining >= ln:
+            pts.append(b)
+            remaining -= ln
+        else:
+            k = remaining / ln if ln else 0
+            pts.append((a[0] + (b[0] - a[0]) * k, a[1] + (b[1] - a[1]) * k))
+            break
+    return pts
+
+
+def double_filet(frac):
+    """Double filet cuivre de l'étiquette, tracé progressivement."""
+    img = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+    d = ImageDraw.Draw(img)
+    for inset, width in ((70, 4), (86, 2)):
+        for path in frame_path(inset, inset + 60, W - inset, H - inset - 60):
+            pts = partial(path, frac)
+            if len(pts) > 1:
+                d.line(pts, fill=CUIVRE + (255,), width=width, joint="curve")
+    return Layer(img)
+
+
+def cuvee_band(name, wind, color, seed):
+    bw, bh = W, BAND_H
+    img = Image.new("RGBA", (bw, bh), color + (255,))
+    img.alpha_composite(chart_image(bw, bh, color, seed=seed, coast=False))
+    d = ImageDraw.Draw(img)
+    d.line([(60, 26), (bw - 60, 26)], fill=CUIVRE + (255,), width=3)
+    d.line([(60, 36), (bw - 60, 36)], fill=CUIVRE + (255,), width=1)
+    d.line([(60, bh - 26), (bw - 60, bh - 26)], fill=CUIVRE + (255,), width=3)
+    d.line([(60, bh - 36), (bw - 60, bh - 36)], fill=CUIVRE + (255,), width=1)
+    t = text_image(name, PLAYFAIR, 150, IVOIRE)
+    img.alpha_composite(t, ((bw - t.width) // 2, bh // 2 - t.height // 2 - 50))
+    c = text_image(wind, MONTSERRAT_SEMI, 34, CUIVRE, tracking=9)
+    img.alpha_composite(c, ((bw - c.width) // 2, bh // 2 + 85))
+    return Layer(img)
+
+
+# --- route du navire --------------------------------------------------------------
+
+def bezier(p0, p1, p2, p3, n=400):
+    t = np.linspace(0, 1, n)[:, None]
+    return ((1 - t) ** 3 * p0 + 3 * (1 - t) ** 2 * t * p1 + 3 * (1 - t) * t ** 2 * p2 + t ** 3 * p3)
+
+
+ROUTE = bezier(np.array([120, 1600.]), np.array([520, 1500.]), np.array([180, 700.]), np.array([860, 420.]))
+
+
+def route_layer(frac):
+    img = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+    d = ImageDraw.Draw(img)
+    n = int(len(ROUTE) * frac)
+    for k in range(0, n, 9):  # pointillés
+        x, y = ROUTE[k]
+        d.ellipse([x - 4, y - 4, x + 4, y + 4], fill=CUIVRE + (255,))
+    if frac >= 1:
+        x, y = ROUTE[-1]
+        d.line([(x - 26, y - 26), (x + 26, y + 26)], fill=CUIVRE + (255,), width=7)
+        d.line([(x - 26, y + 26), (x + 26, y - 26)], fill=CUIVRE + (255,), width=7)
+    return Layer(img)
+
+
+# --- neige ---------------------------------------------------------------------------
+
+N_SNOW = 140
 snow = {
     "x": rng.uniform(0, W, N_SNOW),
-    "y": rng.uniform(-H, H, N_SNOW),
-    "r": rng.uniform(1.5, 6.0, N_SNOW),
-    "v": rng.uniform(60, 170, N_SNOW),
+    "y": rng.uniform(0, H, N_SNOW),
+    "r": rng.uniform(1.5, 4.5, N_SNOW),
+    "v": rng.uniform(40, 110, N_SNOW),
     "ph": rng.uniform(0, 2 * math.pi, N_SNOW),
 }
-N_STARS = 40
-stars = {
-    "x": rng.uniform(40, W - 40, N_STARS),
-    "y": rng.uniform(80, H * 0.75, N_STARS),
-    "s": rng.uniform(6, 16, N_STARS),
-    "ph": rng.uniform(0, 2 * math.pi, N_STARS),
-    "f": rng.uniform(1.0, 2.5, N_STARS),
-}
 
 
-def particles(t, star_level):
+def snow_layer(t, level):
     img = Image.new("RGBA", (W, H), (0, 0, 0, 0))
     d = ImageDraw.Draw(img)
     for x, y0, r, v, ph in zip(snow["x"], snow["y"], snow["r"], snow["v"], snow["ph"]):
-        y = (y0 + v * t * (r / 4 + 0.4)) % (H + 40) - 20
-        xx = x + 25 * math.sin(t * 0.8 + ph)
-        a = int(90 + 25 * r)
-        d.ellipse([xx - r, y - r, xx + r, y + r], fill=(255, 255, 255, a))
-    if star_level > 0:
-        for x, y, s, ph, fr in zip(stars["x"], stars["y"], stars["s"], stars["ph"], stars["f"]):
-            k = max(0.0, math.sin(t * fr * 2 + ph)) ** 3 * star_level
-            if k < 0.05:
-                continue
-            ss = s * k
-            col = GOLD + (int(255 * k),)
-            d.polygon([(x, y - ss * 2), (x + ss * .25, y), (x, y + ss * 2), (x - ss * .25, y)], fill=col)
-            d.polygon([(x - ss * 2, y), (x, y + ss * .25), (x + ss * 2, y), (x, y - ss * .25)], fill=col)
-    return Layer(img.filter(ImageFilter.GaussianBlur(0.8)))
+        y = (y0 + v * t) % (H + 20) - 10
+        xx = x + 18 * math.sin(t * 0.7 + ph)
+        d.ellipse([xx - r, y - r, xx + r, y + r], fill=IVOIRE + (int(150 * level),))
+    return Layer(img)
 
 
 # --- musique (composée ici, libre de droits) ------------------------------------
@@ -267,47 +267,52 @@ def render_audio(path):
     t = np.arange(n) / sr
     out = np.zeros(n)
 
-    def note(freq, start, length, amp, kind="bell"):
+    def note(freq, start, length, amp, kind="cloche"):
         i0 = int(start * sr)
         i1 = min(n, i0 + int(length * sr))
+        if i0 >= n:
+            return
         tt = t[: i1 - i0]
-        if kind == "bell":
-            env = np.exp(-tt * 3.2) * np.minimum(1, tt * 400)
-            w = (np.sin(2 * np.pi * freq * tt) + 0.35 * np.sin(2 * np.pi * freq * 2.76 * tt) * np.exp(-tt * 6)
-                 + 0.2 * np.sin(2 * np.pi * freq * 5.4 * tt) * np.exp(-tt * 9))
-        else:  # nappe
-            env = np.minimum(1, tt / 1.2) * np.minimum(1, (length - tt) / 1.0)
-            w = sum(np.sin(2 * np.pi * freq * dt * tt) for dt in (1, 1.003, 0.997, 2.0)) / 4
+        if kind == "cloche":
+            env = np.exp(-tt * 2.2) * np.minimum(1, tt * 300)
+            w = (np.sin(2 * np.pi * freq * tt) + 0.3 * np.sin(2 * np.pi * freq * 2.76 * tt) * np.exp(-tt * 5)
+                 + 0.15 * np.sin(2 * np.pi * freq * 5.4 * tt) * np.exp(-tt * 8))
+        elif kind == "cordes":
+            env = np.minimum(1, tt / 0.9) * np.minimum(1, (length - tt) / 0.9)
+            vib = 1 + 0.003 * np.sin(2 * np.pi * 5 * tt)
+            w = sum(np.sin(2 * np.pi * freq * k * vib * tt) / k ** 1.3 for k in range(1, 7))
+        else:  # timbale grave sur les changements de scène
+            env = np.exp(-tt * 3.5)
+            w = np.sin(2 * np.pi * freq * tt * (1 + 0.5 * np.exp(-tt * 20)))
         out[i0:i1] += amp * env * w
 
     hz = lambda m: 440 * 2 ** ((m - 69) / 12)
-    beat = 60 / 96
-    # progression ré majeur : D - Bm - G - A
-    chords = [[50, 57, 62, 66], [47, 54, 59, 62], [43, 50, 55, 59], [45, 52, 57, 61]]
-    for bar in range(4):
-        start = bar * 4 * beat
-        for m in chords[bar % 4]:
-            note(hz(m), start, 4 * beat + 0.6, 0.08, "pad")
-        arp = [chords[bar % 4][k] + 12 for k in (1, 2, 3, 2, 1, 2, 3, 2)]
-        for k, m in enumerate(arp):
-            if start + k * beat / 2 > 1.0:  # les clochettes entrent après l'intro
-                note(hz(m), start + k * beat / 2, 1.6, 0.10)
-    # retour sur l'accord de ré pour la fin
-    for m in (50, 57, 62, 66, 69):
-        note(hz(m), 16 * beat, DUR - 16 * beat, 0.08, "pad")
-    for k, m in enumerate((74, 78, 81, 86)):
-        note(hz(m), 16 * beat + k * 0.12, 3.0, 0.13)
+    # ré mineur, ample : Dm - B♭ - F - C - Dm - B♭ - Gm - A
+    chords = [[38, 50, 57, 62, 65], [34, 46, 53, 58, 62], [41, 48, 57, 60, 65], [36, 48, 55, 60, 64],
+              [38, 50, 57, 62, 65], [34, 46, 53, 58, 62], [43, 50, 55, 58, 62], [33, 45, 52, 57, 61]]
+    bar = 2.2
+    for i, ch in enumerate(chords):
+        for m in ch:
+            note(hz(m), i * bar, bar + 0.8, 0.045, "cordes")
+    # final sur ré majeur (picardie) pour la révélation
+    for m in (38, 50, 57, 62, 66, 69):
+        note(hz(m), 8 * bar, DUR - 8 * bar, 0.05, "cordes")
+    # mélodie de clochettes
+    melody = [(4.4, 74), (4.95, 72), (5.5, 69), (6.6, 70), (7.15, 69), (7.7, 65), (8.8, 67), (9.9, 69),
+              (11.0, 74), (11.55, 77), (12.1, 76), (13.2, 74), (13.75, 73), (14.3, 74), (15.4, 78), (15.9, 81)]
+    for start, m in melody:
+        note(hz(m), start, 2.5, 0.10)
+    for s in (0.0, 4.4, 9.5, 12.0):
+        note(48, s, 2.0, 0.35, "timbale")
 
-    # souffle de vent au moment de la révélation de la bouteille
+    # houle : bruit filtré modulé lentement
     noise = np.random.default_rng(1).normal(0, 1, n)
-    kernel = np.ones(60) / 60
-    wind = np.convolve(noise, kernel, mode="same")
-    env = np.exp(-((t - 7.6) / 0.7) ** 2)
-    out += 0.5 * wind * env
+    sea = np.convolve(noise, np.ones(140) / 140, mode="same")
+    out += 0.9 * sea * (0.5 + 0.5 * np.sin(2 * np.pi * t / 4.5)) * (0.4 + 0.6 * (t < 9.5))
 
-    out *= np.minimum(1, t / 0.8) * np.minimum(1, (DUR - t) / 1.5)
+    out *= np.minimum(1, t / 1.0) * np.minimum(1, (DUR - t) / 2.0)
     out = out / np.max(np.abs(out)) * 0.8
-    stereo = np.stack([out, np.roll(out, 220)], axis=1)
+    stereo = np.stack([out, np.roll(out, 260)], axis=1)
     data = (stereo * 32767).astype(np.int16)
     with wave.open(str(path), "wb") as wf:
         wf.setnchannels(2)
@@ -318,82 +323,101 @@ def render_audio(path):
 
 # --- montage ---------------------------------------------------------------------
 
+S1, S2, S3, S4 = 0.0, 4.4, 9.5, 12.0  # débuts de scène
+BAND_H = 540  # trois bandeaux, en laissant le bas libre pour la mention légale
+
+
 def main():
     render_audio(AUDIO)
 
-    bg = background()
-    warm = radial_glow(W / 2, 1000, 650, (120, 60, 20))
+    bordeaux = solid(BORDEAUX)
+    chart = Layer(chart_image(W, H, BORDEAUX, seed=4))
+    chart_reveal = reveal_mask(W, H)
 
-    l1a = text_layer("Cette année,", SERIF_ITALIC, 96, CREAM, glow=10)
-    l1b = text_layer("Noël prend le large…", SERIF_ITALIC, 96, CREAM, glow=10)
-    l2a = text_layer("FRUITS • ÉPICES", SERIF_BOLD, 64, GOLD, tracking=8, glow=8)
-    l2b = text_layer("& rhum des îles", SERIF_ITALIC, 100, CREAM, glow=10)
-    title = text_layer("MAISON CORSAIRE", SERIF_BOLD, 92, GOLD, tracking=6, glow=14)
-    sub = text_layer("Rhum arrangé", SERIF_ITALIC, 66, CREAM, glow=8)
-    cta = text_layer("ARRIVE POUR LES FÊTES", SERIF_BOLD, 62, GOLD, tracking=5, glow=10)
-    cta2 = text_layer("Bientôt disponible  ·  Noël 2026", SANS_LIGHT, 40, CREAM)
-    legal1 = text_layer("L'abus d'alcool est dangereux pour la santé.", SANS_MED, 27, (200, 195, 185))
-    legal2 = text_layer("À consommer avec modération.", SANS_MED, 27, (200, 195, 185))
-    bottle_src = bottle_image()
+    s1a = text_layer("Au bout du voyage,", PLAYFAIR_IT, 92, IVOIRE)
+    s1b = text_layer("un trésor vous attend.", PLAYFAIR_IT, 92, IVOIRE)
+
+    bands = [
+        cuvee_band("Noroît", "VENT DU NORD-OUEST", BORDEAUX, 1),
+        cuvee_band("Zéphyr", "VENT D'OUEST", VERT, 2),
+        cuvee_band("Suroît", "VENT DU SUD-OUEST", BRUN, 3),
+    ]
+
+    s3a = text_layer("Trois vents.", PLAYFAIR_IT, 104, IVOIRE)
+    s3b = text_layer("Une même Maison.", PLAYFAIR_IT, 104, IVOIRE)
+
+    logo = Layer(logo_image(640))
+    sep = Layer(Image.new("RGBA", (120, 3), CUIVRE + (255,)))
+    cta = text_layer("ARRIVE POUR NOËL", MONTSERRAT_SEMI, 46, IVOIRE, tracking=10)
+    cta2 = text_layer("FAIT MAIN  ·  FABRICATION FRANÇAISE", MONTSERRAT, 28, CUIVRE, tracking=5)
+    handle = text_layer("@maisoncorsaire", PLAYFAIR_IT, 46, IVOIRE)
+    legal1 = text_layer("L'abus d'alcool est dangereux pour la santé.", MONTSERRAT, 26, IVOIRE)
+    legal2 = text_layer("À consommer avec modération.", MONTSERRAT, 26, IVOIRE)
 
     ff = subprocess.Popen(
         ["ffmpeg", "-y", "-loglevel", "error",
          "-f", "rawvideo", "-pix_fmt", "rgb24", "-s", f"{W}x{H}", "-r", str(FPS), "-i", "-",
          "-i", str(AUDIO),
-         "-c:v", "libx264", "-preset", "medium", "-crf", "20", "-pix_fmt", "yuv420p",
+         "-c:v", "libx264", "-preset", "medium", "-crf", "19", "-pix_fmt", "yuv420p",
          "-c:a", "aac", "-b:a", "160k", "-shortest", "-movflags", "+faststart", str(OUT)],
         stdin=subprocess.PIPE,
     )
 
-    bottle_cache = {}
+    filet_cache = {}
+    previews = {int(s * FPS) for s in (3.6, 7.6, 11.2, 16.5)}
     for i in range(NFRAMES):
         t = i / FPS
-        frame = bg.copy()
+        frame = bordeaux.copy()
 
-        reveal = ease((t - 7.4) / 1.6)
-        frame += warm * reveal
+        # carte marine qui se dessine, puis reste en fond
+        p = ease_io((t - 0.2) / 3.0)
+        if p > 0:
+            a = np.clip((p * 1.25 - chart_reveal) / 0.25, 0, 1) * chart.alpha
+            frame *= 1 - a
+            frame += chart.rgb * a
 
-        particles(t, 0.3 + 0.7 * reveal).draw(frame, W / 2, H / 2, 1.0)
+        # scène 1 : la route du navire jusqu'au trésor
+        if t < S2 + 0.6:
+            route_layer(ease_io((t - 0.8) / 2.6)).draw(frame, W / 2, H / 2, window(t, 0.8, S2 + 0.4, 0.3, 0.5))
+        s1a.draw(frame, W / 2, 900 - 20 * ease((t - 1.2) / 1.2), window(t, 1.2, S2 - 0.1))
+        s1b.draw(frame, W / 2, 1020 - 20 * ease((t - 2.0) / 1.2), window(t, 2.0, S2 - 0.1))
 
-        # scène 1 : accroche
-        o = window(t, 0.4, 3.9)
-        l1a.draw(frame, W / 2, 860 - 30 * ease((t - 0.4) / 1.2), o)
-        o = window(t, 1.3, 3.9)
-        l1b.draw(frame, W / 2, 990 - 30 * ease((t - 1.3) / 1.2), o)
+        # scène 2 : les trois cuvées, une par vent
+        if S2 <= t < S3 + 0.1:
+            for k, band in enumerate(bands):
+                start = S2 + 0.35 * k
+                side = -1 if k % 2 == 0 else 1
+                x_in = side * W * (1 - ease((t - start) / 0.9))
+                x_out = -side * W * ease_io((t - (S3 - 0.6) - 0.1 * k) / 0.6)
+                band.draw(frame, W / 2 + x_in + x_out, BAND_H / 2 + k * BAND_H)
 
-        # scène 2 : promesse produit
-        o = window(t, 4.2, 7.3)
-        l2a.draw(frame, W / 2, 860 - 30 * ease((t - 4.2) / 1.2), o)
-        o = window(t, 4.9, 7.3)
-        l2b.draw(frame, W / 2, 990 - 30 * ease((t - 4.9) / 1.2), o)
+        # scène 3 : la devise
+        s3a.draw(frame, W / 2, 900 - 20 * ease((t - S3) / 1.0), window(t, S3, S4 - 0.1, 0.8, 0.5))
+        s3b.draw(frame, W / 2, 1030 - 20 * ease((t - S3 - 0.5) / 1.0), window(t, S3 + 0.5, S4 - 0.1, 0.8, 0.5))
 
-        # scène 3 : révélation de la marque
-        end = DUR - 0.05
-        if t >= 7.4:
-            p = ease((t - 7.4) / 1.8)
-            scale = round(0.86 + 0.14 * p, 3)
-            if scale not in bottle_cache:
-                bottle_cache[scale] = Layer(bottle_src.resize(
-                    (int(bottle_src.width * scale * 0.9), int(bottle_src.height * scale * 0.9)), Image.LANCZOS))
-            float_y = 8 * math.sin((t - 7.4) * 1.6)
-            bottle_cache[scale].draw(frame, W / 2, 1000 + 160 * (1 - p) + float_y, window(t, 7.4, end, 1.2, 0))
+        # scène 4 : révélation du logo dans le cadre de l'étiquette
+        if t >= S4:
+            frac = round(ease_io((t - S4) / 1.6), 3)
+            if frac not in filet_cache:
+                filet_cache[frac] = double_filet(frac)
+            filet_cache[frac].draw(frame, W / 2, H / 2)
+        logo.draw(frame, W / 2, 760 - 30 * ease((t - S4 - 0.4) / 1.4), window(t, S4 + 0.4, DUR, 1.4, 0))
+        sep.draw(frame, W / 2, 1190, window(t, S4 + 1.4, DUR, 0.6, 0))
+        cta.draw(frame, W / 2, 1270 - 15 * ease((t - S4 - 1.6) / 1.0), window(t, S4 + 1.6, DUR, 0.8, 0))
+        cta2.draw(frame, W / 2, 1350, window(t, S4 + 2.2, DUR, 0.8, 0))
+        handle.draw(frame, W / 2, 1460, window(t, S4 + 2.8, DUR, 0.8, 0))
 
-        title.draw(frame, W / 2, 300 - 25 * ease((t - 8.4) / 1.2), window(t, 8.4, end, 1.0, 0))
-        sub.draw(frame, W / 2, 410, window(t, 9.0, end, 1.0, 0))
-        cta.draw(frame, W / 2, 1500 - 20 * ease((t - 10.6) / 1.0), window(t, 10.6, end, 0.9, 0))
-        cta2.draw(frame, W / 2, 1585, window(t, 11.3, end, 0.9, 0))
+        snow_layer(t, 0.5 + 0.5 * (t > S4) * ease((t - S4) / 1.0)).draw(frame, W / 2, H / 2)
 
-        legal1.draw(frame, W / 2, 1720, 1.0)
-        legal2.draw(frame, W / 2, 1760, 1.0)
+        legal1.draw(frame, W / 2, 1700)
+        legal2.draw(frame, W / 2, 1738)
 
-        # fondu au noir final
-        fade = 1 - ease((t - 14.3) / 0.7) if t > 14.3 else 1.0
-        fade *= ease(t / 0.4)
+        fade = ease(t / 0.5) * (1 - ease((t - (DUR - 0.8)) / 0.8) if t > DUR - 0.8 else 1.0)
         out = (np.clip(frame * fade, 0, 1) * 255).astype(np.uint8)
         ff.stdin.write(out.tobytes())
 
-        if i in (90, 180, 300, 400):
-            Image.fromarray(out).save(HERE / f"apercu-{i // FPS:02d}s.jpg", quality=88)
+        if i in previews:
+            Image.fromarray(out).save(HERE / f"apercu-{t:04.1f}s.jpg", quality=88)
 
     ff.stdin.close()
     ff.wait()
