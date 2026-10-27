@@ -1,0 +1,13 @@
+{
+  "id": "P002",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "trust",
+  "reason": "Je ne connais pas cette marque et on ne me dit pas quel rhum il y a dans la bouteille. Je goûterais volontiers sur le stand, mais 35 euros pour un arrangé inconnu, avec ma retraite, je préfère acheter un bon agricole que je connais ou faire mon arrangé moi-même.",
+  "objection": "Quel rhum de base, d'où il vient, quel degré ? « Artisanal » et « moins sucré », tout le monde le dit, ça ressemble à du marketing tant que je ne sais pas ce qu'il y a dedans.",
+  "would_change_my_mind": "Que le producteur me dise clairement quel rhum agricole il utilise et d'où il vient, et qu'au goût sur le stand ce soit vraiment franc et peu sucré ; là je pourrais en prendre une pour offrir.",
+  "price_too_cheap": 15,
+  "price_cheap": 22,
+  "price_expensive": 30,
+  "price_too_expensive": 40
+}

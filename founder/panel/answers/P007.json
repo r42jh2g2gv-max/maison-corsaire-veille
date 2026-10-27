@@ -1,0 +1,13 @@
+{
+  "id": "P007",
+  "buys": true,
+  "purchases_first_month": 1,
+  "reason_code": "quality",
+  "reason": "Je ne connais pas la marque, mais si on me fait goûter au stand et que c'est vraiment moins sucré et que les fruits ressortent, je me laisse tenter, au moins une bouteille pour moi ou à offrir. Sans dégustation, je passerais devant.",
+  "objection": "Je ne connais pas cette marque, et 35 euros pour un rhum arrangé dont je n'ai jamais entendu parler, il faut que la dégustation me convainque tout de suite.",
+  "would_change_my_mind": "Si au goût c'est fade ou trop alcoolisé, je repars sans rien ; s'ils faisaient une petite bouteille moins chère pour essayer, j'hésiterais moins.",
+  "price_too_cheap": 15,
+  "price_cheap": 25,
+  "price_expensive": 38,
+  "price_too_expensive": 48
+}

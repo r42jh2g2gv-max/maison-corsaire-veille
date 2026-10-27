@@ -1,0 +1,13 @@
+{
+  "id": "P010",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "trust",
+  "reason": "Quand j'offre une bouteille, je veux que l'hôte reconnaisse ce qu'il reçoit. Un rhum arrangé dont personne n'a entendu parler, à 35 euros, c'est un pari risqué pour un cadeau, même si je l'ai goûté sur le stand.",
+  "objection": "Je ne connais pas cette marque, et celui qui reçoit la bouteille non plus : ça peut avoir l'air d'un achat fait au hasard sur un marché plutôt que d'un vrai cadeau.",
+  "would_change_my_mind": "Un coffret ou un emballage cadeau soigné avec une petite carte qui raconte la maison, et une dégustation sur le stand qui me plaise vraiment juste avant un dîner ou un anniversaire.",
+  "price_too_cheap": 15,
+  "price_cheap": 25,
+  "price_expensive": 38,
+  "price_too_expensive": 48
+}

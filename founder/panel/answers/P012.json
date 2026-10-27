@@ -1,0 +1,13 @@
+{
+  "id": "P012",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "price",
+  "reason": "Je goûterais volontiers sur le stand, mais 35 euros pour un arrangé, c'est le prix d'un bon rhum agricole vieux que je connais déjà. Même pour un cadeau, je préfère mettre cette somme dans une bouteille dont je sais ce qu'il y a dedans.",
+  "objection": "On ne me dit rien du rhum de base : quelle origine, quel âge, agricole ou mélasse ? Pour moi « artisanal des Yvelines » et « moins sucré », ça sonne surtout comme du marketing tant que je ne sais pas d'où vient le rhum.",
+  "would_change_my_mind": "Savoir que la base est un vrai rhum agricole identifié (distillerie nommée) et que la dégustation me bluffe vraiment, ou un format plus petit autour de 20 euros pour essayer ou offrir.",
+  "price_too_cheap": 15,
+  "price_cheap": 22,
+  "price_expensive": 29,
+  "price_too_expensive": 36
+}

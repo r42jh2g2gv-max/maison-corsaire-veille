@@ -1,0 +1,13 @@
+{
+  "id": "P004",
+  "buys": true,
+  "purchases_first_month": 1,
+  "reason_code": "quality",
+  "reason": "D'habitude je fais mon rhum arrangé moi-même parce que ceux du commerce sont écoeurants, mais si je goûte sur le stand et que c'est vraiment peu sucré, j'en prends une bouteille comme cadeau de fin d'année. Pour moi ce serait un cadeau, pas pour ma consommation : à ce prix-là je continue à faire le mien.",
+  "objection": "35 euros, c'est cher pour du rhum avec des fruits que je fais pour bien moins à la maison, et « moins sucré » ne veut rien dire tant que je ne vois pas la quantité de sucre écrite sur l'étiquette.",
+  "would_change_my_mind": "",
+  "price_too_cheap": 15,
+  "price_cheap": 25,
+  "price_expensive": 35,
+  "price_too_expensive": 45
+}

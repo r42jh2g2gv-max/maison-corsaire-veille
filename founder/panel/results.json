@@ -1,0 +1,159 @@
+{
+ "business": "Maison Corsaire (rhum arrangé artisanal, Yvelines)",
+ "seed": 78,
+ "dealt": 20,
+ "answered": 20,
+ "skipped": [],
+ "buys": 5,
+ "passes": 15,
+ "buy_rate": 0.25,
+ "by_segment": [
+  [
+   "Jeune retraité",
+   5,
+   0.4
+  ],
+  [
+   "Jeune actif",
+   6,
+   0.3333333333333333
+  ],
+  [
+   "Cadre ou parent actif",
+   9,
+   0.1111111111111111
+  ]
+ ],
+ "by_behaviour": [
+  [
+   "Flâneur de marché",
+   4,
+   0.75
+  ],
+  [
+   "Évite le sucre",
+   3,
+   0.6666666666666666
+  ],
+  [
+   "Cherche un cadeau",
+   5,
+   0.0
+  ],
+  [
+   "Amateur de rhum",
+   3,
+   0.0
+  ],
+  [
+   "Prix d'abord",
+   3,
+   0.0
+  ],
+  [
+   "Fait son arrangé maison",
+   2,
+   0.0
+  ]
+ ],
+ "by_income": [
+  [
+   "$45,000 to $86,000",
+   7,
+   0.42857142857142855
+  ],
+  [
+   "under $45,000",
+   6,
+   0.3333333333333333
+  ],
+  [
+   "$86,000 and up",
+   7,
+   0.0
+  ]
+ ],
+ "why_not": [
+  [
+   "price",
+   8,
+   [
+    "35 euros la bouteille, c'est presque le double de ce que je paie en grande surface, et je sais faire macérer des fruits dans un rhum blanc moi-même pour bien moins cher. Je goûterai peut-être au stand, mais je repartirai sans.",
+    "Je goûterais volontiers sur le stand, et si c'est bon ça peut me plaire sur le moment, mais 35 euros pour un rhum arrangé avec mes revenus, c'est trop. À ce prix je préfère m'acheter un vrai rhum vieux."
+   ],
+   [
+    "P003",
+    "P006"
+   ]
+  ],
+  [
+   "quality",
+   3,
+   [
+    "Je l'offrirais, je ne le boirais pas moi-même, et mes amis aiment le rhum arrangé bien doux et fruité. Un rhum moins sucré, j'ai peur que ça fasse fort et sec, et à 35 euros je ne veux pas offrir quelque chose qui reste au fond du placard.",
+    "J'achète du rhum arrangé pour l'offrir, et les gens à qui je l'offre aiment justement le côté doux et fruité. Un rhum moins sucré, je crains qu'il paraisse fort et sec, et je ne vais pas prendre le risque sur un cadeau à 35 euros sans occasion précise ce mois-ci."
+   ],
+   [
+    "P001",
+    "P008"
+   ]
+  ],
+  [
+   "trust",
+   2,
+   [
+    "Je ne connais pas cette marque et on ne me dit pas quel rhum il y a dans la bouteille. Je goûterais volontiers sur le stand, mais 35 euros pour un arrangé inconnu, avec ma retraite, je préfère acheter un bon agricole que je connais ou faire mon arrangé moi-même.",
+    "Quand j'offre une bouteille, je veux que l'hôte reconnaisse ce qu'il reçoit. Un rhum arrangé dont personne n'a entendu parler, à 35 euros, c'est un pari risqué pour un cadeau, même si je l'ai goûté sur le stand."
+   ],
+   [
+    "P002",
+    "P010"
+   ]
+  ],
+  [
+   "habit",
+   2,
+   [
+    "Je fais mes propres bocaux avec un rhum blanc à 15 euros et des fruits, et j'en ai toujours deux ou trois qui macèrent à la maison. Je goûterais volontiers au stand par curiosité, mais 35 euros pour quelque chose que je sais faire, non.",
+    "Je fais mon propre arrangé avec du rhum blanc et des fruits, et j'ai déjà une bouteille entamée à la maison. Je goûterais volontiers au stand par curiosité, mais 35 euros pour quelque chose que je fais moi-même, non."
+   ],
+   [
+    "P011",
+    "P017"
+   ]
+  ]
+ ],
+ "why_yes": [
+  [
+   "quality",
+   5,
+   [
+    "D'habitude je fais mon rhum arrangé moi-même parce que ceux du commerce sont écoeurants, mais si je goûte sur le stand et que c'est vraiment peu sucré, j'en prends une bouteille comme cadeau de fin d'année. Pour moi ce serait un cadeau, pas pour ma consommation : à ce prix-là je continue à faire le mien.",
+    "Je ne connais pas la marque, mais si je goûte sur le stand et que c'est vraiment moins sucré et franc, je craque pour une bouteille à sortir à l'apéro du week-end avec les amis. À 35 euros, c'est un coup de cœur que je peux me permettre."
+   ],
+   [
+    "P004",
+    "P005"
+   ]
+  ]
+ ],
+ "flip": [
+  "Le goûter sur le stand et le trouver doux et rond malgré tout, avec une jolie bouteille ou un coffret cadeau, juste avant un anniversaire ou les fêtes.",
+  "Que le producteur me dise clairement quel rhum agricole il utilise et d'où il vient, et qu'au goût sur le stand ce soit vraiment franc et peu sucré ; là je pourrais en prendre une pour offrir.",
+  "Un format plus petit autour de 15-20 euros pour offrir, ou une dégustation qui me prouve que c'est vraiment meilleur que ce que je fais moi-même.",
+  "Une petite bouteille de 20 ou 35 cl autour de 15 euros, pour craquer sur le stand sans me ruiner.",
+  "Goûter sur le stand et trouver ça rond et fruité, pas brûlant, juste avant un anniversaire ou un dîner, avec une jolie présentation cadeau.",
+  "Le goûter sur le stand et le trouver vraiment rond et agréable, juste avant un anniversaire ou les fêtes, avec une jolie bouteille qui fait cadeau.",
+  "Un coffret ou un emballage cadeau soigné avec une petite carte qui raconte la maison, et une dégustation sur le stand qui me plaise vraiment juste avant un dîner ou un anniversaire.",
+  "Une association fruits-épices vraiment originale que je ne saurais pas reproduire, à offrir en cadeau, autour de 25 euros.",
+  "Savoir que la base est un vrai rhum agricole identifié (distillerie nommée) et que la dégustation me bluffe vraiment, ou un format plus petit autour de 20 euros pour essayer ou offrir.",
+  "Savoir que la base est un vrai rhum agricole AOC Martinique nommé sur l'étiquette, avec un prix autour de 25-28 euros, ou un format 35 cl pour offrir.",
+  "Une teneur en sucre précise affichée sur la bouteille, vraiment basse, et une dégustation qui confirme, avec un prix autour de 25 euros.",
+  "Un vrai coffret ou un emballage cadeau soigné inclus, avec une histoire locale à raconter, ou une petite bouteille de 35 cl autour de 20 euros pour offrir sans trop dépenser.",
+  "Si à la dégustation c'est vraiment différent de ce que je sais faire, avec une épice ou un assemblage que je n'aurais pas eu l'idée de faire, je pourrais en prendre une pour l'offrir, mais pas pour moi.",
+  "Une petite bouteille à 15-20 euros pour essayer, ou une dégustation qui me prouve que ce n'est pas sec.",
+  "Une dégustation qui me prouve que c'est vraiment moins sucré et meilleur, et un prix plus proche de 25 euros, ou une occasion de l'offrir en cadeau."
+ ],
+ "purchases_first_month_per_buyer": 1.0,
+ "price_answers": 20
+}

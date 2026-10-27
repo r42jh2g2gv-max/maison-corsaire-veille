@@ -1,0 +1,222 @@
+[
+ {
+  "id": "P001",
+  "name": "Ines",
+  "age": 65,
+  "segment": "Jeune retraité",
+  "income": 62000,
+  "behaviour": "Cherche un cadeau",
+  "behaviour_how": "Achète une bouteille pour l'offrir : anniversaire, fêtes, dîner chez des amis.",
+  "objection": "Moins sucré, ça risque d'être fort et sec",
+  "habit": "tu fais tes courses en grande surface une fois par semaine"
+ },
+ {
+  "id": "P002",
+  "name": "Quinn",
+  "age": 68,
+  "segment": "Jeune actif",
+  "income": 39000,
+  "behaviour": "Amateur de rhum",
+  "behaviour_how": "Connaît les rhums agricoles, compare les marques, se méfie des produits marketing.",
+  "objection": "Je ne connais pas cette marque",
+  "habit": "tu fais tes courses en grande surface une fois par semaine"
+ },
+ {
+  "id": "P003",
+  "name": "Marco",
+  "age": 54,
+  "segment": "Cadre ou parent actif",
+  "income": 87000,
+  "behaviour": "Prix d'abord",
+  "behaviour_how": "Prend son rhum arrangé en grande surface, autour de 20 euros, et compare les prix.",
+  "objection": "Je le fais moi-même pour bien moins cher",
+  "habit": "tu fais le marché de Saint-Germain-en-Laye le dimanche"
+ },
+ {
+  "id": "P004",
+  "name": "Alma",
+  "age": 34,
+  "segment": "Jeune actif",
+  "income": 35000,
+  "behaviour": "Évite le sucre",
+  "behaviour_how": "Trouve la plupart des rhums arrangés écoeurants et lit les étiquettes.",
+  "objection": "Je le fais moi-même pour bien moins cher",
+  "habit": "tu cherches les cadeaux de fin d'année dès novembre"
+ },
+ {
+  "id": "P005",
+  "name": "Kai",
+  "age": 29,
+  "segment": "Jeune retraité",
+  "income": 72000,
+  "behaviour": "Flâneur de marché",
+  "behaviour_how": "Goûte ce qu'on lui tend sur les stands et achète sur un coup de cœur.",
+  "objection": "Je ne connais pas cette marque",
+  "habit": "tu reçois des amis pour l'apéritif presque chaque week-end"
+ },
+ {
+  "id": "P006",
+  "name": "Beatriz",
+  "age": 52,
+  "segment": "Jeune actif",
+  "income": 27000,
+  "behaviour": "Flâneur de marché",
+  "behaviour_how": "Goûte ce qu'on lui tend sur les stands et achète sur un coup de cœur.",
+  "objection": "À ce prix je préfère un vrai rhum vieux",
+  "habit": "tu fais tes courses en grande surface une fois par semaine"
+ },
+ {
+  "id": "P007",
+  "name": "Marcus",
+  "age": 56,
+  "segment": "Jeune retraité",
+  "income": 58000,
+  "behaviour": "Flâneur de marché",
+  "behaviour_how": "Goûte ce qu'on lui tend sur les stands et achète sur un coup de cœur.",
+  "objection": "Je ne connais pas cette marque",
+  "habit": "tu fais tes courses en grande surface une fois par semaine"
+ },
+ {
+  "id": "P008",
+  "name": "Idris",
+  "age": 67,
+  "segment": "Cadre ou parent actif",
+  "income": 86000,
+  "behaviour": "Cherche un cadeau",
+  "behaviour_how": "Achète une bouteille pour l'offrir : anniversaire, fêtes, dîner chez des amis.",
+  "objection": "Moins sucré, ça risque d'être fort et sec",
+  "habit": "tu fais tes courses en grande surface une fois par semaine"
+ },
+ {
+  "id": "P009",
+  "name": "Cole",
+  "age": 64,
+  "segment": "Jeune retraité",
+  "income": 60000,
+  "behaviour": "Cherche un cadeau",
+  "behaviour_how": "Achète une bouteille pour l'offrir : anniversaire, fêtes, dîner chez des amis.",
+  "objection": "Moins sucré, ça risque d'être fort et sec",
+  "habit": "tu fais tes courses en grande surface une fois par semaine"
+ },
+ {
+  "id": "P010",
+  "name": "Declan",
+  "age": 38,
+  "segment": "Jeune retraité",
+  "income": 45000,
+  "behaviour": "Cherche un cadeau",
+  "behaviour_how": "Achète une bouteille pour l'offrir : anniversaire, fêtes, dîner chez des amis.",
+  "objection": "Je ne connais pas cette marque",
+  "habit": "tu vas à un ou deux salons des vins et de la gastronomie par an"
+ },
+ {
+  "id": "P011",
+  "name": "Sam",
+  "age": 45,
+  "segment": "Cadre ou parent actif",
+  "income": 109000,
+  "behaviour": "Fait son arrangé maison",
+  "behaviour_how": "Prépare ses propres bocaux de rhum arrangé avec du rhum blanc et des fruits.",
+  "objection": "Je le fais moi-même pour bien moins cher",
+  "habit": "tu fais tes courses en grande surface une fois par semaine"
+ },
+ {
+  "id": "P012",
+  "name": "Mateo",
+  "age": 35,
+  "segment": "Jeune actif",
+  "income": 34000,
+  "behaviour": "Amateur de rhum",
+  "behaviour_how": "Connaît les rhums agricoles, compare les marques, se méfie des produits marketing.",
+  "objection": "À ce prix je préfère un vrai rhum vieux",
+  "habit": "tu cherches les cadeaux de fin d'année dès novembre"
+ },
+ {
+  "id": "P013",
+  "name": "Olivia",
+  "age": 51,
+  "segment": "Cadre ou parent actif",
+  "income": 99000,
+  "behaviour": "Amateur de rhum",
+  "behaviour_how": "Connaît les rhums agricoles, compare les marques, se méfie des produits marketing.",
+  "objection": "À ce prix je préfère un vrai rhum vieux",
+  "habit": "tu cherches les cadeaux de fin d'année dès novembre"
+ },
+ {
+  "id": "P014",
+  "name": "Hana",
+  "age": 54,
+  "segment": "Jeune actif",
+  "income": 41000,
+  "behaviour": "Évite le sucre",
+  "behaviour_how": "Trouve la plupart des rhums arrangés écoeurants et lit les étiquettes.",
+  "objection": "À ce prix je préfère un vrai rhum vieux",
+  "habit": "tu fais tes courses en grande surface une fois par semaine"
+ },
+ {
+  "id": "P015",
+  "name": "Dana",
+  "age": 53,
+  "segment": "Cadre ou parent actif",
+  "income": 76000,
+  "behaviour": "Cherche un cadeau",
+  "behaviour_how": "Achète une bouteille pour l'offrir : anniversaire, fêtes, dîner chez des amis.",
+  "objection": "À ce prix je préfère un vrai rhum vieux",
+  "habit": "tu fais tes courses en grande surface une fois par semaine"
+ },
+ {
+  "id": "P016",
+  "name": "Owen",
+  "age": 35,
+  "segment": "Cadre ou parent actif",
+  "income": 63000,
+  "behaviour": "Flâneur de marché",
+  "behaviour_how": "Goûte ce qu'on lui tend sur les stands et achète sur un coup de cœur.",
+  "objection": "35 euros pour un rhum arrangé, c'est cher",
+  "habit": "tu reçois des amis pour l'apéritif presque chaque week-end"
+ },
+ {
+  "id": "P017",
+  "name": "Isla",
+  "age": 64,
+  "segment": "Cadre ou parent actif",
+  "income": 97000,
+  "behaviour": "Fait son arrangé maison",
+  "behaviour_how": "Prépare ses propres bocaux de rhum arrangé avec du rhum blanc et des fruits.",
+  "objection": "J'ai déjà une bouteille entamée à la maison",
+  "habit": "tu fais le marché de Saint-Germain-en-Laye le dimanche"
+ },
+ {
+  "id": "P018",
+  "name": "Felix",
+  "age": 26,
+  "segment": "Cadre ou parent actif",
+  "income": 93000,
+  "behaviour": "Prix d'abord",
+  "behaviour_how": "Prend son rhum arrangé en grande surface, autour de 20 euros, et compare les prix.",
+  "objection": "Moins sucré, ça risque d'être fort et sec",
+  "habit": "tu fais tes courses en grande surface une fois par semaine"
+ },
+ {
+  "id": "P019",
+  "name": "Keisha",
+  "age": 44,
+  "segment": "Jeune actif",
+  "income": 27000,
+  "behaviour": "Évite le sucre",
+  "behaviour_how": "Trouve la plupart des rhums arrangés écoeurants et lit les étiquettes.",
+  "objection": "Les rhums arrangés sont souvent trop sucrés",
+  "habit": "tu cherches les cadeaux de fin d'année dès novembre"
+ },
+ {
+  "id": "P020",
+  "name": "Poppy",
+  "age": 26,
+  "segment": "Cadre ou parent actif",
+  "income": 107000,
+  "behaviour": "Prix d'abord",
+  "behaviour_how": "Prend son rhum arrangé en grande surface, autour de 20 euros, et compare les prix.",
+  "objection": "Les rhums arrangés sont souvent trop sucrés",
+  "habit": "tu fais tes courses en grande surface une fois par semaine"
+ }
+]

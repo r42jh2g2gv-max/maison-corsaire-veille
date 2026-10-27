@@ -1,0 +1,13 @@
+{
+  "id": "P008",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "quality",
+  "reason": "J'achète du rhum arrangé pour l'offrir, et les gens à qui je l'offre aiment justement le côté doux et fruité. Un rhum moins sucré, je crains qu'il paraisse fort et sec, et je ne vais pas prendre le risque sur un cadeau à 35 euros sans occasion précise ce mois-ci.",
+  "objection": "Moins sucré, ça risque d'être fort et sec, et ce n'est pas ce que mes amis attendent d'un rhum arrangé. Je ne connais pas la marque, donc je n'ai rien pour me rassurer à part la dégustation.",
+  "would_change_my_mind": "Goûter sur le stand et trouver ça rond et fruité, pas brûlant, juste avant un anniversaire ou un dîner, avec une jolie présentation cadeau.",
+  "price_too_cheap": 15,
+  "price_cheap": 25,
+  "price_expensive": 35,
+  "price_too_expensive": 45
+}

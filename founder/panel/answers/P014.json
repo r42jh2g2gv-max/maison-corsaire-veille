@@ -1,0 +1,13 @@
+{
+  "id": "P014",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "price",
+  "reason": "Moins sucré, ça me parle, je goûterais sur le stand. Mais 35 euros pour un rhum arrangé, à ce prix-là je préfère prendre un vrai rhum vieux que je connais.",
+  "objection": "« Volontairement moins sucré », ça ne veut rien dire tant que je ne vois pas les grammes de sucre par litre sur l'étiquette, et pour 35 euros je ne paie pas une promesse.",
+  "would_change_my_mind": "Une teneur en sucre précise affichée sur la bouteille, vraiment basse, et une dégustation qui confirme, avec un prix autour de 25 euros.",
+  "price_too_cheap": 12,
+  "price_cheap": 20,
+  "price_expensive": 28,
+  "price_too_expensive": 35
+}
