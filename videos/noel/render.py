@@ -32,8 +32,8 @@ CUIVRE = (208, 132, 84)  # cuivre dorure, sur fonds foncés
 BORDEAUX = (58, 11, 27)
 VERT = (15, 58, 39)
 BRUN = (79, 39, 17)
-NUIT_HAUT = (4, 10, 22)
-NUIT_BAS = (20, 40, 60)  # bleu marin de la charte
+# dégradé de nuit : du noir bleuté au bleu marin de la charte, éclairci vers l'horizon
+NUIT = [(0.0, (2, 5, 14)), (0.45, (8, 20, 42)), (0.8, (20, 40, 60)), (1.0, (38, 64, 92))]
 
 FONTS = ASSETS / "fonts"
 PLAYFAIR = str(FONTS / "playfair-display-latin-400-normal.woff")
@@ -127,8 +127,10 @@ class Swinging:
     """Ornement suspendu qui se balance autour de son point d'attache (en haut, au centre)."""
 
     def __init__(self, img):
-        canvas = Image.new("RGBA", (img.width, img.height * 2), (0, 0, 0, 0))
-        canvas.paste(img, (0, img.height))
+        # point d'attache au centre du canevas, avec assez de marge pour ne rien couper en tournant
+        side = 2 * math.ceil(math.hypot(img.width / 2, img.height)) + 4
+        canvas = Image.new("RGBA", (side, side), (0, 0, 0, 0))
+        canvas.paste(img, ((side - img.width) // 2, side // 2))
         self.canvas = canvas
         self.cache = {}
 
@@ -142,8 +144,9 @@ class Swinging:
 # --- nuit étoilée ----------------------------------------------------------------
 
 def night_sky():
-    y = np.linspace(0, 1, H)[:, None, None] ** 1.3
-    sky = np.array(NUIT_HAUT, np.float32) * (1 - y) + np.array(NUIT_BAS, np.float32) * y
+    y = np.linspace(0, 1, H)
+    stops = [s for s, _ in NUIT]
+    sky = np.stack([np.interp(y, stops, [c[k] for _, c in NUIT]) for k in range(3)], axis=1)[:, None, :]
     img = Image.fromarray(np.broadcast_to(sky, (H, W, 3)).astype(np.uint8)).convert("RGBA")
     d = ImageDraw.Draw(img)
     srng = np.random.default_rng(5)
@@ -171,8 +174,32 @@ snow = {
     "v": rng.uniform(40, 100, N_SNOW),
     "ph": rng.uniform(0, 2 * math.pi, N_SNOW),
 }
+# étoiles filantes : (départ, x, y, déplacement x, déplacement y)
+METEORS = [(0.6, 1020, 120, -720, 400), (2.7, 860, 380, -560, 310), (10.3, 1000, 240, -620, 340)]
+METEOR_DUR = 0.9
+
+
+def draw_meteor(d, t, t0, x0, y0, dx, dy):
+    p = (t - t0) / METEOR_DUR
+    if not 0 <= p <= 1:
+        return
+    p = ease(p)
+    glow = math.sin(math.pi * min(1.0, (t - t0) / METEOR_DUR))
+    hx, hy = x0 + dx * p, y0 + dy * p
+    length = math.hypot(dx, dy)
+    ux, uy = dx / length, dy / length
+    tail = min(340, length * p)
+    steps = 16
+    for k in range(steps):  # traînée qui s'estompe vers l'arrière
+        a0, a1 = tail * k / steps, tail * (k + 1) / steps
+        alpha = (1 - k / steps) ** 1.6
+        d.line([(hx - ux * a0, hy - uy * a0), (hx - ux * a1, hy - uy * a1)],
+               fill=(255, 244, 220, int(255 * alpha * glow)), width=max(1, round(4 * (1 - k / steps))))
+    d.ellipse([hx - 4, hy - 4, hx + 4, hy + 4], fill=(255, 250, 235, int(255 * glow)))
+
+
 # étoiles dorées de la planche, qui scintillent : (x, y, taille, phase)
-GOLD_STARS = [(150, 560, 70, 0.0), (930, 640, 56, 1.7), (840, 210, 44, 3.1), (110, 1180, 50, 4.4),
+GOLD_STARS = [(150, 560, 70, 0.0), (985, 470, 56, 1.7), (640, 300, 44, 3.1), (110, 1180, 50, 4.4),
               (980, 1120, 64, 2.2), (520, 120, 38, 5.3), (300, 900, 34, 0.9), (960, 1620, 40, 3.8)]
 
 
@@ -187,6 +214,8 @@ def sky_layer(t, snow_level):
         y = (y0 + v * t) % (H + 20) - 10
         xx = x + 18 * math.sin(t * 0.7 + ph)
         d.ellipse([xx - r, y - r, xx + r, y + r], fill=IVOIRE + (int(160 * snow_level),))
+    for meteor in METEORS:
+        draw_meteor(d, t, *meteor)
     return Layer(img.filter(ImageFilter.GaussianBlur(0.6)))
 
 
@@ -371,10 +400,12 @@ def main():
     gold_star = asset("noel-etoile")
     gold_stars = [(x, y, Layer(gold_star.resize((s, round(s * gold_star.height / gold_star.width)), Image.LANCZOS)), ph)
                   for x, y, s, ph in GOLD_STARS]
-    shooting = Layer(asset("noel-etoile-filante", width=620))
-    chest = Layer(asset("noel-coffre", width=720))
-    bells_left = Swinging(asset("noel-grelots-suspendus", width=280))
-    bell_right = Swinging(asset("noel-grelot-suspendu", width=220))
+    chest = Layer(asset("noel-coffre", width=920))
+    bells_left = Swinging(asset("noel-grelots-suspendus", width=260))
+    bell_right = Swinging(asset("noel-grelot-suspendu", width=210))
+    # au final, plus petits, suspendus au filet de l'étiquette
+    small_left = Swinging(asset("noel-grelots-suspendus", width=180))
+    small_right = Swinging(asset("noel-grelot-suspendu", width=150))
     bow_bells = Layer(asset("noel-grelots-noeud", width=460))
 
     s1a = text_layer("Au bout du voyage,", PLAYFAIR_IT, 92, IVOIRE)
@@ -408,7 +439,7 @@ def main():
     )
 
     filet_cache = {}
-    previews = {int(s * FPS) for s in (1.6, 4.4, 8.0, 11.6, 18.5)}
+    previews = {int(s * FPS) for s in (0.9, 4.4, 8.0, 10.6, 18.5)}
     for i in range(NFRAMES):
         t = i / FPS
         frame = sky.copy()
@@ -418,19 +449,16 @@ def main():
             star.draw(frame, x, y, max(0.0, math.sin(t * 1.3 + ph)) ** 2 * ease(t / 1.5))
         sky_layer(t, 0.6 + 0.4 * ease((t - S4) / 1.0)).draw(frame, W / 2, H / 2)
 
-        # scène 1 : étoile filante, puis le coffre au trésor
-        p = ease_io((t - 0.3) / 2.6)
-        if 0.3 <= t < 3.6:
-            shooting.draw(frame, 1450 - 1150 * p, 620 - 380 * p, window(t, 0.3, 3.6, 0.4, 0.8))
-        s1a.draw(frame, W / 2, 720 - 20 * ease((t - 1.4) / 1.2), window(t, 1.4, S2 - 0.1))
-        s1b.draw(frame, W / 2, 840 - 20 * ease((t - 2.2) / 1.2), window(t, 2.2, S2 - 0.1))
-        chest.draw(frame, W / 2, 1300 + 120 * (1 - ease((t - 2.8) / 1.4)), window(t, 2.8, S2 - 0.1, 1.2, 0.5))
+        # scène 1 : nuit étoilée, puis le coffre au trésor
+        s1a.draw(frame, W / 2, 640 - 20 * ease((t - 1.4) / 1.2), window(t, 1.4, S2 - 0.1))
+        s1b.draw(frame, W / 2, 760 - 20 * ease((t - 2.2) / 1.2), window(t, 2.2, S2 - 0.1))
+        chest.draw(frame, W / 2, 1250 + 120 * (1 - ease((t - 2.8) / 1.4)), window(t, 2.8, S2 - 0.1, 1.2, 0.5))
 
-        # grelots suspendus en haut, qui se balancent (présents sauf pendant les bandeaux)
-        bells_op = window(t, 0.8, S2 + 0.4, 0.8, 0.4) + window(t, S3, DUR, 0.8, 0)
-        drop = 80 * (1 - ease((t - 0.8) / 1.2)) if t < S2 else 80 * (1 - ease((t - S3) / 1.2))
-        bells_left.draw(frame, 175, -70 - drop, 7 * math.sin(t * 2.6), bells_op)
-        bell_right.draw(frame, 915, -40 - drop, -6 * math.sin(t * 2.3 + 1.0), bells_op)
+        # grelots suspendus au bord haut de l'écran, qui se balancent
+        bells_op = window(t, 0.8, S2 + 0.4, 0.8, 0.4)
+        drop = 120 * (1 - ease((t - 0.8) / 1.2))
+        bells_left.draw(frame, 180, -drop, 6 * math.sin(t * 2.6), bells_op)
+        bell_right.draw(frame, 905, -drop, -5 * math.sin(t * 2.3 + 1.0), bells_op)
 
         # scène 2 : les trois cuvées, une par vent
         if S2 <= t < S3 + 0.1:
@@ -453,6 +481,9 @@ def main():
             if frac not in filet_cache:
                 filet_cache[frac] = double_filet(frac)
             filet_cache[frac].draw(frame, W / 2, H / 2)
+            op = window(t, S4 + 1.2, DUR, 0.8, 0)
+            small_left.draw(frame, 205, 146, 6 * math.sin(t * 2.6), op)
+            small_right.draw(frame, 875, 146, -5 * math.sin(t * 2.3 + 1.0), op)
         logo.draw(frame, W / 2, 420 - 25 * ease((t - S4 - 0.4) / 1.4), window(t, S4 + 0.4, DUR, 1.4, 0))
         for k, b in enumerate(bottles):  # les trois cuvées montent l'une après l'autre
             start = S4 + 1.4 + 0.3 * k
