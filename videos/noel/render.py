@@ -5,7 +5,7 @@ d'illustrations de Noël), puis les trois cuvées et le logo. Couleurs et police
 la charte (cuivre, ivoire, bordeaux / vert forêt / brun, Playfair Display + Montserrat).
 Musique composée dans le script, avec grelots.
 
-Format story 1080x1920, 20 s, 30 i/s.
+Format story 1080x1920, 20 s, 60 i/s.
 Usage : python3 videos/noel/render.py  ->  videos/noel/maison-corsaire-noel.mp4
 """
 import math
@@ -21,7 +21,7 @@ ASSETS = HERE.parent / "assets"
 OUT = HERE / "maison-corsaire-noel.mp4"
 AUDIO = HERE / "musique.wav"
 
-W, H, FPS, DUR = 1080, 1920, 30, 20.0
+W, H, FPS, DUR = 1080, 1920, 60, 20.0
 NFRAMES = int(FPS * DUR)
 S1, S2, S3, S4 = 0.0, 5.0, 10.0, 12.5  # débuts de scène, calés sur les mesures de la musique
 BAND_H = 540  # trois bandeaux, en laissant le bas libre pour la mention légale
@@ -112,6 +112,31 @@ def text_layer(*args, **kw):
     return Layer(text_image(*args, **kw))
 
 
+class Words:
+    """Ligne de texte qui apparaît mot par mot (fondu et légère montée)."""
+
+    def __init__(self, text, font_path, size, color, gap=0.13):
+        font = ImageFont.truetype(font_path, size)
+        space = font.getlength(" ")
+        words = text.split(" ")
+        self.layers = [text_layer(w, font_path, size, color) for w in words]
+        widths = [font.getlength(w) for w in words]
+        total = sum(widths) + space * (len(words) - 1)
+        x, self.offsets = -total / 2, []
+        for w in widths:
+            self.offsets.append(x + w / 2)
+            x += w + space
+        self.gap = gap
+
+    def draw(self, frame, cx, cy, start, end, fade_out=0.5):
+        for k, (layer, dx) in enumerate(zip(self.layers, self.offsets)):
+            t0 = start + k * self.gap
+            layer.draw(frame, cx + dx, cy + 18 * (1 - ease((T[0] - t0) / 0.9)), window(T[0], t0, end, 0.7, fade_out))
+
+
+T = [0.0]  # temps courant, pour les animations mot par mot
+
+
 def asset(name, width=None, height=None):
     img = Image.open(ASSETS / f"{name}.png").convert("RGBA")
     if width:
@@ -121,6 +146,21 @@ def asset(name, width=None, height=None):
     else:
         return img
     return img.resize((width, height), Image.LANCZOS)
+
+
+# étiquettes noires des bouteilles du coffre : (centre x, centre y dans l'image d'origine, inclinaison)
+CHEST_LABELS = [(410, 470, -9), (686, 522, -9), (972, 576, -11)]
+
+
+def chest_with_logos(width):
+    """Coffre-cadeau avec le logo cuivre posé sur les étiquettes noires des trois bouteilles."""
+    img = asset("noel-coffre")
+    logo = asset("logo-cuivre", width=100)
+    for x, y, angle in CHEST_LABELS:
+        rot = logo.rotate(angle, resample=Image.BICUBIC, expand=True)
+        rot.putalpha(rot.getchannel("A").point(lambda v: int(v * 0.95)))
+        img.alpha_composite(rot, (x - rot.width // 2, y - rot.height // 2))
+    return img.resize((width, round(img.height * width / img.width)), Image.LANCZOS)
 
 
 class Swinging:
@@ -214,7 +254,7 @@ GOLD_STARS = [(150, 560, 70, 0.0), (985, 470, 56, 1.7), (640, 300, 44, 3.1), (11
 
 # --- mer au clair de lune (scène d'ouverture) -------------------------------------
 
-SEA = Image.open(ASSETS / "nuit-mer.jpg").convert("RGB")
+SEA = Image.open(ASSETS / "nuit-mer.jpg").convert("RGB").filter(ImageFilter.UnsharpMask(radius=1.6, percent=70, threshold=3))
 HORIZON = 822  # ligne d'horizon de la photo, à l'écran
 N_GLINT = 110
 glints = {  # éclats de lumière dans le reflet de la lune, plus larges vers le premier plan
@@ -399,11 +439,12 @@ def render_audio(path):
         start = bar * 4 * beat
         for m in chord:
             note(hz(m), start, 4 * beat + 0.6, 0.08, "pad")
+        note(hz(chord[0] - 12), start, 4 * beat + 0.6, 0.11, "pad")  # basse
         arp = [chord[k] + 12 for k in (1, 2, 3, 2, 1, 2, 3, 2)]
         for k, m in enumerate(arp):
             if start + k * beat / 2 > 1.0:  # les clochettes entrent après l'intro
                 note(hz(m), start + k * beat / 2, 1.6, 0.10)
-    for m in (50, 57, 62, 66, 69):
+    for m in (38, 50, 57, 62, 66, 69):
         note(hz(m), S4, DUR - S4, 0.08, "pad")
     for k, m in enumerate((74, 78, 81, 86)):
         note(hz(m), S4 + k * 0.12, 3.0, 0.13)
@@ -429,9 +470,19 @@ def render_audio(path):
     for s, amp in ((S2, 0.45), (S4, 0.5)):
         out += amp * wind * np.exp(-((t - s) / 0.7) ** 2)
 
-    out *= np.minimum(1, t / 0.8) * np.minimum(1, (DUR - t) / 1.5)
-    out = out / np.max(np.abs(out)) * 0.8
-    stereo = np.stack([out, np.roll(out, 220)], axis=1)
+    # réverbération (réponse impulsionnelle différente à gauche et à droite : son plus ample)
+    ir_t = np.arange(int(2.4 * sr)) / sr
+    channels = []
+    for seed in (7, 8):
+        ir = np.random.default_rng(seed).normal(0, 1, len(ir_t)) * np.exp(-ir_t / 0.55)
+        ir[: int(0.02 * sr)] = 0  # pré-délai
+        ir /= np.sqrt(np.sum(ir ** 2))
+        size = 1 << int(np.ceil(np.log2(n + len(ir))))
+        wet = np.fft.irfft(np.fft.rfft(out, size) * np.fft.rfft(ir, size), size)[:n]
+        channels.append(out + 0.35 * wet)
+    stereo = np.stack(channels, axis=1)
+    stereo *= (np.minimum(1, t / 0.8) * np.minimum(1, (DUR - t) / 1.5))[:, None]
+    stereo = stereo / np.max(np.abs(stereo)) * 0.8
     data = (stereo * 32767).astype(np.int16)
     with wave.open(str(path), "wb") as wf:
         wf.setnchannels(2)
@@ -442,6 +493,10 @@ def render_audio(path):
 
 # --- montage ---------------------------------------------------------------------
 
+_yy, _xx = np.mgrid[0:H, 0:W].astype(np.float32)
+VIGNETTE = (1 - 0.22 * np.clip((((_xx - W / 2) / (W * 0.62)) ** 2 + ((_yy - H / 2) / (H * 0.62)) ** 2) - 0.25, 0, 1)
+            )[..., None].astype(np.float32)
+
 def main():
     render_audio(AUDIO)
 
@@ -449,7 +504,7 @@ def main():
     gold_star = asset("noel-etoile")
     gold_stars = [(x, y, Layer(gold_star.resize((s, round(s * gold_star.height / gold_star.width)), Image.LANCZOS)), ph)
                   for x, y, s, ph in GOLD_STARS]
-    chest = Layer(asset("noel-coffre", width=920))
+    chest = Layer(chest_with_logos(920))
     bells_left = Swinging(asset("noel-grelots-suspendus", width=260))
     bell_right = Swinging(asset("noel-grelot-suspendu", width=210))
     # au final, plus petits, suspendus au filet de l'étiquette
@@ -457,8 +512,8 @@ def main():
     small_right = Swinging(asset("noel-grelot-suspendu", width=150))
     bow_bells = Layer(asset("noel-grelots-noeud", width=460))
 
-    s1a = text_layer("Au bout du voyage,", PLAYFAIR_IT, 92, IVOIRE)
-    s1b = text_layer("un trésor vous attend.", PLAYFAIR_IT, 92, IVOIRE)
+    s1a = Words("Au bout du voyage,", PLAYFAIR_IT, 92, IVOIRE)
+    s1b = Words("un trésor vous attend.", PLAYFAIR_IT, 92, IVOIRE)
 
     bands = [
         cuvee_band("Noroît", "VENT DU NORD-OUEST", BORDEAUX, 1, "noroit", True),
@@ -466,8 +521,8 @@ def main():
         cuvee_band("Suroît", "VENT DU SUD-OUEST", BRUN, 3, "suroit", True),
     ]
 
-    s3a = text_layer("Trois vents.", PLAYFAIR_IT, 104, IVOIRE)
-    s3b = text_layer("Une même Maison.", PLAYFAIR_IT, 104, IVOIRE)
+    s3a = Words("Trois vents.", PLAYFAIR_IT, 104, IVOIRE, gap=0.2)
+    s3b = Words("Une même Maison.", PLAYFAIR_IT, 104, IVOIRE, gap=0.2)
 
     logo = Layer(asset("logo-cuivre", width=460))
     bottles = [Layer(asset(f"bouteille-{n}", height=620)) for n in ("noroit", "zephyr", "suroit")]
@@ -482,7 +537,8 @@ def main():
         ["ffmpeg", "-y", "-loglevel", "error",
          "-f", "rawvideo", "-pix_fmt", "rgb24", "-s", f"{W}x{H}", "-r", str(FPS), "-i", "-",
          "-i", str(AUDIO),
-         "-c:v", "libx264", "-preset", "medium", "-crf", "19", "-pix_fmt", "yuv420p",
+         "-c:v", "libx264", "-preset", "slow", "-crf", "16", "-profile:v", "high", "-pix_fmt", "yuv420p",
+         "-af", "loudnorm=I=-14:TP=-1.5:LRA=11",
          "-c:a", "aac", "-b:a", "160k", "-shortest", "-movflags", "+faststart", str(OUT)],
         stdin=subprocess.PIPE,
     )
@@ -491,6 +547,7 @@ def main():
     previews = {int(s * FPS) for s in (1.0, 4.4, 5.9, 10.7, 18.2)}
     for i in range(NFRAMES):
         t = i / FPS
+        T[0] = t
         # ouverture sur la mer au clair de lune, puis la nuit en dégradé (pendant les bandeaux)
         sea = 1 - ease_io((t - S2 - 1.0) / 1.0)
         if sea >= 1:
@@ -510,8 +567,8 @@ def main():
         sky_layer(t, 0.6 + 0.4 * ease((t - S4) / 1.0), HORIZON - 40 if sea > 0 else H).draw(frame, W / 2, H / 2)
 
         # scène 1 : le coffre au trésor sort du reflet de la lune
-        s1a.draw(frame, W / 2, 640 - 20 * ease((t - 1.4) / 1.2), window(t, 1.4, S2 - 0.1))
-        s1b.draw(frame, W / 2, 760 - 20 * ease((t - 2.2) / 1.2), window(t, 2.2, S2 - 0.1))
+        s1a.draw(frame, W / 2, 640, 1.4, S2 - 0.1)
+        s1b.draw(frame, W / 2, 760, 2.1, S2 - 0.1)
         chest.draw(frame, W / 2, 1250 + 120 * (1 - ease((t - 2.8) / 1.4)), window(t, 2.8, S2 - 0.1, 1.2, 0.5))
 
         # grelots suspendus au bord haut de l'écran, qui se balancent
@@ -532,8 +589,8 @@ def main():
         # scène 3 : la devise, sous les grelots enrubannés
         op = window(t, S3, S4 - 0.1, 0.8, 0.5)
         bow_bells.draw(frame, W / 2 + 6 * math.sin(t * 9) * math.exp(-(t - S3) * 2), 640, op)
-        s3a.draw(frame, W / 2, 1000 - 20 * ease((t - S3) / 1.0), op)
-        s3b.draw(frame, W / 2, 1130 - 20 * ease((t - S3 - 0.5) / 1.0), window(t, S3 + 0.5, S4 - 0.1, 0.8, 0.5))
+        s3a.draw(frame, W / 2, 1000, S3 + 0.1, S4 - 0.1)
+        s3b.draw(frame, W / 2, 1130, S3 + 0.6, S4 - 0.1)
 
         # scène 4 : révélation du logo et des trois cuvées dans le cadre de l'étiquette
         if t >= S4:
@@ -557,7 +614,7 @@ def main():
         legal2.draw(frame, W / 2, 1738)
 
         fade = ease(t / 0.5) * (1 - ease((t - (DUR - 0.8)) / 0.8) if t > DUR - 0.8 else 1.0)
-        out = (np.clip(frame * fade, 0, 1) * 255).astype(np.uint8)
+        out = (np.clip(frame * VIGNETTE * fade, 0, 1) * 255).astype(np.uint8)
         ff.stdin.write(out.tobytes())
 
         if i in previews:
