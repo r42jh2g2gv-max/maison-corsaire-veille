@@ -175,8 +175,13 @@ snow = {
     "ph": rng.uniform(0, 2 * math.pi, N_SNOW),
 }
 # étoiles filantes : (départ, x, y, déplacement x, déplacement y)
-METEORS = [(0.6, 1020, 120, -720, 400), (2.7, 860, 380, -560, 310), (10.3, 1000, 240, -620, 340)]
-METEOR_DUR = 0.9
+# (en dehors des zones de texte ; elles passent derrière les illustrations et le logo)
+METEORS = [(0.5, 1020, 120, -720, 400), (1.8, 700, 50, -500, 280), (2.9, 1070, 330, -380, 210),
+           (3.9, 1060, 230, -480, 270), (4.5, 520, 60, -400, 220),
+           (10.2, 1000, 240, -620, 340), (11.3, 620, 90, -450, 250), (12.1, 1060, 380, -420, 240),
+           (14.6, 1000, 60, -520, 290), (16.2, 560, 80, -380, 210), (17.6, 1040, 190, -480, 270),
+           (18.8, 760, 60, -420, 230)]
+METEOR_DUR = 1.0
 
 
 def draw_meteor(d, t, t0, x0, y0, dx, dy):
@@ -190,6 +195,10 @@ def draw_meteor(d, t, t0, x0, y0, dx, dy):
     ux, uy = dx / length, dy / length
     tail = min(340, length * p)
     steps = 16
+    for k in range(steps):  # halo doux autour de la traînée
+        a0, a1 = tail * k / steps, tail * (k + 1) / steps
+        d.line([(hx - ux * a0, hy - uy * a0), (hx - ux * a1, hy - uy * a1)],
+               fill=(255, 230, 190, int(70 * (1 - k / steps) * glow)), width=10)
     for k in range(steps):  # traînée qui s'estompe vers l'arrière
         a0, a1 = tail * k / steps, tail * (k + 1) / steps
         alpha = (1 - k / steps) ** 1.6
@@ -439,7 +448,7 @@ def main():
     )
 
     filet_cache = {}
-    previews = {int(s * FPS) for s in (0.9, 4.4, 8.0, 10.6, 18.5)}
+    previews = {int(s * FPS) for s in (1.0, 2.3, 10.7, 15.1, 18.2)}
     for i in range(NFRAMES):
         t = i / FPS
         frame = sky.copy()
