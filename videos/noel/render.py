@@ -1,6 +1,6 @@
 """Vidéo d'annonce Maison Corsaire — arrivée pour Noël.
 
-Nuit étoilée bleu marin, étoile filante, coffre au trésor et grelots (planche
+Mer au clair de lune (ouverture), nuit étoilée en dégradé, étoiles filantes, coffre au trésor et grelots (planche
 d'illustrations de Noël), puis les trois cuvées et le logo. Couleurs et polices de
 la charte (cuivre, ivoire, bordeaux / vert forêt / brun, Playfair Display + Montserrat).
 Musique composée dans le script, avec grelots.
@@ -212,10 +212,50 @@ GOLD_STARS = [(150, 560, 70, 0.0), (985, 470, 56, 1.7), (640, 300, 44, 3.1), (11
               (980, 1120, 64, 2.2), (520, 120, 38, 5.3), (300, 900, 34, 0.9), (960, 1620, 40, 3.8)]
 
 
-def sky_layer(t, snow_level):
+# --- mer au clair de lune (scène d'ouverture) -------------------------------------
+
+SEA = Image.open(ASSETS / "nuit-mer.jpg").convert("RGB")
+HORIZON = 822  # ligne d'horizon de la photo, à l'écran
+N_GLINT = 110
+glints = {  # éclats de lumière dans le reflet de la lune, plus larges vers le premier plan
+    "y": rng.uniform(HORIZON + 8, H, N_GLINT),
+    "f": rng.uniform(3.0, 7.0, N_GLINT),
+    "ph": rng.uniform(0, 2 * math.pi, N_GLINT),
+    "r": rng.uniform(1.2, 3.2, N_GLINT),
+}
+glints["x"] = 790 + rng.normal(0, 1, N_GLINT) * (25 + (glints["y"] - HORIZON) * 0.11)
+
+
+def sea_frame(t):
+    """Photo de la mer avec un zoom très lent (léger assombrissement pour les textes)."""
+    z = 1 + 0.07 * ease_io(t / (S2 + 2.0))
+    bw = min(SEA.width, SEA.height * W / H) / z
+    bh = bw * H / W
+    cx, cy = SEA.width / 2, SEA.height / 2
+    img = SEA.resize((W, H), Image.BICUBIC, box=(cx - bw / 2, cy - bh / 2, cx + bw / 2, cy + bh / 2))
+    return np.asarray(img, np.float32) / 255.0 * SEA_SHADE
+
+
+# assombrissement doux du bas de l'image, pour la lisibilité de la mention sanitaire
+SEA_SHADE = (0.9 - 0.5 * np.clip((np.arange(H) - 1520) / 220, 0, 1))[:, None, None].astype(np.float32)
+
+
+def glint_layer(t):
+    img = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+    d = ImageDraw.Draw(img)
+    for x, y, f, ph, r in zip(glints["x"], glints["y"], glints["f"], glints["ph"], glints["r"]):
+        k = max(0.0, math.sin(t * f + ph)) ** 6
+        if k > 0.05:
+            d.ellipse([x - r * 1.8, y - r * 0.7, x + r * 1.8, y + r * 0.7], fill=(255, 232, 190, int(255 * k)))
+    return Layer(img.filter(ImageFilter.GaussianBlur(0.8)))
+
+
+def sky_layer(t, snow_level, star_max_y=H):
     img = Image.new("RGBA", (W, H), (0, 0, 0, 0))
     d = ImageDraw.Draw(img)
     for x, y, r, f, ph in zip(twinkle["x"], twinkle["y"], twinkle["r"], twinkle["f"], twinkle["ph"]):
+        if y > star_max_y:  # pas d'étoiles sur la mer
+            continue
         k = 0.35 + 0.65 * (0.5 + 0.5 * math.sin(t * f * 2 * math.pi / 2 + ph)) ** 2
         rr = r * (0.7 + 0.3 * k)
         d.ellipse([x - rr, y - rr, x + rr, y + rr], fill=(255, 250, 235, int(255 * k)))
@@ -448,17 +488,28 @@ def main():
     )
 
     filet_cache = {}
-    previews = {int(s * FPS) for s in (1.0, 2.3, 10.7, 15.1, 18.2)}
+    previews = {int(s * FPS) for s in (1.0, 4.4, 5.9, 10.7, 18.2)}
     for i in range(NFRAMES):
         t = i / FPS
-        frame = sky.copy()
+        # ouverture sur la mer au clair de lune, puis la nuit en dégradé (pendant les bandeaux)
+        sea = 1 - ease_io((t - S2 - 1.0) / 1.0)
+        if sea >= 1:
+            frame = sea_frame(t)
+        elif sea > 0:
+            frame = sea_frame(t) * sea + sky * (1 - sea)
+        else:
+            frame = sky.copy()
+        if sea > 0:
+            glint_layer(t).draw(frame, W / 2, H / 2, sea)
 
         # étoiles qui scintillent et neige
         for x, y, star, ph in gold_stars:
+            if sea > 0 and y > HORIZON - 60:
+                continue
             star.draw(frame, x, y, max(0.0, math.sin(t * 1.3 + ph)) ** 2 * ease(t / 1.5))
-        sky_layer(t, 0.6 + 0.4 * ease((t - S4) / 1.0)).draw(frame, W / 2, H / 2)
+        sky_layer(t, 0.6 + 0.4 * ease((t - S4) / 1.0), HORIZON - 40 if sea > 0 else H).draw(frame, W / 2, H / 2)
 
-        # scène 1 : nuit étoilée, puis le coffre au trésor
+        # scène 1 : le coffre au trésor sort du reflet de la lune
         s1a.draw(frame, W / 2, 640 - 20 * ease((t - 1.4) / 1.2), window(t, 1.4, S2 - 0.1))
         s1b.draw(frame, W / 2, 760 - 20 * ease((t - 2.2) / 1.2), window(t, 2.2, S2 - 0.1))
         chest.draw(frame, W / 2, 1250 + 120 * (1 - ease((t - 2.8) / 1.4)), window(t, 2.8, S2 - 0.1, 1.2, 0.5))
@@ -467,7 +518,7 @@ def main():
         bells_op = window(t, 0.8, S2 + 0.4, 0.8, 0.4)
         drop = 120 * (1 - ease((t - 0.8) / 1.2))
         bells_left.draw(frame, 180, -drop, 6 * math.sin(t * 2.6), bells_op)
-        bell_right.draw(frame, 905, -drop, -5 * math.sin(t * 2.3 + 1.0), bells_op)
+        bell_right.draw(frame, 965, -drop, -5 * math.sin(t * 2.3 + 1.0), bells_op)
 
         # scène 2 : les trois cuvées, une par vent
         if S2 <= t < S3 + 0.1:
