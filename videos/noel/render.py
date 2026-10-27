@@ -4,7 +4,7 @@ Respecte la charte graphique (version du 27/10/2026) : fonds bordeaux / vert for
 brun, cuivre dorure, ivoire, Playfair Display + Montserrat, aplats sans dégradé,
 ni brillance, ni ombre portée, carte marine fine ton sur ton.
 
-Format story 1080x1920, 18 s, 30 i/s.
+Format story 1080x1920, 19 s, 30 i/s.
 Usage : python3 videos/noel/render.py  ->  videos/noel/maison-corsaire-noel.mp4
 """
 import math
@@ -20,7 +20,7 @@ ASSETS = HERE.parent / "assets"
 OUT = HERE / "maison-corsaire-noel.mp4"
 AUDIO = HERE / "musique.wav"
 
-W, H, FPS, DUR = 1080, 1920, 30, 18.0
+W, H, FPS, DUR = 1080, 1920, 30, 19.0
 NFRAMES = int(FPS * DUR)
 
 # palette de la charte
@@ -153,12 +153,15 @@ def reveal_mask(w, h):
 # --- éléments de marque ----------------------------------------------------------
 
 def logo_image(width):
-    mask = Image.open(ASSETS / "logo-masque.png").convert("L")
-    h = int(mask.height * width / mask.width)
-    mask = mask.resize((width, h), Image.LANCZOS)
-    img = Image.new("RGBA", mask.size, CUIVRE + (255,))
-    img.putalpha(mask)
-    return img
+    """Logo officiel tout cuivre (rendu du fichier vectoriel logo-cuivre.eps)."""
+    img = Image.open(ASSETS / "logo-cuivre.png").convert("RGBA")
+    return img.resize((width, round(img.height * width / img.width)), Image.LANCZOS)
+
+
+def bottle_image(name, height):
+    """Bouteille détourée (photo des trois cuvées)."""
+    img = Image.open(ASSETS / f"bouteille-{name}.png").convert("RGBA")
+    return img.resize((round(img.width * height / img.height), height), Image.LANCZOS)
 
 
 def frame_path(x0, y0, x1, y1):
@@ -197,7 +200,7 @@ def double_filet(frac):
     return Layer(img)
 
 
-def cuvee_band(name, wind, color, seed):
+def cuvee_band(name, wind, color, seed, bottle, bottle_left):
     bw, bh = W, BAND_H
     img = Image.new("RGBA", (bw, bh), color + (255,))
     img.alpha_composite(chart_image(bw, bh, color, seed=seed, coast=False))
@@ -206,10 +209,14 @@ def cuvee_band(name, wind, color, seed):
     d.line([(60, 36), (bw - 60, 36)], fill=CUIVRE + (255,), width=1)
     d.line([(60, bh - 26), (bw - 60, bh - 26)], fill=CUIVRE + (255,), width=3)
     d.line([(60, bh - 36), (bw - 60, bh - 36)], fill=CUIVRE + (255,), width=1)
-    t = text_image(name, PLAYFAIR, 150, IVOIRE)
-    img.alpha_composite(t, ((bw - t.width) // 2, bh // 2 - t.height // 2 - 50))
-    c = text_image(wind, MONTSERRAT_SEMI, 34, CUIVRE, tracking=9)
-    img.alpha_composite(c, ((bw - c.width) // 2, bh // 2 + 85))
+    b = bottle_image(bottle, bh - 96)
+    bx = 150 if bottle_left else bw - 150 - b.width
+    img.alpha_composite(b, (bx, 48))
+    tx = (bx + b.width + bw - 60) // 2 if bottle_left else (60 + bx) // 2  # centre de la zone de texte
+    t = text_image(name, PLAYFAIR, 140, IVOIRE)
+    img.alpha_composite(t, (tx - t.width // 2, bh // 2 - t.height // 2 - 40))
+    c = text_image(wind, MONTSERRAT_SEMI, 30, CUIVRE, tracking=7)
+    img.alpha_composite(c, (tx - c.width // 2, bh // 2 + 80))
     return Layer(img)
 
 
@@ -338,15 +345,16 @@ def main():
     s1b = text_layer("un trésor vous attend.", PLAYFAIR_IT, 92, IVOIRE)
 
     bands = [
-        cuvee_band("Noroît", "VENT DU NORD-OUEST", BORDEAUX, 1),
-        cuvee_band("Zéphyr", "VENT D'OUEST", VERT, 2),
-        cuvee_band("Suroît", "VENT DU SUD-OUEST", BRUN, 3),
+        cuvee_band("Noroît", "VENT DU NORD-OUEST", BORDEAUX, 1, "noroit", True),
+        cuvee_band("Zéphyr", "VENT D'OUEST", VERT, 2, "zephyr", False),
+        cuvee_band("Suroît", "VENT DU SUD-OUEST", BRUN, 3, "suroit", True),
     ]
 
     s3a = text_layer("Trois vents.", PLAYFAIR_IT, 104, IVOIRE)
     s3b = text_layer("Une même Maison.", PLAYFAIR_IT, 104, IVOIRE)
 
-    logo = Layer(logo_image(640))
+    logo = Layer(logo_image(500))
+    bottles = [Layer(bottle_image(n, 640)) for n in ("noroit", "zephyr", "suroit")]
     sep = Layer(Image.new("RGBA", (120, 3), CUIVRE + (255,)))
     cta = text_layer("ARRIVE POUR NOËL", MONTSERRAT_SEMI, 46, IVOIRE, tracking=10)
     cta2 = text_layer("FAIT MAIN  ·  FABRICATION FRANÇAISE", MONTSERRAT, 28, CUIVRE, tracking=5)
@@ -364,7 +372,7 @@ def main():
     )
 
     filet_cache = {}
-    previews = {int(s * FPS) for s in (3.6, 7.6, 11.2, 16.5)}
+    previews = {int(s * FPS) for s in (3.6, 7.6, 11.2, 17.5)}
     for i in range(NFRAMES):
         t = i / FPS
         frame = bordeaux.copy()
@@ -401,11 +409,14 @@ def main():
             if frac not in filet_cache:
                 filet_cache[frac] = double_filet(frac)
             filet_cache[frac].draw(frame, W / 2, H / 2)
-        logo.draw(frame, W / 2, 760 - 30 * ease((t - S4 - 0.4) / 1.4), window(t, S4 + 0.4, DUR, 1.4, 0))
-        sep.draw(frame, W / 2, 1190, window(t, S4 + 1.4, DUR, 0.6, 0))
-        cta.draw(frame, W / 2, 1270 - 15 * ease((t - S4 - 1.6) / 1.0), window(t, S4 + 1.6, DUR, 0.8, 0))
-        cta2.draw(frame, W / 2, 1350, window(t, S4 + 2.2, DUR, 0.8, 0))
-        handle.draw(frame, W / 2, 1460, window(t, S4 + 2.8, DUR, 0.8, 0))
+        logo.draw(frame, W / 2, 400 - 25 * ease((t - S4 - 0.4) / 1.4), window(t, S4 + 0.4, DUR, 1.4, 0))
+        for k, b in enumerate(bottles):  # les trois cuvées montent l'une après l'autre
+            start = S4 + 1.4 + 0.3 * k
+            b.draw(frame, W / 2 + (k - 1) * 300, 1000 + 60 * (1 - ease((t - start) / 1.2)), window(t, start, DUR, 1.0, 0))
+        sep.draw(frame, W / 2, 1365, window(t, S4 + 2.8, DUR, 0.6, 0))
+        cta.draw(frame, W / 2, 1430 - 15 * ease((t - S4 - 3.0) / 1.0), window(t, S4 + 3.0, DUR, 0.8, 0))
+        cta2.draw(frame, W / 2, 1500, window(t, S4 + 3.5, DUR, 0.8, 0))
+        handle.draw(frame, W / 2, 1580, window(t, S4 + 4.0, DUR, 0.8, 0))
 
         snow_layer(t, 0.5 + 0.5 * (t > S4) * ease((t - S4) / 1.0)).draw(frame, W / 2, H / 2)
 
