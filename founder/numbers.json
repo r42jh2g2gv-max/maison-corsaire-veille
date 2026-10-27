@@ -1,0 +1,27 @@
+{
+  "business": "Maison Corsaire",
+  "unit": "bouteille",
+  "price": 25.85,
+  "variable": [
+    {"label": "Liquide (rhum HSE 5,88 € + matières, moyenne des 3 cuvées)", "cost": 9.00},
+    {"label": "Habillage (bouteille, bouchon gravé, étiquettes, capsule) : plafond donné par le fondateur", "cost": 4.20},
+    {"label": "Façonnage chez un entrepositaire agréé (ESTIMATION)", "cost": 4.00},
+    {"label": "Frais de carte bancaire sur la vente directe (ESTIMATION)", "cost": 0.35},
+    {"label": "Cotisations sociales micro-entreprise, 12,3 % du CA (ESTIMATION)", "cost": 3.18}
+  ],
+  "fixed_monthly": [
+    {"label": "Assurance RC pro (ESTIMATION)", "cost": 25},
+    {"label": "Salons et emplacements, environ 3 par an (ESTIMATION)", "cost": 60},
+    {"label": "Déplacements et livraisons (ESTIMATION)", "cost": 30},
+    {"label": "Banque, nom de domaine, outils (ESTIMATION)", "cost": 20}
+  ],
+  "startup": [
+    {"label": "Dépôt de marque INPI, 1 classe (ESTIMATION)", "cost": 190},
+    {"label": "Analyse du taux de sucre et du degré en laboratoire, 3 cuvées (ESTIMATION)", "cost": 300},
+    {"label": "Matériel de dégustation et de stand (ESTIMATION)", "cost": 300},
+    {"label": "Lot pilote et échantillons pour les pros (ESTIMATION)", "cost": 250}
+  ],
+  "days_per_month": 30,
+  "plan_per_day": 0.4,
+  "ramp_per_day": [0.667, 1.167, 0.167, 0.2, 0.267, 0.267, 0.333, 0.4, 0.333, 0.267, 0.333, 0.4]
+}

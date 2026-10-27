@@ -1,0 +1,9 @@
+Base (70% public / 30% pro, 144 bt)              prix HT 25.85 | contrib  5.12 | seuil  316 bt/an | an1   -883 € | an1 après démarrage  -1923 €
+100% public 33 TTC                               prix HT 27.50 | contrib  6.57 | seuil  247 bt/an | an1   -674 € | an1 après démarrage  -1714 €
+100% pro 22 HT                                   prix HT 22.00 | contrib  1.74 | seuil  931 bt/an | an1  -1369 € | an1 après démarrage  -2409 €
+Public 36 TTC (30 HT), mix 70/30                 prix HT 27.60 | contrib  6.66 | seuil  243 bt/an | an1   -661 € | an1 après démarrage  -1701 €
+Base, façonnage 2 €                              prix HT 25.85 | contrib  7.12 | seuil  228 bt/an | an1   -595 € | an1 après démarrage  -1635 €
+Base, sans façonnage (production propre agréée)  prix HT 25.85 | contrib  9.12 | seuil  178 bt/an | an1   -306 € | an1 après démarrage  -1346 €
+Base, 200 bouteilles                             prix HT 25.85 | contrib  5.12 | seuil  316 bt/an | an1   -596 € | an1 après démarrage  -1636 €
+Base, 300 bouteilles                             prix HT 25.85 | contrib  5.12 | seuil  316 bt/an | an1    -84 € | an1 après démarrage  -1124 €
+100% public 33 TTC, 200 bt, façonnage 2 €        prix HT 27.50 | contrib  8.57 | seuil  189 bt/an | an1     94 € | an1 après démarrage   -946 €
