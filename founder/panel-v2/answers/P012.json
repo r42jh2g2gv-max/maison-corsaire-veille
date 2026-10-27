@@ -1,0 +1,13 @@
+{
+  "id": "P012",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "price",
+  "reason": "35 € pour un arrangé à 31 %, c'est le prix d'un bon rhum agricole vieux de Martinique à 40 % et plus. Pour offrir à Noël, je prendrai un vrai vieux, que je connais, plutôt qu'un rhum aromatisé.",
+  "objection": "On ne sait pas quel rhum il y a dedans ni à quel âge : un blanc AOC coupé à 31 % avec des arômes, vendu plus cher que le rhum d'origine, ça sent le marketing.",
+  "would_change_my_mind": "Le goûter sur un salon et trouver que le rhum de base se sent vraiment, peu sucré ; là je pourrais prendre un flacon de 20 cl à offrir.",
+  "price_too_cheap": 12,
+  "price_cheap": 20,
+  "price_expensive": 28,
+  "price_too_expensive": 35
+}

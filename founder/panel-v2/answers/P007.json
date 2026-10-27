@@ -1,0 +1,13 @@
+{
+  "id": "P007",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "trust",
+  "reason": "Je ne connais pas cette marque, et 35 € une bouteille d'arrangé que je n'ai jamais goûtée, ça ne se fait pas sur une simple annonce. Moi j'achète quand on me fait goûter sur un stand et que ça me plaît, pas autrement.",
+  "objection": "Une marque inconnue, un rhum que je n'ai pas en bouche, à 35 € : je ne sais pas ce que je paie.",
+  "would_change_my_mind": "Tomber sur leur stand au marché ou à un salon et goûter : si ça me plaît, je repars avec le flacon de 20 cl, voire une bouteille.",
+  "price_too_cheap": 12,
+  "price_cheap": 22,
+  "price_expensive": 32,
+  "price_too_expensive": 42
+}

@@ -1,0 +1,13 @@
+{
+  "id": "P014",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "price",
+  "reason": "Le taux de sucre affiché sur l'étiquette, c'est bien, ça me parle. Mais 35 € pour un arrangé à 31 %, j'achète un vrai rhum vieux agricole pour ce prix-là, et je sais ce que j'ai dans le verre.",
+  "objection": "Même « moins sucré », un arrangé reste un rhum aromatisé et coupé : je paie le prix d'un rhum vieux pour quelque chose de plus léger et probablement encore trop sucré pour moi.",
+  "would_change_my_mind": "Goûter gratuitement sur un salon et voir un chiffre de sucre vraiment bas (moins de 20 g/L) ; alors je prendrais peut-être le flacon de 20 cl pour essayer.",
+  "price_too_cheap": 12,
+  "price_cheap": 20,
+  "price_expensive": 27,
+  "price_too_expensive": 35
+}

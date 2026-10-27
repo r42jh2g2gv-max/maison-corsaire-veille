@@ -1,0 +1,13 @@
+{
+  "id": "P008",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "quality",
+  "reason": "Quand j'offre une bouteille, je veux être sûr qu'elle plaira, et un arrangé moins sucré à 31 % sans l'avoir goûté, je crains que ce soit fort et sec pour mes amis. Pour 35 € je prends plutôt une bouteille que je connais au supermarché ou chez le caviste.",
+  "objection": "Moins sucré, ça risque d'être fort et sec, et je ne veux pas offrir quelque chose que les gens laissent au fond du placard. Je ne connais pas la marque, et l'échange sous 30 jours, c'est compliqué à demander quand c'est un cadeau.",
+  "would_change_my_mind": "Le goûter moi-même sur un salon ou un marché près de chez moi avant les fêtes : si c'est doux en bouche malgré le peu de sucre, je prends le coffret pour Noël.",
+  "price_too_cheap": 15,
+  "price_cheap": 25,
+  "price_expensive": 38,
+  "price_too_expensive": 50
+}

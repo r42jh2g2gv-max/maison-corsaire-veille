@@ -1,0 +1,13 @@
+{
+  "id": "P010",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "trust",
+  "reason": "Quand j'offre une bouteille, je veux un nom que mes amis reconnaissent ou que j'ai goûté moi-même. Une marque que je ne connais pas, vue en passant, je ne l'apporte pas à un dîner sans l'avoir goûtée.",
+  "objection": "Je ne connais pas cette marque : si le rhum déçoit, c'est moi qui ai l'air radin ou mal renseigné devant mes hôtes, et l'échange sous 30 jours n'y change rien une fois le cadeau offert.",
+  "would_change_my_mind": "La goûter moi-même sur un salon et la trouver vraiment bonne ; là je prendrais une bouteille à 35 € ou le coffret pour Noël.",
+  "price_too_cheap": 15,
+  "price_cheap": 25,
+  "price_expensive": 38,
+  "price_too_expensive": 48
+}

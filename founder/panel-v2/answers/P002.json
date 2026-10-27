@@ -1,0 +1,13 @@
+{
+  "id": "P002",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "trust",
+  "reason": "Je ne connais pas cette marque, et un arrangé filtré à 31 % avec des noms de vents, ça sent un peu le marketing. À 35 € je préfère m'acheter un bon agricole de Martinique que je connais déjà.",
+  "objection": "On ne me dit pas quelle distillerie fournit le rhum ni combien de sucre il y a vraiment. 35 € pour un arrangé coupé à 31 %, c'est cher pour une marque inconnue.",
+  "would_change_my_mind": "Le goûter sur un salon ou un marché près de chez moi et voir l'étiquette avec le taux de sucre et l'origine du rhum. Si c'est bon, je prendrais peut-être le flacon de 20 cl à 13 €.",
+  "price_too_cheap": 15,
+  "price_cheap": 22,
+  "price_expensive": 30,
+  "price_too_expensive": 40
+}

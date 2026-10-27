@@ -1,0 +1,13 @@
+{
+  "id": "P003",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "price",
+  "reason": "35 euros la bouteille, c'est presque le double de ce que je paie en grande surface, et un arrangé je me le fais moi-même avec un rhum blanc et des fruits pour bien moins cher. Le côté moins sucré et les jolis noms, ça ne me fait pas sortir le portefeuille.",
+  "objection": "Payer 35 euros pour du rhum avec des arômes, sans même de fruits dans la bouteille, alors que je fais le mien pour une quinzaine d'euros.",
+  "would_change_my_mind": "Le goûter sur un stand au marché et le trouver nettement meilleur que le mien, éventuellement pour l'offrir à Noël avec le flacon de 20 cl.",
+  "price_too_cheap": 12,
+  "price_cheap": 20,
+  "price_expensive": 27,
+  "price_too_expensive": 35
+}

@@ -1,0 +1,89 @@
+{
+ "n": 20,
+ "seed": 78,
+ "customer": {
+  "business": "Maison Corsaire (rhum arrangé artisanal, Yvelines)",
+  "target": "Habitants des Yvelines, 25 à 70 ans, qui achètent sur les marchés et les salons et boivent ou offrent du rhum arrangé de temps en temps",
+  "where": "Yvelines (78) : marchés de Versailles, Saint-Germain-en-Laye, Rambouillet, salons gastronomiques locaux",
+  "age": [
+   25,
+   70
+  ],
+  "segments": [
+   {
+    "name": "Jeune actif",
+    "share": 0.3,
+    "income": [
+     26000,
+     50000
+    ]
+   },
+   {
+    "name": "Cadre ou parent actif",
+    "share": 0.45,
+    "income": [
+     50000,
+     120000
+    ]
+   },
+   {
+    "name": "Jeune retraité",
+    "share": 0.25,
+    "income": [
+     30000,
+     80000
+    ]
+   }
+  ],
+  "behaviours": [
+   {
+    "name": "Cherche un cadeau",
+    "share": 0.25,
+    "how": "Achète une bouteille pour l'offrir : anniversaire, fêtes, dîner chez des amis."
+   },
+   {
+    "name": "Flâneur de marché",
+    "share": 0.18,
+    "how": "Goûte ce qu'on lui tend sur les stands et achète sur un coup de cœur."
+   },
+   {
+    "name": "Prix d'abord",
+    "share": 0.15,
+    "how": "Prend son rhum arrangé en grande surface, autour de 20 euros, et compare les prix."
+   },
+   {
+    "name": "Évite le sucre",
+    "share": 0.15,
+    "how": "Trouve la plupart des rhums arrangés écoeurants et lit les étiquettes."
+   },
+   {
+    "name": "Amateur de rhum",
+    "share": 0.15,
+    "how": "Connaît les rhums agricoles, compare les marques, se méfie des produits marketing."
+   },
+   {
+    "name": "Fait son arrangé maison",
+    "share": 0.12,
+    "how": "Prépare ses propres bocaux de rhum arrangé avec du rhum blanc et des fruits."
+   }
+  ],
+  "objections": [
+   "35 euros pour un rhum arrangé, c'est cher",
+   "Je le fais moi-même pour bien moins cher",
+   "Je ne connais pas cette marque",
+   "Moins sucré, ça risque d'être fort et sec",
+   "J'ai déjà une bouteille entamée à la maison",
+   "À ce prix je préfère un vrai rhum vieux",
+   "Les rhums arrangés sont souvent trop sucrés"
+  ],
+  "habits": [
+   "tu fais le marché Notre-Dame à Versailles le samedi matin",
+   "tu fais le marché de Saint-Germain-en-Laye le dimanche",
+   "tu reçois des amis pour l'apéritif presque chaque week-end",
+   "tu vas à un ou deux salons des vins et de la gastronomie par an",
+   "tu fais tes courses en grande surface une fois par semaine",
+   "tu cherches les cadeaux de fin d'année dès novembre"
+  ]
+ },
+ "pitch": "Maison Corsaire, rhum arrangé artisanal des Yvelines.\nTrois cuvées « Trois vents » à base de rhum agricole AOC Martinique (HSE) : Noroît cassis-bergamote-vanille, Zéphyr coco-citron vert-tonka, Suroît passion-orange-caramel. Filtré, sans fruits dans la bouteille, environ 31 % vol.\nMoins sucré que les arrangés classiques : le taux de sucre en grammes par litre est indiqué sur chaque étiquette.\nBouteille 70 cl : 35 €. Flacon découverte 20 cl : 13 €. Coffret Trois vents (3 bouteilles 70 cl) : 95 €, livré avant Noël pour toute commande passée avant le 10 décembre.\nSi la cuvée offerte ne plaît pas, on l'échange contre une autre dans les 30 jours.\nOn peut goûter avant d'acheter, sur les salons et lors des ventes privées."
+}

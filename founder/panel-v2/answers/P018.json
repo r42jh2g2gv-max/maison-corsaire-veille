@@ -1,0 +1,13 @@
+{
+  "id": "P018",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "price",
+  "reason": "Je prends mon arrangé en grande surface autour de 20 euros, alors 35 euros la bouteille c'est presque le double pour un truc que je bois de temps en temps. Et moins sucré à 31 %, j'ai peur que ce soit fort et sec, pas ce que j'aime dans un arrangé.",
+  "objection": "Payer 35 euros sans savoir si ça va me plaire, alors que je ne vais pas sur les salons et que je trouve de l'arrangé à 20 euros au supermarché.",
+  "would_change_my_mind": "Le goûter gratuitement et le trouver vraiment rond, pas sec ; là je pourrais prendre le flacon de 20 cl à 13 euros pour offrir.",
+  "price_too_cheap": 12,
+  "price_cheap": 20,
+  "price_expensive": 27,
+  "price_too_expensive": 35
+}

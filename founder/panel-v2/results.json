@@ -1,0 +1,169 @@
+{
+ "business": "Maison Corsaire (rhum arrangé artisanal, Yvelines)",
+ "seed": 78,
+ "dealt": 20,
+ "answered": 20,
+ "skipped": [],
+ "buys": 3,
+ "passes": 17,
+ "buy_rate": 0.15,
+ "by_segment": [
+  [
+   "Jeune retraité",
+   5,
+   0.2
+  ],
+  [
+   "Jeune actif",
+   6,
+   0.16666666666666666
+  ],
+  [
+   "Cadre ou parent actif",
+   9,
+   0.1111111111111111
+  ]
+ ],
+ "by_behaviour": [
+  [
+   "Flâneur de marché",
+   4,
+   0.5
+  ],
+  [
+   "Évite le sucre",
+   3,
+   0.3333333333333333
+  ],
+  [
+   "Cherche un cadeau",
+   5,
+   0.0
+  ],
+  [
+   "Amateur de rhum",
+   3,
+   0.0
+  ],
+  [
+   "Prix d'abord",
+   3,
+   0.0
+  ],
+  [
+   "Fait son arrangé maison",
+   2,
+   0.0
+  ]
+ ],
+ "by_income": [
+  [
+   "$45,000 to $86,000",
+   7,
+   0.2857142857142857
+  ],
+  [
+   "under $45,000",
+   6,
+   0.16666666666666666
+  ],
+  [
+   "$86,000 and up",
+   7,
+   0.0
+  ]
+ ],
+ "why_not": [
+  [
+   "price",
+   9,
+   [
+    "35 euros la bouteille, c'est presque le double de ce que je paie en grande surface, et un arrangé je me le fais moi-même avec un rhum blanc et des fruits pour bien moins cher. Le côté moins sucré et les jolis noms, ça ne me fait pas sortir le portefeuille.",
+    "35 euros pour un rhum arrangé, c'est trop pour moi : avec ce budget je prends un vrai rhum vieux, et cette semaine je fais mes courses en grande surface, pas sur un salon où je pourrais goûter."
+   ],
+   [
+    "P003",
+    "P006"
+   ]
+  ],
+  [
+   "trust",
+   4,
+   [
+    "Je ne connais pas cette marque, et un arrangé filtré à 31 % avec des noms de vents, ça sent un peu le marketing. À 35 € je préfère m'acheter un bon agricole de Martinique que je connais déjà.",
+    "Je ne connais pas cette marque, et 35 € une bouteille d'arrangé que je n'ai jamais goûtée, ça ne se fait pas sur une simple annonce. Moi j'achète quand on me fait goûter sur un stand et que ça me plaît, pas autrement."
+   ],
+   [
+    "P002",
+    "P007"
+   ]
+  ],
+  [
+   "quality",
+   3,
+   [
+    "Quand j'offre une bouteille, je veux être sûre qu'elle plaira, et un arrangé moins sucré me fait peur : j'imagine quelque chose de fort et sec, pas le rhum gourmand que mes amis attendent. Sans l'avoir goûté, je reste sur ce que je connais au supermarché.",
+    "Quand j'offre une bouteille, je veux être sûr qu'elle plaira, et un arrangé moins sucré à 31 % sans l'avoir goûté, je crains que ce soit fort et sec pour mes amis. Pour 35 € je prends plutôt une bouteille que je connais au supermarché ou chez le caviste."
+   ],
+   [
+    "P001",
+    "P008"
+   ]
+  ],
+  [
+   "habit",
+   1,
+   [
+    "Je fais mon arrangé moi-même depuis des années avec du rhum blanc et des fruits du marché, et j'ai déjà une bouteille entamée à la maison. Payer 35 € pour 70 cl d'arrangé alors que le mien me revient bien moins cher, je n'en vois pas l'intérêt pour moi."
+   ],
+   [
+    "P017"
+   ]
+  ]
+ ],
+ "why_yes": [
+  [
+   "quality",
+   2,
+   [
+    "Le sucre affiché en g/L sur l'étiquette, c'est exactement ce que je cherche, puisque je trouve la plupart des arrangés écoeurants. Si je goûte sur un salon et que c'est vraiment sec, je prends une bouteille à 35 € comme cadeau de fin d'année, mais pas le coffret.",
+    "Je ne connais pas la marque, mais si je goûte sur un stand et que le Zéphyr coco-citron vert me plaît, je prends une bouteille pour l'apéro du week-end avec les copains. Moins sucré, ça me change des arrangés écœurants."
+   ],
+   [
+    "P004",
+    "P005"
+   ]
+  ],
+  [
+   "price",
+   1,
+   [
+    "Si je goûte le Zéphyr sur un stand et que ça me plaît, je prends le flacon de 20 cl à 13 € sur un coup de cœur pour l'apéro du week-end. La bouteille à 35 €, je ne la prends pas d'emblée."
+   ],
+   [
+    "P016"
+   ]
+  ]
+ ],
+ "flip": [
+  "Le goûter sur un marché ou un salon près de chez moi et le trouver doux et parfumé ; là je prendrais une bouteille pour un cadeau de Noël.",
+  "Le goûter sur un salon ou un marché près de chez moi et voir l'étiquette avec le taux de sucre et l'origine du rhum. Si c'est bon, je prendrais peut-être le flacon de 20 cl à 13 €.",
+  "Le goûter sur un stand au marché et le trouver nettement meilleur que le mien, éventuellement pour l'offrir à Noël avec le flacon de 20 cl.",
+  "Le goûter sur un stand de marché et tomber sous le charme ; là je pourrais prendre le flacon de 20 cl sur un coup de coeur.",
+  "Tomber sur leur stand au marché ou à un salon et goûter : si ça me plaît, je repars avec le flacon de 20 cl, voire une bouteille.",
+  "Le goûter moi-même sur un salon ou un marché près de chez moi avant les fêtes : si c'est doux en bouche malgré le peu de sucre, je prends le coffret pour Noël.",
+  "Le goûter moi-même sur un salon ou un marché près de chez moi et trouver que c'est rond et agréable ; là je prendrais une bouteille ou le coffret pour Noël.",
+  "La goûter moi-même sur un salon et la trouver vraiment bonne ; là je prendrais une bouteille à 35 € ou le coffret pour Noël.",
+  "Le goûter sur un salon et trouver une saveur que je ne sais pas faire chez moi, genre la bergamote ; là je prendrais peut-être un flacon de 20 cl ou une bouteille pour offrir.",
+  "Le goûter sur un salon et trouver que le rhum de base se sent vraiment, peu sucré ; là je pourrais prendre un flacon de 20 cl à offrir.",
+  "Le goûter sur un salon et le trouver vraiment au niveau, avec un rhum de base vieilli clairement indiqué ; là je prendrais peut-être le flacon de 20 cl pour l'offrir en petit cadeau.",
+  "Goûter gratuitement sur un salon et voir un chiffre de sucre vraiment bas (moins de 20 g/L) ; alors je prendrais peut-être le flacon de 20 cl pour essayer.",
+  "Le goûter moi-même sur un salon ou une vente privée et le trouver vraiment bon, avec le flacon de 20 cl à 13 € comme petit cadeau d'appoint plutôt que la grande bouteille.",
+  "Le goûter sur un salon et trouver qu'il est vraiment meilleur que le mien ; à la rigueur je prendrais le flacon de 20 cl ou le coffret pour l'offrir à Noël, pas pour moi.",
+  "Le goûter gratuitement et le trouver vraiment rond, pas sec ; là je pourrais prendre le flacon de 20 cl à 13 euros pour offrir.",
+  "Voir un vrai chiffre bas (genre moins de 20 g/L) et pouvoir goûter sur un marché ou un salon près de chez moi en novembre ; là je prendrais peut-être le flacon de 20 cl à 13 € pour offrir.",
+  "Goûter gratuitement sur un salon et constater que c'est vraiment moins sucré, avec un prix de lancement autour de 25 € la bouteille."
+ ],
+ "purchases_first_month_per_buyer": 1.0,
+ "price_answers": 20
+}
