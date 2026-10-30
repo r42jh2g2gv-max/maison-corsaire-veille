@@ -176,8 +176,8 @@ def lot_modifier(lot_id):
             flash("Le nom de la recette est obligatoire.", "erreur")
             return render_template("lot_form.html", lot={**dict(lot), **data},
                                    recettes=recettes, numero=lot["numero"], nouveau=False)
-        if data["nb_bouteilles"] < lot["vendu"]:
-            flash(f"{lot['vendu']} bouteilles de ce lot ont déjà été vendues : "
+        if data["nb_bouteilles"] < lot["vendu"] + lot["sorti"]:
+            flash(f"{lot['vendu'] + lot['sorti']} bouteilles de ce lot sont déjà vendues ou sorties : "
                   "le nombre de bouteilles ne peut pas être inférieur.", "erreur")
             return render_template("lot_form.html", lot={**dict(lot), **data},
                                    recettes=recettes, numero=lot["numero"], nouveau=False)
@@ -228,8 +228,9 @@ def lot_statut(lot_id):
     if statut == "embouteille" and request.form.get("volume_obtenu_l"):
         obtenu = to_float(request.form.get("volume_obtenu_l"), None)
         nb = to_int(request.form.get("nb_bouteilles")) or bouteilles_estimees(obtenu, 0, lot["volume_cl"])
-        if nb < lot["vendu"]:
-            flash(f"{lot['vendu']} bouteilles déjà vendues : le nombre ne peut pas être inférieur.",
+        if nb < lot["vendu"] + lot["sorti"]:
+            flash(f"{lot['vendu'] + lot['sorti']} bouteilles déjà vendues ou sorties : "
+                  "le nombre ne peut pas être inférieur.",
                   "erreur")
             return redirect(url_for("lot_detail", lot_id=lot_id))
         conn.execute("UPDATE lots SET volume_obtenu_l = ?, nb_bouteilles = ? WHERE id = ?",

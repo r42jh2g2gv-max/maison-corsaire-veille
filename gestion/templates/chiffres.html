@@ -61,10 +61,10 @@
 
 <section class="carte mt" id="douanes">
   <h2>Douanes : volumes d'alcool</h2>
-  <p class="doux">Entrées (bouteilles embouteillées) et sorties (bouteilles vendues) par mois, en litres d'alcool pur (L AP), pour tenir votre comptabilité matières. Stock actuel : <strong>{{ stock_lap|nombre(3) }} L AP</strong>.</p>
+  <p class="doux">Entrées (bouteilles embouteillées) et sorties (vendues ou sorties hors vente : cadeaux, dégustations, casse) par mois, en litres d'alcool pur (L AP), pour tenir votre comptabilité matières. Stock actuel : <strong>{{ stock_lap|nombre(3) }} L AP</strong>.</p>
   <div class="table-wrap">
   <table class="empile">
-    <thead><tr><th>Mois</th><th class="droite">Embouteillé (btl)</th><th class="droite">Entrées L AP</th><th class="droite">Vendu (btl)</th><th class="droite">Volume vendu (L)</th><th class="droite">Sorties L AP</th></tr></thead>
+    <thead><tr><th>Mois</th><th class="droite">Embouteillé (btl)</th><th class="droite">Entrées L AP</th><th class="droite">Vendu (btl)</th><th class="droite">Hors vente (btl)</th><th class="droite">Volume vendu (L)</th><th class="droite">Sorties L AP</th></tr></thead>
     <tbody>
       {% for d in douanes %}
       <tr>
@@ -72,8 +72,9 @@
         <td class="droite num" data-label="Embouteillé">{{ d.entrees.btl }}</td>
         <td class="droite num" data-label="Entrées L AP">{{ d.entrees.lap|nombre(3) }}</td>
         <td class="droite num" data-label="Vendu">{{ d.sorties.btl }}</td>
+        <td class="droite num" data-label="Hors vente">{{ d.hors_vente.btl }}</td>
         <td class="droite num" data-label="Volume vendu">{{ d.sorties.litres|nombre(2) }}</td>
-        <td class="droite num" data-label="Sorties L AP"><strong>{{ d.sorties.lap|nombre(3) }}</strong></td>
+        <td class="droite num" data-label="Sorties L AP"><strong>{{ d.lap_total|nombre(3) }}</strong></td>
       </tr>
       {% endfor %}
     </tbody>

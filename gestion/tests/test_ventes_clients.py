@@ -52,7 +52,7 @@ assert 'Stock insuffisant' in r.get_data(as_text=True)
 r = c.post('/caisse', data={'csrf':csrf(),'panier':json.dumps([{'lot_id':2,'quantite':1,'prix':36}]),'consigne_btl':'1','mode_paiement':'especes'}, follow_redirects=True)
 assert 'Pour une consigne' in r.get_data(as_text=True)
 # vente épuisant le lot 2
-reste = db.execute("select nb_bouteilles - (select sum(quantite) from ventes where lot_id=2) from lots where id=2").fetchone()[0]
+reste = db.execute("select nb_bouteilles - (select sum(quantite) from ventes where lot_id=2) - (select coalesce(sum(quantite),0) from sorties where lot_id=2) from lots where id=2").fetchone()[0]
 r = c.post('/caisse', data={'csrf':csrf(),'panier':json.dumps([{'lot_id':2,'quantite':reste,'prix':36}]),'mode_paiement':'especes','client_nom':'Marché'})
 tid2 = int(r.headers['Location'].split('/tickets/')[1].split('?')[0])
 assert db.execute('select statut from lots where id=2').fetchone()[0]=='epuise'

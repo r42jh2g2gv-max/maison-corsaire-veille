@@ -10,7 +10,8 @@
     <div class="sous-titre"><span class="badge badge-{{ lot.statut }}">{{ STATUTS[lot.statut] }}</span></div>
   </div>
   <div class="actions">
-    {% if stock > 0 %}<a class="btn btn-or" href="{{ url_for('caisse', lot_id=lot.id) }}">{{ icone('caisse') }}Vendre</a>{% endif %}
+    {% if stock > 0 %}<a class="btn btn-or" href="{{ url_for('caisse', lot_id=lot.id) }}">{{ icone('caisse') }}Vendre</a>
+    <a class="btn btn-ligne" href="{{ url_for('sorties', lot_id=lot.id) }}#nouvelle">{{ icone('stock') }}Sortie hors vente</a>{% endif %}
     <a class="btn btn-ligne" href="{{ url_for('lot_fiche', lot_id=lot.id) }}" target="_blank">{{ icone('imprimer') }}Fiche PDF</a>
     <a class="btn btn-ligne" href="{{ url_for('etiquette_lot_pdf', lot_id=lot.id, copies=lot.nb_bouteilles or 24) }}" target="_blank">{{ icone('etiquette') }}Étiquettes</a>
     <a class="btn btn-ligne" href="{{ url_for('calculateur', lot_id=lot.id) }}">Prix</a>
@@ -56,6 +57,7 @@
       <dt>Degré</dt><dd>{{ (lot.degre|nombre(1) ~ ' % vol.') if lot.degre is not none else '—' }}</dd>
       {% if lot.statut in ('embouteille', 'epuise') %}
       <dt>Vendues</dt><dd>{{ lot.vendu }}</dd>
+      {% if lot.sorti %}<dt>Sorties hors vente</dt><dd>{{ lot.sorti }}</dd>{% endif %}
       <dt>En stock</dt><dd>{{ stock }}</dd>
       {% endif %}
     </dl>
@@ -142,6 +144,20 @@
   </ul>
   {% else %}<p class="vide">Aucune vente pour ce lot.</p>{% endif %}
 </section>
+
+{% set sorties_lot = get_lot_sorties(lot.id) %}
+{% if sorties_lot %}
+<section class="carte mt">
+  <div class="carte-tete"><h2>Sorties hors vente</h2><a href="{{ url_for('sorties') }}">Toutes les sorties</a></div>
+  <ul class="liste">
+    {% for so in sorties_lot %}
+    <li><div><span class="principal">{{ MOTIFS_SORTIE[so.motif] }}</span>{% if so.beneficiaire %} · {{ so.beneficiaire }}{% endif %}<br>
+      <small>{{ so.date_sortie|datefr }}{% if so.notes %} · {{ so.notes }}{% endif %}</small></div>
+      <strong class="num">{{ so.quantite }} btl</strong></li>
+    {% endfor %}
+  </ul>
+</section>
+{% endif %}
 
 <details class="mt">
   <summary>Autres actions</summary>

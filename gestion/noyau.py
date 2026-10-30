@@ -95,7 +95,8 @@ def to_int(value, default=0):
 def lots_avec_stock(where="", params=()):
     return get_db().execute(
         f"""SELECT l.*,
-                   COALESCE((SELECT SUM(quantite) FROM ventes v WHERE v.lot_id = l.id), 0) AS vendu
+                   COALESCE((SELECT SUM(quantite) FROM ventes v WHERE v.lot_id = l.id), 0) AS vendu,
+                   COALESCE((SELECT SUM(quantite) FROM sorties s WHERE s.lot_id = l.id), 0) AS sorti
             FROM lots l {where}""",
         params,
     ).fetchall()
@@ -118,7 +119,7 @@ def get_or_404(table, ident):
 def stock_lot(lot):
     if lot["statut"] not in STATUTS_EMBOUTEILLES:
         return 0
-    return max(lot["nb_bouteilles"] - lot["vendu"], 0)
+    return max(lot["nb_bouteilles"] - lot["vendu"] - lot["sorti"], 0)
 
 
 def couts_par_lot(conn, conf):
@@ -127,9 +128,9 @@ def couts_par_lot(conn, conf):
 
 
 def maj_statut_epuise(conn, lot_id, reouvrir=False):
-    """Passe le lot en « épuisé » quand tout est vendu (et l'inverse si reouvrir)."""
+    """Passe le lot en « épuisé » quand tout est vendu ou sorti (et l'inverse si reouvrir)."""
     lot = get_lot(lot_id)
-    reste = lot["nb_bouteilles"] - lot["vendu"]
+    reste = lot["nb_bouteilles"] - lot["vendu"] - lot["sorti"]
     if lot["statut"] == "embouteille" and reste <= 0:
         conn.execute("UPDATE lots SET statut = 'epuise' WHERE id = ?", (lot_id,))
     elif reouvrir and lot["statut"] == "epuise" and reste > 0:

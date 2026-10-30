@@ -15,6 +15,7 @@ import vues_lots  # noqa: F401,E402
 import vues_pwa  # noqa: F401,E402
 import vues_matieres  # noqa: F401,E402
 import vues_recettes  # noqa: F401,E402
+import vues_sorties  # noqa: F401,E402
 import vues_stats  # noqa: F401,E402
 import vues_ventes  # noqa: F401,E402
 

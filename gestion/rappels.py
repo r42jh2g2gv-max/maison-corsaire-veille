@@ -58,7 +58,8 @@ def calculer_rappels(conn, conf):
     # Agenda
     stock_total = conn.execute(
         """SELECT COALESCE(SUM(l.nb_bouteilles - COALESCE((SELECT SUM(quantite) FROM ventes v
-             WHERE v.lot_id = l.id), 0)), 0) FROM lots l WHERE l.statut = 'embouteille'"""
+             WHERE v.lot_id = l.id), 0) - COALESCE((SELECT SUM(quantite) FROM sorties s
+             WHERE s.lot_id = l.id), 0)), 0) FROM lots l WHERE l.statut = 'embouteille'"""
     ).fetchone()[0]
     for e in conn.execute("SELECT * FROM evenements WHERE date_debut >= ? ORDER BY date_debut",
                           (ajd.isoformat(),)):
@@ -119,7 +120,8 @@ def calculer_rappels(conn, conf):
     # DLC / DDM proches pour des bouteilles encore en stock
     for l in conn.execute(
             """SELECT l.*, l.nb_bouteilles - COALESCE((SELECT SUM(quantite) FROM ventes v
-                 WHERE v.lot_id = l.id), 0) AS reste FROM lots l
+                 WHERE v.lot_id = l.id), 0) - COALESCE((SELECT SUM(quantite) FROM sorties s
+                 WHERE s.lot_id = l.id), 0) AS reste FROM lots l
                WHERE l.statut = 'embouteille' AND l.dlc IS NOT NULL AND l.dlc <= ?""",
             ((ajd + timedelta(days=60)).isoformat(),)):
         if l["reste"] > 0:

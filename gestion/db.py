@@ -224,6 +224,19 @@ CREATE TABLE IF NOT EXISTS achat_lignes (
     montant REAL NOT NULL DEFAULT 0
 );
 
+-- Bouteilles sorties du stock sans vente : cadeau, concours, dégustation, casse...
+CREATE TABLE IF NOT EXISTS sorties (
+    id INTEGER PRIMARY KEY,
+    date_sortie TEXT NOT NULL,
+    lot_id INTEGER NOT NULL REFERENCES lots(id) ON DELETE CASCADE,
+    quantite INTEGER NOT NULL,
+    motif TEXT NOT NULL,
+    beneficiaire TEXT,
+    evenement_id INTEGER REFERENCES evenements(id) ON DELETE SET NULL,
+    notes TEXT,
+    created_at TEXT NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS declarations (
     periode TEXT PRIMARY KEY,
     declare_le TEXT NOT NULL,
@@ -351,7 +364,7 @@ def init_db(app):
 
 def clear_data(conn):
     """Supprime toutes les données métier (garde le compte et les réglages)."""
-    for table in ("consignes", "bons", "ventes", "tickets", "messages", "declarations",
+    for table in ("sorties", "consignes", "bons", "ventes", "tickets", "messages", "declarations",
                   "evenements", "clients", "mouvements_mp", "achat_lignes", "achats",
                   "lot_ingredients", "lots", "recette_ingredients", "recettes",
                   "matieres_premieres", "materiaux"):
@@ -596,6 +609,11 @@ def seed_demo(conn):
         " notes) VALUES (?, ?, ?, ?, ?, ?)",
         (client_ids[2], "Sophie Martin", d(-1), -1, consigne, "Bouteille rapportée propre"),
     )
+    conn.executemany(
+        "INSERT INTO sorties (date_sortie, lot_id, quantite, motif, beneficiaire, evenement_id,"
+        " notes, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+        [(d(-12), lot_ids[2], 1, "degustation", None, evt_ids[2], "Bouteille ouverte au stand", now),
+         (d(-30), lot_ids[1], 1, "casse", None, None, "Tombée au déchargement", now)])
     seed_matieres(conn, d)
     conn.execute("UPDATE recettes SET perte_pct = 15")
     for numero, macere, obtenu in [(1, 14, 12.1), (2, 13, 11.1), (3, 11.8, 10.2), (4, 14, None),

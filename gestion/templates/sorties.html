@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+{% from "_icones.html" import icone %}
+{% block titre %}Sorties hors vente{% endblock %}
+{% block contenu %}
+<div class="titre-page">
+  <div><div class="surtitre">Stock</div><h1>Sorties hors vente</h1><div class="filet"></div>
+    <div class="sous-titre">Concours, cadeaux, dégustations, échantillons, casse : sans ticket ni chiffre d'affaires.</div></div>
+</div>
+
+<div class="grille-2-1">
+  <div class="grille">
+    <section class="carte bois" id="nouvelle">
+      <h2>Sortir des bouteilles</h2>
+      {% if lots %}
+      <form method="post">
+        <input type="hidden" name="csrf" value="{{ csrf_token }}">
+        <div class="champs">
+          <div class="large"><label for="lot_id">Lot</label>
+            <select id="lot_id" name="lot_id" required>
+              {% for l in lots %}<option value="{{ l.id }}" {{ 'selected' if l.id == lot_preselect }}>{{ l.recette_nom }} — {{ l.numero }} ({{ stock_lot(l) }} en stock)</option>{% endfor %}
+            </select></div>
+          <div><label for="quantite">Bouteilles</label><input id="quantite" type="number" name="quantite" min="1" step="1" value="1" inputmode="numeric" required></div>
+          <div><label for="motif">Motif</label>
+            <select id="motif" name="motif">{% for k, v in MOTIFS_SORTIE.items() %}<option value="{{ k }}" {{ 'selected' if k == motif_preselect }}>{{ v }}</option>{% endfor %}</select></div>
+          <div><label for="beneficiaire">Pour qui <span class="aide">(facultatif)</span></label><input id="beneficiaire" type="text" name="beneficiaire" placeholder="Gagnant du concours, Cave Le Galion…"></div>
+          <div><label for="date_sortie">Date</label><input id="date_sortie" type="date" name="date_sortie" value="{{ today }}"></div>
+          {% if evenements %}<div><label for="evenement_id">Événement <span class="aide">(facultatif)</span></label>
+            <select id="evenement_id" name="evenement_id"><option value="">—</option>{% for e in evenements %}<option value="{{ e.id }}">{{ e.nom }} — {{ e.date_debut|datecourte }}</option>{% endfor %}</select></div>{% endif %}
+          <div class="large"><label for="notes">Note</label><input id="notes" type="text" name="notes" placeholder="Concours Instagram de lancement, bouteille ouverte au stand…"></div>
+        </div>
+        <div class="form-actions"><button class="btn btn-or">{{ icone('stock') }}Enregistrer la sortie</button></div>
+        <p class="aide mb0">Pour un coffret de 3 bouteilles de parfums différents, enregistrez une sortie par lot (même motif, même bénéficiaire).</p>
+      </form>
+      {% else %}<p class="vide mb0">Aucune bouteille en stock.</p>{% endif %}
+    </section>
+
+    <section class="carte">
+      <div class="carte-tete"><h2>Historique {{ annee }}</h2>
+        {% if annees|length > 1 %}<nav class="filtres mb0" style="margin:0">{% for a in annees %}<a href="{{ url_for('sorties', annee=a) }}" class="{{ 'actif' if a == annee }}">{{ a }}</a>{% endfor %}</nav>{% endif %}</div>
+      {% if sorties %}
+      <div class="table-wrap">
+      <table class="empile">
+        <thead><tr><th>Date</th><th>Produit</th><th>Motif</th><th class="droite">Btl</th><th class="droite">Coût</th><th></th></tr></thead>
+        <tbody>
+          {% for s in sorties %}
+          <tr>
+            <td data-label="Date">{{ s.date_sortie|datefr }}</td>
+            <td class="titre-ligne" data-label="Produit"><a href="{{ url_for('lot_detail', lot_id=s.lot_id) }}">{{ s.recette_nom }}</a> <small class="code">{{ s.numero }}</small>
+              {% if s.beneficiaire or s.notes or s.evenement %}<br><small>{{ [s.beneficiaire, s.evenement, s.notes]|select|join(' · ') }}</small>{% endif %}</td>
+            <td data-label="Motif"><span class="badge badge-{{ 'retard' if s.motif == 'casse' else 'revendeur' }} sans-point">{{ MOTIFS_SORTIE[s.motif] }}</span></td>
+            <td class="droite num" data-label="Bouteilles">{{ s.quantite }}</td>
+            <td class="droite num" data-label="Coût">{{ (s.quantite * couts.get(s.lot_id, 0))|euro }}</td>
+            <td data-label="">
+              <form method="post" action="{{ url_for('sortie_supprimer', sortie_id=s.id) }}" onsubmit="return confirm('Annuler cette sortie ? Les bouteilles reviennent en stock.')">
+                <input type="hidden" name="csrf" value="{{ csrf_token }}">
+                <button class="btn-lien">Annuler</button>
+              </form>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      </div>
+      {% else %}<p class="vide mb0">Aucune sortie en {{ annee }}.</p>{% endif %}
+    </section>
+  </div>
+
+  <section class="carte">
+    <h2>Ce que ça coûte</h2>
+    <div class="kpi" style="box-shadow:none;margin-bottom:12px"><div class="etiquette">Total {{ annee }}</div>
+      <div class="valeur">{{ total_cout|euro }}</div><div class="detail">{{ total_btl }} bouteille(s) au coût de revient</div></div>
+    {% if par_motif %}
+    <ul class="liste">
+      {% for k, m in par_motif.items() %}
+      <li><div><span class="principal">{{ MOTIFS_SORTIE[k] }}</span><br><small>{{ m.btl }} bouteille(s)</small></div><strong class="num">{{ m.cout|euro }}</strong></li>
+      {% endfor %}
+    </ul>
+    {% endif %}
+    <p class="aide mt mb0">Ces bouteilles n'apparaissent pas dans le chiffre d'affaires, mais elles sont retirées du stock, tracées par lot, et comptées dans les sorties d'alcool (Chiffres → Douanes).</p>
+  </section>
+</div>
+{% endblock %}

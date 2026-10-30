@@ -123,3 +123,27 @@ assert l['volume_cl'] == 50 and l['nb_bouteilles'] == 19, dict(l)
 assert 'Perte moyenne' in c.get('/statistiques').get_data(as_text=True)
 assert 'perte' in c.get('/recettes').get_data(as_text=True)
 print('perte OK')
+# Sorties hors vente : concours (coffret), stock, épuisement, annulation, exports
+for u in ['/sorties', '/sorties?lot_id=3&motif=concours', '/stock', '/lots/3', '/lots/3/fiche', '/chiffres', '/statistiques']:
+    assert c.get(u).status_code == 200, u
+def stock_lot3():
+    return db.execute("select nb_bouteilles - (select coalesce(sum(quantite),0) from ventes where lot_id=3) - (select coalesce(sum(quantite),0) from sorties where lot_id=3) from lots where id=3").fetchone()[0]
+s0 = stock_lot3()
+r = c.post('/sorties', data={'csrf':csrf(),'lot_id':'3','quantite':'1','motif':'concours','beneficiaire':'Gagnant Instagram','notes':'Coffret lancement'}, follow_redirects=True)
+assert 'sortie(s) du stock' in r.get_data(as_text=True) and stock_lot3() == s0 - 1
+r = c.post('/sorties', data={'csrf':csrf(),'lot_id':'3','quantite':'999','motif':'casse'}, follow_redirects=True)
+assert 'Stock insuffisant' in r.get_data(as_text=True)
+assert 'Gagnant Instagram' in c.get('/lots/3/fiche').get_data(as_text=True)
+# tout sortir -> lot épuisé ; annuler -> lot rouvert
+reste = stock_lot3()
+c.post('/sorties', data={'csrf':csrf(),'lot_id':'3','quantite':str(reste),'motif':'casse'})
+assert db.execute('select statut from lots where id=3').fetchone()[0] == 'epuise'
+sid = db.execute('select max(id) from sorties').fetchone()[0]
+c.post(f'/sorties/{sid}/supprimer', data={'csrf':csrf()})
+assert db.execute('select statut from lots where id=3').fetchone()[0] == 'embouteille' and stock_lot3() == reste
+# la caisse ne propose pas plus que le stock restant
+import json as _json
+r = c.post('/caisse', data={'csrf':csrf(),'panier':_json.dumps([{'lot_id':3,'quantite':reste+1,'prix':38}]),'mode_paiement':'especes'}, follow_redirects=True)
+assert 'Stock insuffisant' in r.get_data(as_text=True)
+assert c.get('/exports/stock.xlsx').data[:2] == b'PK'
+print('sorties OK')

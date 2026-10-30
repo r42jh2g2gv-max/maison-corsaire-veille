@@ -60,7 +60,7 @@
       <dt>Stock</dt><dd>{% if not f.stock and f.produites %}épuisé{% else %}{{ f.stock }} btl{% if f.stock and f.autonomie is not none %} · ≈ {{ f.autonomie|nombre(1) }} mois de vente{% elif f.stock %} · pas de vente récente{% endif %}{% endif %}</dd>
       <dt>Perte moyenne</dt><dd>{{ (f.perte|nombre(0) ~ ' % à la macération') if f.perte is not none else '— (saisissez le volume obtenu à l\'embouteillage)' }}</dd>
       <dt>Écoulement</dt><dd>{{ (f.taux_ecoulement|nombre(0) ~ ' % des bouteilles produites') if f.taux_ecoulement is not none else '—' }}</dd>
-      <dt>Canaux</dt><dd>{{ f.direct }} en direct · {{ f.revendeur }} en revendeur</dd>
+      <dt>Canaux</dt><dd>{{ f.direct }} en direct · {{ f.revendeur }} en revendeur{% if f.sorties %} · {{ f.sorties }} hors vente{% endif %}</dd>
       <dt>Prix moyen</dt><dd>{{ f.prix_moyen|euro }} (coût {{ f.cout_moyen|euro }})</dd>
       {% if f.top_clients %}<dt>Meilleurs clients</dt><dd>{% for c, n in f.top_clients %}{{ c }} ({{ n }}){{ ', ' if not loop.last }}{% endfor %}</dd>{% endif %}
     </dl>

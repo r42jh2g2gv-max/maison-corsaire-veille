@@ -120,7 +120,14 @@ def chiffres():
                       COALESCE(SUM(nb_bouteilles * volume_cl / 100.0 * COALESCE(degre, 0) / 100), 0) lap
                FROM lots WHERE statut IN ('embouteille', 'epuise') AND date_embouteillage LIKE ?""",
             (ym + "%",)).fetchone()
-        douanes.append({"mois": mois_label(ym), "sorties": sorties, "entrees": entrees})
+        hors_vente = conn.execute(
+            """SELECT COALESCE(SUM(s.quantite), 0) btl,
+                      COALESCE(SUM(s.quantite * l.volume_cl / 100.0 * COALESCE(l.degre, 0) / 100), 0) lap
+               FROM sorties s JOIN lots l ON l.id = s.lot_id WHERE s.date_sortie LIKE ?""",
+            (ym + "%",)).fetchone()
+        douanes.append({"mois": mois_label(ym), "sorties": sorties, "entrees": entrees,
+                        "hors_vente": hors_vente,
+                        "lap_total": sorties["lap"] + hors_vente["lap"]})
         y, m = (y, m - 1) if m > 1 else (y - 1, 12)
     stock_lap = sum(stock_lot(l) * l["volume_cl"] / 100 * (l["degre"] or 0) / 100
                     for l in lots_avec_stock())
@@ -231,11 +238,11 @@ def feuille_lots(wb, conn, conf):
              [("Lot", 14), ("Produit", 30), ("Statut", 18), ("Macération", 12),
               ("Embouteillage", 13), ("DLC", 12), ("Bouteilles", 11), ("Contenance (cl)", 14),
               ("Degré", 8), ("Vendues", 9), ("En stock", 9), ("Coût / bouteille", 15),
-              ("Prix vente TTC", 14), ("Notes", 40)],
+              ("Prix vente TTC", 14), ("Notes", 40), ("Sorties hors vente", 12)],
              [(l["numero"], l["recette_nom"], STATUTS[l["statut"]], l["date_maceration"],
                l["date_embouteillage"], l["dlc"], l["nb_bouteilles"], l["volume_cl"], l["degre"],
                l["vendu"], stock_lot(l), cout_revient(conn, l, conf)["total"],
-               l["prix_vente_ttc"], l["notes"] or "") for l in lots],
+               l["prix_vente_ttc"], l["notes"] or "", l["sorti"]) for l in lots],
              {12: EURO, 13: EURO})
     ing = conn.execute(
         """SELECT l.numero, i.* FROM lot_ingredients i JOIN lots l ON l.id = i.lot_id
@@ -297,6 +304,20 @@ def feuille_achats(wb, conn, debut, fin):
              [(a["date_achat"], a["fournisseur"], a["reference"] or "", a["detail"] or "",
                MODES_PAIEMENT.get(a["mode_paiement"], ""), a["montant_total"],
                "oui" if a["justificatif"] else "non") for a in rows], {6: EURO})
+
+
+def feuille_sorties(wb, conn, debut, fin, couts):
+    from vues_sorties import MOTIFS
+    rows = conn.execute(
+        """SELECT s.*, l.numero, l.recette_nom FROM sorties s JOIN lots l ON l.id = s.lot_id
+           WHERE s.date_sortie BETWEEN ? AND ? ORDER BY s.date_sortie, s.id""",
+        (debut, fin)).fetchall()
+    _feuille(wb, "Sorties hors vente",
+             [("Date", 12), ("Lot", 14), ("Produit", 30), ("Motif", 26), ("Bouteilles", 11),
+              ("Coût de revient", 15), ("Bénéficiaire", 26), ("Note", 36)],
+             [(s["date_sortie"], s["numero"], s["recette_nom"], MOTIFS.get(s["motif"], s["motif"]),
+               s["quantite"], s["quantite"] * couts.get(s["lot_id"], 0), s["beneficiaire"] or "",
+               s["notes"] or "") for s in rows], {6: EURO})
 
 
 def feuille_clients(wb, conn):
@@ -366,6 +387,7 @@ def export(nom):
         feuille_achats(wb, conn, debut, fin)
     if nom in ("stock", "complet"):
         feuille_stock(wb, conn, conf, couts)
+        feuille_sorties(wb, conn, debut, fin, couts)
         feuille_matieres(wb, conn)
     if nom in ("clients", "complet"):
         feuille_clients(wb, conn)

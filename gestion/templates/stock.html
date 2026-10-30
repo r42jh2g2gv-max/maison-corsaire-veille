@@ -5,6 +5,7 @@
 <div class="titre-page">
   <div><div class="surtitre">Bouteilles finies &amp; matières</div><h1>Stock</h1><div class="filet"></div></div>
   <div class="actions"><a class="btn btn-or" href="{{ url_for('caisse') }}">{{ icone('caisse') }}Encaisser</a>
+    <a class="btn btn-ligne" href="{{ url_for('sorties') }}">{{ icone('stock') }}Sortie hors vente</a>
     <a class="btn btn-ligne" href="{{ url_for('matieres') }}">{{ icone('lot') }}Matières premières</a>
     <a class="btn btn-ligne" href="{{ url_for('achats') }}">{{ icone('facture') }}Achats</a>
     <a class="btn btn-ligne" href="{{ url_for('export', nom='stock') }}">{{ icone('tableur') }}Excel</a></div>
@@ -29,7 +30,7 @@
   {% if lots %}
   <div class="table-wrap">
   <table class="empile">
-    <thead><tr><th>Lot</th><th>Produit</th><th>Embouteillé</th><th class="droite">Produites</th><th class="droite">Vendues</th><th class="droite">En stock</th><th class="droite">Coût / btl</th><th></th></tr></thead>
+    <thead><tr><th>Lot</th><th>Produit</th><th>Embouteillé</th><th class="droite">Produites</th><th class="droite">Vendues</th><th class="droite">Sorties</th><th class="droite">En stock</th><th class="droite">Coût / btl</th><th></th></tr></thead>
     <tbody>
       {% for l in lots %}
       <tr>
@@ -38,9 +39,10 @@
         <td data-label="Embouteillé">{{ l.date_embouteillage|datefr }}</td>
         <td class="droite num" data-label="Produites">{{ l.nb_bouteilles }}</td>
         <td class="droite num" data-label="Vendues">{{ l.vendu }}</td>
+        <td class="droite num" data-label="Sorties hors vente">{{ l.sorti or '' }}</td>
         <td class="droite num" data-label="En stock"><strong>{{ stock_lot(l) }}</strong></td>
         <td class="droite num" data-label="Coût / btl">{{ couts[l.id]|euro }}</td>
-        <td data-label="">{% if stock_lot(l) > 0 %}<a class="btn btn-ligne btn-petit" href="{{ url_for('caisse', lot_id=l.id) }}">Vendre</a>{% else %}<span class="badge badge-epuise">Épuisé</span>{% endif %}</td>
+        <td data-label="">{% if stock_lot(l) > 0 %}<a class="btn btn-ligne btn-petit" href="{{ url_for('caisse', lot_id=l.id) }}">Vendre</a> <a class="btn btn-ligne btn-petit" href="{{ url_for('sorties', lot_id=l.id) }}#nouvelle">Sortir</a>{% else %}<span class="badge badge-epuise">Épuisé</span>{% endif %}</td>
       </tr>
       {% endfor %}
     </tbody>

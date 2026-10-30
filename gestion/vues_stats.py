@@ -35,7 +35,7 @@ def statistiques():
             "nom": nom, "recette_id": cle if isinstance(cle, int) else None, "lots": 0,
             "produites": 0, "stock": 0, "en_cours": 0, "vendues": 0, "ca": 0.0, "cout": 0.0,
             "direct": 0, "revendeur": 0, "par_mois": {k: 0 for k in mois}, "clients": {},
-            "cout_production": 0.0, "macere": 0.0, "obtenu": 0.0})
+            "cout_production": 0.0, "macere": 0.0, "obtenu": 0.0, "sorties": 0})
 
     for l in lots_avec_stock():
         f = fiche(l["recette_id"] or l["recette_nom"], l["recette_nom"])
@@ -62,6 +62,11 @@ def statistiques():
         if v["date_vente"][:7] in f["par_mois"]:
             f["par_mois"][v["date_vente"][:7]] += v["quantite"]
         f["clients"][v["client"]] = f["clients"].get(v["client"], 0) + v["quantite"]
+
+    for so in conn.execute(
+            """SELECT s.quantite, l.recette_id, l.recette_nom FROM sorties s
+               JOIN lots l ON l.id = s.lot_id WHERE s.date_sortie >= ?""", (debut,)):
+        fiche(so["recette_id"] or so["recette_nom"], so["recette_nom"])["sorties"] += so["quantite"]
 
     ca_total = sum(f["ca"] for f in recettes.values()) or 1
     lignes = []
