@@ -7,8 +7,7 @@
 </div>
 
 <div class="encart encart-or" style="margin-bottom:16px">
-  <strong>À relire avant d'imprimer.</strong> L'étiquette reprend : dénomination, ingrédients (allergènes en gras), volume, degré, case « LOT » à tamponner, producteur, pictogramme femme enceinte et consigne de tri.
-  La dénomination légale d'une boisson spiritueuse dépend de son degré et de sa teneur en sucre (le mot « rhum » seul est réservé aux produits d'au moins 37,5 % vol.) : faites valider vos textes et la taille du pictogramme par la DDPP ou la DGCCRF avant une impression en série.
+  <strong>À relire avant d'imprimer.</strong> L'étiquette reprend : nom du parfum, dénomination « {{ DENOMINATION_DEFAUT }} », ingrédients (allergènes en gras), volume, degré, case « LOT » à tamponner, producteur, pictogramme femme enceinte officiel et consigne de tri.
 </div>
 
 <div class="grille-2-1">
@@ -20,7 +19,8 @@
         <input type="hidden" name="csrf" value="{{ csrf_token }}">
         <div class="grille" style="gap:12px">
           <div><label for="den-{{ r.id }}">Dénomination de vente</label>
-            <input id="den-{{ r.id }}" type="text" name="denomination" value="{{ r.denomination or ('Rhum arrangé ' ~ r.nom) }}"></div>
+            <input id="den-{{ r.id }}" type="text" name="denomination" value="{{ r.denomination or DENOMINATION_DEFAUT }}">
+            <span class="aide">Imprimée sous le nom du parfum « {{ r.nom }} ».</span></div>
           <div><label for="ing-{{ r.id }}">Ingrédients <span class="aide">(ordre décroissant de quantité)</span></label>
             <textarea id="ing-{{ r.id }}" name="etiquette_ingredients" rows="3">{{ r.etiquette_ingredients or f.ingredients_proposes }}</textarea>
             {% if r.etiquette_ingredients and r.etiquette_ingredients != f.ingredients_proposes %}<span class="aide">Proposition d'après la recette : {{ f.ingredients_proposes }}</span>{% endif %}</div>

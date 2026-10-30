@@ -87,8 +87,8 @@ c.post('/recettes/nouvelle', data={'csrf':csrf(),'nom':'Noisette – Caramel','d
 rid = db.execute("select id from recettes where nom='Noisette – Caramel'").fetchone()[0]
 html = c.get(f'/etiquettes?recette={rid}').get_data(as_text=True)
 assert 'fruits à coque' in html and 'Rhum ambré 45°, noisettes torréfiées, sucre de canne roux.' in html.replace('&#39;', "'"), 'ingrédients proposés'
-c.post(f'/etiquettes/recette/{rid}', data={'csrf':csrf(),'denomination':'Boisson spiritueuse noisette','etiquette_ingredients':'Rhum, noisettes, sucre.','allergenes':'noisettes','etiquette_mentions':'Servir frais.'})
-assert db.execute('select denomination from recettes where id=?',(rid,)).fetchone()[0] == 'Boisson spiritueuse noisette'
+c.post(f'/etiquettes/recette/{rid}', data={'csrf':csrf(),'denomination':'Boisson spiritueuse à base de rhum','etiquette_ingredients':'Rhum, noisettes, sucre.','allergenes':'noisettes','etiquette_mentions':'Servir frais.'})
+assert db.execute('select denomination from recettes where id=?',(rid,)).fetchone()[0] == 'Boisson spiritueuse à base de rhum'
 c.post('/etiquettes/reglages', data={'csrf':csrf(),'largeur':'60','hauteur':'90','tri':'Verre à recycler'})
 r = c.get(f'/etiquettes/recette/{rid}.pdf?copies=30'); assert r.data[:4] == b'%PDF'
 print('OK')

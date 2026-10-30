@@ -156,8 +156,10 @@ def dessiner_etiquette(c, x, y, L, H, e, trait_coupe=True):
     place = haut - y_bloc
     allergenes = [a.strip() for a in (e["allergenes"] or "").split(",") if a.strip()]
     for taille in (7.2, 6.8, 6.4, 6.0, 5.6, 5.2, 4.8):
-        blocs = [Paragraph(f"<b>{escape(e['denomination'])}</b>",
-                           _style(taille + 2.2, gras=True, interligne=1.15))]
+        # Nom du parfum (nom commercial), puis dénomination légale
+        blocs = [Paragraph(f"<b>{escape(e['nom'])}</b>",
+                           _style(taille + 2.6, gras=True, interligne=1.15)),
+                 Paragraph(escape(e["denomination"]), _style(taille + 0.6, interligne=1.2))]
         if e["ingredients"]:
             blocs.append(Paragraph(
                 "<b>Ingrédients :</b> " + _avec_allergenes_en_gras(e["ingredients"], allergenes),

@@ -5,6 +5,9 @@ from calculs import convertir, to_float
 from noyau import app, get_db, get_or_404, nombre, set_setting, settings, to_int
 from etiquette_pdf import etiquettes_pdf
 
+DENOMINATION = "Boisson spiritueuse à base de rhum"
+app.jinja_env.globals["DENOMINATION_DEFAUT"] = DENOMINATION
+
 
 
 def ingredients_proposes(conn, recette_id):
@@ -41,7 +44,7 @@ def donnees_etiquette(conn, recette=None, lot=None):
     return {
         "nom": nom,
         "denomination": (recette["denomination"] if recette and recette["denomination"]
-                         else f"Rhum arrangé {nom}"),
+                         else DENOMINATION),
         "ingredients": (recette["etiquette_ingredients"] if recette and
                         recette["etiquette_ingredients"] else proposes[0]),
         "allergenes": (recette["allergenes"] if recette and recette["allergenes"] is not None
