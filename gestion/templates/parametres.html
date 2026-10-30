@@ -64,7 +64,7 @@
 
 <section class="carte mt" id="logo">
   <h2>Logo et icône</h2>
-  <p class="aide">Votre logo remplace l'ancre : en haut de l'appli, sur l'icône de l'écran d'accueil, et sur les tickets, factures et bons d'achat. Une image carrée ou ronde, sur fond transparent ou uni, donne le meilleur résultat.</p>
+  <p class="aide">Votre logo remplace l'ancre. Le <strong>logo complet</strong> (avec le nom) va sur les tickets, factures et bons d'achat ; le <strong>symbole seul</strong>, plus lisible en petit, sert d'icône sur l'écran d'accueil et en haut de l'appli. Images PNG sur fond transparent de préférence. Vous pouvez envoyer l'un, l'autre ou les deux.</p>
   <div style="display:flex;gap:16px;align-items:center;flex-wrap:wrap;margin-bottom:14px">
     <img src="{{ url_for('icone', nom='apple-touch-icon', v=version_logo()) }}" alt="Aperçu de l'icône" width="72" height="72" style="border-radius:16px;box-shadow:var(--ombre)">
     <span class="doux">Aperçu de l'icône{% if not logo_perso() %} (icône d'origine){% endif %}</span>
@@ -72,8 +72,10 @@
   <form method="post" action="{{ url_for('parametres_logo') }}" enctype="multipart/form-data">
     <input type="hidden" name="csrf" value="{{ csrf_token }}">
     <div class="champs">
-      <div class="large"><label for="fichier-logo">Image du logo</label>
+      <div><label for="fichier-logo">Logo complet <span class="aide">(tickets, factures, bons)</span></label>
         <input id="fichier-logo" type="file" name="logo" accept="image/*" style="min-height:auto"></div>
+      <div><label for="fichier-symbole">Symbole seul <span class="aide">(icône et en-tête, facultatif)</span></label>
+        <input id="fichier-symbole" type="file" name="symbole" accept="image/*" style="min-height:auto"></div>
       <div><label for="fond">Couleur de fond de l'icône</label>
         <input id="fond" type="color" name="fond" value="{{ logo_fond() }}" style="min-height:46px;padding:4px"></div>
       <div><label class="case" style="margin-top:34px"><input type="checkbox" name="plein_cadre" value="1" {{ 'checked' if conf.logo_plein_cadre == '1' }}> Logo en plein cadre (sans marge)</label></div>

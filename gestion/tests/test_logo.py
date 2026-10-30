@@ -51,6 +51,18 @@ if sortie:
                      ("/bons/1.pdf", "bon")]:
         open(os.path.join(sortie, f"logo-{nom}.pdf"), "wb").write(c.get(url).data)
     open(os.path.join(sortie, "logo-icone.png"), "wb").write(c.get("/icone/icone-512.png").data)
+# Symbole séparé : utilisé pour l'icône et l'en-tête, le logo complet reste pour les PDF
+sym = Image.new("RGBA", (300, 300), (200, 100, 40, 255))
+b2 = io.BytesIO()
+sym.save(b2, "PNG")
+b2.seek(0)
+c.post("/parametres/logo", data={"csrf": "t", "fond": "#0a1322", "symbole": (b2, "s.png")},
+       content_type="multipart/form-data")
+entete = Image.open(io.BytesIO(c.get("/icone/logo.png").data))
+assert entete.size == (300, 300), entete.size
+icone = Image.open(io.BytesIO(c.get("/icone/icone-512.png").data)).convert("RGB")
+assert icone.getpixel((256, 256)) == (200, 100, 40), icone.getpixel((256, 256))
+assert c.get("/tickets/2/ticket.pdf").data[:4] == b"%PDF"
 # Image illisible
 r = c.post("/parametres/logo", data={"csrf": "t", "logo": (io.BytesIO(b"pas une image"), "x.png")},
            content_type="multipart/form-data", follow_redirects=True)

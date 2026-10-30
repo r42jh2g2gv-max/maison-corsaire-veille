@@ -14,21 +14,21 @@ LIGNE = colors.HexColor("#d8cfbd")
 MODERATION = ("L'abus d'alcool est dangereux pour la santé, à consommer avec modération.")
 
 
-def _logo():
-    """Logo personnalisé (Paramètres → Logo et icône) : (image, largeur/hauteur) ou None."""
+def _logo(prefere="logo"):
+    """Logo personnalisé (Paramètres → Logo et icône) : (image, largeur/hauteur, complet) ou None."""
     from vues_logo import logo_pour_pdf  # import tardif : évite une boucle d'import
-    donnees = logo_pour_pdf()
-    if not donnees:
+    resultat = logo_pour_pdf(prefere)
+    if not resultat:
         return None
     from reportlab.lib.utils import ImageReader
-    image = ImageReader(donnees)
+    image = ImageReader(resultat[0])
     l, h = image.getSize()
-    return image, l / h
+    return image, l / h, resultat[1]
 
 
 def _dessiner_logo(c, logo, x, y, hauteur, centre=False):
     """Dessine le logo (hauteur fixée, largeur proportionnelle) ; x = centre si centre=True."""
-    image, ratio = logo
+    image, ratio = logo[0], logo[1]
     largeur = min(hauteur * ratio, hauteur * 3)
     hauteur = largeur / ratio
     c.drawImage(image, x - largeur / 2 if centre else x, y, largeur, hauteur, mask="auto")
@@ -80,20 +80,23 @@ def ticket_pdf(ticket, lignes, conf, bon_code=None):
     marge = 5 * mm
     logo = _logo()
     hauteur = (104 + 11 * len(lignes) + (6 if ticket["remise"] else 0)
-               + (6 if ticket["consigne"] else 0) + (18 if logo else 0)) * mm
+               + (6 if ticket["consigne"] else 0) + ((17 if logo[2] else 18) if logo else 0)) * mm
     buf = BytesIO()
     c = canvas.Canvas(buf, pagesize=(largeur, hauteur))
     c.setTitle(f"Ticket {ticket['numero']}")
     y = hauteur - 10 * mm
     centre = largeur / 2
-    if logo:
-        _dessiner_logo(c, logo, centre, y - 10 * mm, 15 * mm, centre=True)
-        y -= 18 * mm
-
-    c.setFillColor(NUIT)
-    c.setFont("Times-Bold", 15)
-    c.drawCentredString(centre, y, conf.get("producteur_nom") or "Maison Corsaire")
-    y -= 4.5 * mm
+    if logo and logo[2]:  # logo complet : il porte déjà le nom
+        _dessiner_logo(c, logo, centre, y - 18 * mm, 22 * mm, centre=True)
+        y -= 21.5 * mm
+    else:
+        if logo:
+            _dessiner_logo(c, logo, centre, y - 10 * mm, 15 * mm, centre=True)
+            y -= 18 * mm
+        c.setFillColor(NUIT)
+        c.setFont("Times-Bold", 15)
+        c.drawCentredString(centre, y, conf.get("producteur_nom") or "Maison Corsaire")
+        y -= 4.5 * mm
     c.setFont("Helvetica", 7)
     c.setFillColor(GRIS)
     for ligne in _decouper(c, conf.get("producteur_adresse"), "Helvetica", 7, largeur - 2 * marge):
@@ -374,7 +377,7 @@ def bon_pdf(bon, conf):
     c.roundRect(7 * mm, 7 * mm, L - 14 * mm, H - 14 * mm, 3 * mm)
 
     decalage = 0
-    logo = _logo()
+    logo = _logo("symbole")
     if logo:
         _dessiner_logo(c, logo, L / 2, H - 19 * mm, 10 * mm, centre=True)
         decalage = 5 * mm

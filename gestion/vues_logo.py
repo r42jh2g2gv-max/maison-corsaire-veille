@@ -7,18 +7,25 @@ from PIL import Image, ImageOps, UnidentifiedImageError
 from noyau import BASE, INSTANCE, app, get_db, set_setting, settings
 
 DOSSIER = INSTANCE / "logo"
-LOGO = DOSSIER / "logo.png"
+LOGO = DOSSIER / "logo.png"          # logo complet : tickets, factures, bons d'achat
+SYMBOLE = DOSSIER / "symbole.png"    # symbole seul (facultatif) : icône et en-tête
 # nom servi → (taille, marge relative) ; la marge « maskable » protège le logo des découpes Android
 ICONES = {"icone-192": (192, 0.10), "icone-512": (512, 0.10),
           "icone-maskable-512": (512, 0.20), "apple-touch-icon": (180, 0.10)}
 
 
 def logo_perso():
-    return LOGO if LOGO.exists() else None
+    return LOGO if LOGO.exists() else (SYMBOLE if SYMBOLE.exists() else None)
+
+
+def image_icone():
+    """Image utilisée pour l'icône et l'en-tête : le symbole s'il existe, sinon le logo."""
+    return SYMBOLE if SYMBOLE.exists() else (LOGO if LOGO.exists() else None)
 
 
 def version_logo():
-    return str(int(LOGO.stat().st_mtime)) if LOGO.exists() else "0"
+    dates = [int(f.stat().st_mtime) for f in (LOGO, SYMBOLE) if f.exists()]
+    return str(max(dates)) if dates else "0"
 
 
 app.jinja_env.globals.update(logo_perso=logo_perso, version_logo=version_logo)
@@ -50,28 +57,33 @@ def generer_icones(image, fond, plein_cadre):
 
 @app.route("/parametres/logo", methods=["POST"])
 def parametres_logo():
-    fichier = request.files.get("logo")
     fond = request.form.get("fond", "#0a1322")
     plein_cadre = bool(request.form.get("plein_cadre"))
     set_setting("logo_fond", fond)
     set_setting("logo_plein_cadre", "1" if plein_cadre else "0")
     get_db().commit()
-    if fichier and fichier.filename:
+    envoyes = 0
+    for champ, destination in (("logo", LOGO), ("symbole", SYMBOLE)):
+        fichier = request.files.get(champ)
+        if not fichier or not fichier.filename:
+            continue
         try:
             image = Image.open(fichier.stream)
             image = ImageOps.exif_transpose(image).convert("RGBA")  # photo iPhone : bon sens
         except (UnidentifiedImageError, OSError):
-            flash("Image illisible : envoyez une photo ou une image PNG ou JPEG.", "erreur")
+            flash("Image illisible : envoyez une image PNG ou JPEG (les fichiers EPS ou PDF "
+                  "doivent d'abord être convertis).", "erreur")
             return redirect(url_for("parametres") + "#logo")
         if image.getbbox():
             image = image.crop(image.getbbox())  # retire les bords transparents
-        image.thumbnail((1024, 1024), Image.LANCZOS)
+        image.thumbnail((1600, 1600), Image.LANCZOS)
         DOSSIER.mkdir(parents=True, exist_ok=True)
-        image.save(LOGO, optimize=True)
-    elif not LOGO.exists():
+        image.save(destination, optimize=True)
+        envoyes += 1
+    if not envoyes and not image_icone():
         flash("Choisissez d'abord une image.", "erreur")
         return redirect(url_for("parametres") + "#logo")
-    generer_icones(Image.open(LOGO).convert("RGBA"), _couleur(fond), plein_cadre)
+    generer_icones(Image.open(image_icone()).convert("RGBA"), _couleur(fond), plein_cadre)
     flash("Logo enregistré. Pour changer l'icône de l'iPhone : supprimez l'icône de l'écran "
           "d'accueil puis ajoutez-la de nouveau depuis Safari.", "succes")
     return redirect(url_for("parametres") + "#logo")
@@ -89,22 +101,22 @@ def parametres_logo_supprimer():
 @app.route("/icone/<nom>.png")
 def icone(nom):
     """Icône personnalisée si un logo a été envoyé, sinon l'icône d'origine."""
-    if nom == "logo":
-        if not LOGO.exists():
+    if nom == "logo":  # image de l'en-tête
+        if not image_icone():
             abort(404)
-        return send_file(LOGO, max_age=86400)
+        return send_file(image_icone(), max_age=86400)
     if nom not in ICONES:
         abort(404)
     perso = DOSSIER / f"{nom}.png"
-    chemin = perso if perso.exists() and LOGO.exists() else BASE / "static" / "icones" / f"{nom}.png"
+    chemin = perso if perso.exists() and image_icone() else BASE / "static" / "icones" / f"{nom}.png"
     return send_file(chemin, max_age=86400)
 
 
-def logo_pour_pdf():
-    """Logo en mémoire pour reportlab (ou None)."""
-    if not LOGO.exists():
-        return None
-    return BytesIO(LOGO.read_bytes())
+def logo_pour_pdf(prefere="logo"):
+    """Image en mémoire pour reportlab : (données, est_le_logo_complet) ou None."""
+    ordre = (SYMBOLE, LOGO) if prefere == "symbole" else (LOGO, SYMBOLE)
+    source = next((f for f in ordre if f.exists()), None)
+    return (BytesIO(source.read_bytes()), source == LOGO) if source else None
 
 
 app.jinja_env.globals["logo_fond"] = lambda: settings().get("logo_fond") or "#0a1322"
