@@ -116,6 +116,13 @@
     }
   };
 </script>
+<script>
+  // Un message (succès, erreur) est toujours amené à l'écran, même après un saut vers une ancre
+  window.addEventListener('load', function () {
+    var f = document.querySelector('main .flashs');
+    if (f) f.scrollIntoView({ block: 'center' });
+  });
+</script>
 <script src="{{ url_for('static', filename='js/hors-ligne.js') }}"></script>
 {% block scripts %}{% endblock %}
 </body>

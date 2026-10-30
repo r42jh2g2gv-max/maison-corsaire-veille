@@ -96,3 +96,20 @@ assert 'Déclarer le CA URSSAF : septembre' not in c.get('/').get_data(as_text=T
 r = c.get('/theme/clair?next=/stock'); assert r.headers['Location'].endswith('/stock') and 'theme=clair' in r.headers['Set-Cookie']
 r = c.get('/theme/clair?next=//evil.com'); assert 'evil' not in r.headers['Location']
 print('OK')
+# Changement de mot de passe : confirmation obligatoire, ancien refusé, nouveau accepté
+c2 = app.test_client()
+c2.get('/connexion')
+with c2.session_transaction() as s: t = s['csrf']
+c2.post('/connexion', data={'email':'contact@maisoncorsaire.fr','password':'corsaire2026','csrf':t})
+with c2.session_transaction() as s: t = s['csrf']
+r = c2.post('/parametres/compte', data={'csrf':t,'email':'contact@maisoncorsaire.fr','actuel':'corsaire2026','nouveau':'Rhum2026!','confirmation':'Rhum2026?'}, follow_redirects=True)
+assert 'pas identiques' in r.get_data(as_text=True)
+r = c2.post('/parametres/compte', data={'csrf':t,'email':'contact@maisoncorsaire.fr','actuel':'faux','nouveau':'Rhum2026!','confirmation':'Rhum2026!'}, follow_redirects=True)
+assert 'actuel incorrect' in r.get_data(as_text=True)
+r = c2.post('/parametres/compte', data={'csrf':t,'email':'contact@maisoncorsaire.fr','actuel':'corsaire2026','nouveau':'Rhum2026!','confirmation':'Rhum2026!'}, follow_redirects=True)
+assert 'mot de passe changé' in r.get_data(as_text=True)
+c2.get('/deconnexion'); c2.get('/connexion')
+with c2.session_transaction() as s: t = s['csrf']
+assert c2.post('/connexion', data={'email':'contact@maisoncorsaire.fr','password':'corsaire2026','csrf':t}).status_code == 200
+assert c2.post('/connexion', data={'email':'contact@maisoncorsaire.fr','password':'Rhum2026!','csrf':t}).status_code == 302
+print('mot de passe OK')

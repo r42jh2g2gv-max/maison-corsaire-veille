@@ -107,24 +107,37 @@ def parametres_test_email():
 def parametres_compte():
     conn = get_db()
     user = conn.execute("SELECT * FROM users WHERE id = ?", (session["user_id"],)).fetchone()
+    retour = redirect(url_for("parametres") + "#compte")
     if not check_password_hash(user["password_hash"], request.form.get("actuel", "")):
-        flash("Mot de passe actuel incorrect.", "erreur")
-        return redirect(url_for("parametres") + "#compte")
+        flash("Mot de passe actuel incorrect : rien n'a été modifié.", "erreur")
+        return retour
     email = request.form.get("email", "").strip().lower()
     nouveau = request.form.get("nouveau", "")
+    confirmation = request.form.get("confirmation", "")
     if "@" not in email:
-        flash("Adresse email invalide.", "erreur")
-        return redirect(url_for("parametres") + "#compte")
+        flash("Adresse email invalide : rien n'a été modifié.", "erreur")
+        return retour
     if nouveau and len(nouveau) < 8:
-        flash("Le nouveau mot de passe doit contenir au moins 8 caractères.", "erreur")
-        return redirect(url_for("parametres") + "#compte")
-    conn.execute("UPDATE users SET email = ? WHERE id = ?", (email, user["id"]))
+        flash("Le nouveau mot de passe doit contenir au moins 8 caractères : rien n'a été modifié.",
+              "erreur")
+        return retour
+    if nouveau and nouveau != confirmation:
+        flash("Les deux nouveaux mots de passe ne sont pas identiques : rien n'a été modifié.",
+              "erreur")
+        return retour
+    messages = []
+    if email != user["email"]:
+        conn.execute("UPDATE users SET email = ? WHERE id = ?", (email, user["id"]))
+        messages.append(f"email de connexion : {email}")
     if nouveau:
         conn.execute("UPDATE users SET password_hash = ? WHERE id = ?",
                      (generate_password_hash(nouveau), user["id"]))
+        messages.append("mot de passe changé, utilisez-le à votre prochaine connexion")
     conn.commit()
-    flash("Compte mis à jour.", "succes")
-    return redirect(url_for("parametres") + "#compte")
+    flash(("Enregistré : " + " ; ".join(messages) + ".") if messages
+          else "Aucun changement : remplissez « Nouveau mot de passe » pour le changer.",
+          "succes" if messages else "info")
+    return retour
 
 
 def chemin_installeur():

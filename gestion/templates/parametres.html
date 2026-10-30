@@ -101,15 +101,25 @@
 
 <section class="carte mt" id="compte">
   <h2>Mon compte</h2>
-  <form method="post" action="{{ url_for('parametres_compte') }}">
+  <form method="post" action="{{ url_for('parametres_compte') }}" autocomplete="on">
     <input type="hidden" name="csrf" value="{{ csrf_token }}">
-    <div class="champs c3">
+    <div class="grille" style="gap:14px;max-width:460px">
       <div><label for="email">Email de connexion</label><input id="email" type="email" name="email" value="{{ email }}" required autocomplete="username"></div>
-      <div><label for="nouveau">Nouveau mot de passe <span class="aide">(8 caractères min., vide = inchangé)</span></label><input id="nouveau" type="password" name="nouveau" autocomplete="new-password" minlength="8"></div>
-      <div><label for="actuel">Mot de passe actuel</label><input id="actuel" type="password" name="actuel" required autocomplete="current-password"></div>
+      <div><label for="actuel">1. Mot de passe actuel</label><input id="actuel" type="password" name="actuel" required autocomplete="current-password"></div>
+      <div><label for="nouveau">2. Nouveau mot de passe <span class="aide">(8 caractères minimum)</span></label><input id="nouveau" type="password" name="nouveau" autocomplete="new-password" minlength="8"></div>
+      <div><label for="confirmation-mdp">3. Nouveau mot de passe, encore une fois</label><input id="confirmation-mdp" type="password" name="confirmation" autocomplete="new-password" minlength="8"></div>
+      <label class="case"><input type="checkbox" id="voir-mdp"> Afficher les mots de passe</label>
     </div>
-    <div class="form-actions"><button class="btn" type="submit">Mettre à jour le compte</button></div>
+    <div class="form-actions"><button class="btn btn-or" type="submit">Enregistrer</button></div>
+    <p class="aide mb0">Si l'iPhone propose un « mot de passe fort », touchez « Choisir mon mot de passe » pour taper le vôtre.</p>
   </form>
+  <script>
+    document.getElementById('voir-mdp').addEventListener('change', function () {
+      ['actuel', 'nouveau', 'confirmation-mdp'].forEach(function (id) {
+        document.getElementById(id).type = this.checked ? 'text' : 'password';
+      }, this);
+    });
+  </script>
 </section>
 
 {% if mise_a_jour_possible() %}
