@@ -5,6 +5,8 @@ from flask import abort, flash, redirect, render_template, request, url_for
 
 from calculs import (CATEGORIES_INGREDIENTS, STATUTS, STATUTS_EMBOUTEILLES,
                      TYPES_MATERIAUX, cout_revient, taux_tva, to_float)
+from vues_matieres import (cout_depuis_stock, matieres_avec_stock, synchroniser_utilisation,
+                           trouver_mp)
 from noyau import (app, couts_par_lot, get_db, get_lot, lots_avec_stock, maj_statut_epuise,
                    parse_date, settings, stock_lot, to_int, today)
 
@@ -93,17 +95,24 @@ def lot_nouveau():
         if data["recette_id"] and litres > 0:
             for ing in conn.execute(
                 "SELECT * FROM recette_ingredients WHERE recette_id = ?", (data["recette_id"],)
-            ):
+            ).fetchall():
                 quantite = round((ing["quantite_par_litre"] or 0) * litres, 3)
-                conn.execute(
-                    "INSERT INTO lot_ingredients (lot_id, categorie, nom, quantite, unite, cout)"
-                    " VALUES (?, ?, ?, ?, ?, ?)",
-                    (lot_id, ing["categorie"], ing["nom"], quantite, ing["unite"],
-                     round(quantite * (ing["cout_unitaire"] or 0), 2)),
+                mp = trouver_mp(conn, ing["nom"])
+                mp_id = ing["mp_id"] or (mp["id"] if mp else None)
+                cout = cout_depuis_stock(conn, mp_id, quantite, ing["unite"]) if mp_id else None
+                if cout is None:
+                    cout = round(quantite * (ing["cout_unitaire"] or 0), 2)
+                ligne = conn.execute(
+                    "INSERT INTO lot_ingredients (lot_id, categorie, nom, quantite, unite, cout, mp_id)"
+                    " VALUES (?, ?, ?, ?, ?, ?, ?)",
+                    (lot_id, ing["categorie"], ing["nom"], quantite, ing["unite"], cout, mp_id),
                 )
+                erreur = synchroniser_utilisation(conn, ligne.lastrowid)
+                if erreur:
+                    flash(f"{ing['nom']} : {erreur}, stock non déduit.", "erreur")
         synchroniser_materiaux(conn, lot_id)
         conn.commit()
-        flash(f"Lot {numero} créé. Vérifiez les ingrédients et leurs coûts réels d'achat.", "succes")
+        flash(f"Lot {numero} créé. Les ingrédients ont été déduits du stock de matières premières.", "succes")
         return redirect(url_for("lot_detail", lot_id=lot_id))
 
     lot = {"date_maceration": today(), "volume_cl": 50, "statut": "maceration",
@@ -141,7 +150,8 @@ def lot_detail(lot_id):
         fin = date.fromisoformat(lot["date_embouteillage"]) if lot["date_embouteillage"] else date.today()
         jours_maceration = (fin - date.fromisoformat(lot["date_maceration"])).days
     return render_template(
-        "lot_detail.html", lot=lot, ingredients=ingredients, ventes=ventes,
+        "lot_detail.html", matieres=matieres_avec_stock("ORDER BY m.nom"), lot=lot,
+        ingredients=ingredients, ventes=ventes,
         cout=cout_revient(conn, lot, conf), stock=stock_lot(lot),
         duree=duree, jours_maceration=jours_maceration,
     )
@@ -170,6 +180,10 @@ def lot_modifier(lot_id):
                degre = :degre, statut = :statut, notes = :notes WHERE id = :id""",
             {**data, "id": lot_id},
         )
+        conn.execute(
+            """UPDATE mouvements_mp SET date_mouvement = ? WHERE lot_ingredient_id IN
+               (SELECT id FROM lot_ingredients WHERE lot_id = ?)""",
+            (data["date_maceration"] or today(), lot_id))
         alerte_materiaux(conn, lot_id)
         maj_statut_epuise(conn, lot_id)
         conn.commit()
@@ -233,19 +247,29 @@ def lot_supprimer(lot_id):
 def ingredient_ajouter(lot_id):
     conn = get_db()
     get_lot(lot_id)
-    nom = request.form.get("nom", "").strip()
-    categorie = request.form.get("categorie")
+    mp_id = to_int(request.form.get("mp_id")) or None
+    mp = conn.execute("SELECT * FROM matieres_premieres WHERE id = ?", (mp_id,)).fetchone() \
+        if mp_id else None
+    nom = mp["nom"] if mp else request.form.get("nom", "").strip()
+    categorie = mp["categorie"] if mp else request.form.get("categorie")
+    quantite = to_float(request.form.get("quantite"), None)
+    unite = request.form.get("unite", "").strip() or (mp["unite"] if mp else "")
     if not nom or categorie not in CATEGORIES_INGREDIENTS:
-        flash("Indiquez au moins le nom et la catégorie de l'ingrédient.", "erreur")
+        flash("Choisissez une matière première ou indiquez le nom et la catégorie.", "erreur")
+        return redirect(url_for("lot_detail", lot_id=lot_id) + "#ingredients")
+    cout = request.form.get("cout", "").strip()
+    cout = to_float(cout) if cout else (cout_depuis_stock(conn, mp_id, quantite, unite) or 0)
+    cur = conn.execute(
+        "INSERT INTO lot_ingredients (lot_id, categorie, nom, quantite, unite, cout, mp_id)"
+        " VALUES (?, ?, ?, ?, ?, ?, ?)",
+        (lot_id, categorie, nom, quantite, unite, cout, mp_id),
+    )
+    erreur = synchroniser_utilisation(conn, cur.lastrowid)
+    conn.commit()
+    if erreur:
+        flash(f"Ingrédient ajouté, mais {erreur} : stock non déduit.", "erreur")
     else:
-        conn.execute(
-            "INSERT INTO lot_ingredients (lot_id, categorie, nom, quantite, unite, cout)"
-            " VALUES (?, ?, ?, ?, ?, ?)",
-            (lot_id, categorie, nom, to_float(request.form.get("quantite"), None),
-             request.form.get("unite", "").strip(), to_float(request.form.get("cout"))),
-        )
-        conn.commit()
-        flash(f"Ingrédient « {nom} » ajouté.", "succes")
+        flash(f"Ingrédient « {nom} » ajouté{' et déduit du stock' if mp else ''}.", "succes")
     return redirect(url_for("lot_detail", lot_id=lot_id) + "#ingredients")
 
 
@@ -253,15 +277,18 @@ def ingredient_ajouter(lot_id):
 def ingredient_modifier(lot_id, ing_id):
     conn = get_db()
     if request.form.get("action") == "supprimer":
+        # La sortie de stock liée est supprimée en cascade : la quantité revient en stock.
         conn.execute("DELETE FROM lot_ingredients WHERE id = ? AND lot_id = ?", (ing_id, lot_id))
-        flash("Ingrédient retiré.", "succes")
+        flash("Ingrédient retiré (quantité remise en stock si elle venait du stock).", "succes")
     else:
         conn.execute(
             "UPDATE lot_ingredients SET quantite = ?, unite = ?, cout = ? WHERE id = ? AND lot_id = ?",
             (to_float(request.form.get("quantite"), None), request.form.get("unite", "").strip(),
              to_float(request.form.get("cout")), ing_id, lot_id),
         )
-        flash("Ingrédient mis à jour.", "succes")
+        erreur = synchroniser_utilisation(conn, ing_id)
+        flash(f"Ingrédient mis à jour, mais {erreur}." if erreur else "Ingrédient mis à jour.",
+              "erreur" if erreur else "succes")
     conn.commit()
     return redirect(url_for("lot_detail", lot_id=lot_id) + "#ingredients")
 

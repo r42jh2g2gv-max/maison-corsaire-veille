@@ -263,6 +263,42 @@ def feuille_stock(wb, conn, conf, couts):
                "OUI" if m["stock"] <= m["seuil_alerte"] else "") for m in mats], {5: EURO})
 
 
+def feuille_matieres(wb, conn):
+    rows = conn.execute(
+        """SELECT m.*, COALESCE((SELECT SUM(quantite) FROM mouvements_mp v WHERE v.mp_id = m.id), 0)
+           AS stock FROM matieres_premieres m ORDER BY m.categorie, m.nom""").fetchall()
+    _feuille(wb, "Stock matières premières",
+             [("Matière", 32), ("Catégorie", 11), ("Stock", 10), ("Unité", 8), ("Seuil", 8),
+              ("Prix unitaire", 13), ("Valeur", 12), ("Fournisseur", 26), ("À racheter", 11)],
+             [(m["nom"], m["categorie"], round(m["stock"], 3), m["unite"], m["seuil_alerte"],
+               m["cout_unitaire"], max(m["stock"], 0) * m["cout_unitaire"], m["fournisseur"],
+               "OUI" if m["seuil_alerte"] and m["stock"] <= m["seuil_alerte"] else "")
+              for m in rows], {6: EURO, 7: EURO})
+    mvts = conn.execute(
+        """SELECT v.*, m.nom, m.unite FROM mouvements_mp v JOIN matieres_premieres m
+           ON m.id = v.mp_id ORDER BY v.date_mouvement, v.id""").fetchall()
+    _feuille(wb, "Mouvements matières",
+             [("Date", 12), ("Matière", 32), ("Type", 12), ("Quantité", 10), ("Unité", 8),
+              ("Note", 34)],
+             [(v["date_mouvement"], v["nom"], v["type"], round(v["quantite"], 3), v["unite"],
+               v["notes"] or "") for v in mvts])
+
+
+def feuille_achats(wb, conn, debut, fin):
+    rows = conn.execute(
+        """SELECT a.*, (SELECT group_concat(designation || COALESCE(' (' || quantite || ' ' ||
+                   COALESCE(unite, '') || ')', ''), ' ; ') FROM achat_lignes l
+                   WHERE l.achat_id = a.id) AS detail
+           FROM achats a WHERE a.date_achat BETWEEN ? AND ? ORDER BY a.date_achat, a.id""",
+        (debut, fin)).fetchall()
+    _feuille(wb, "Registre des achats",
+             [("Date", 12), ("Fournisseur", 28), ("N° de facture", 16), ("Nature de l'achat", 56),
+              ("Mode de règlement", 16), ("Montant", 13), ("Justificatif", 11)],
+             [(a["date_achat"], a["fournisseur"], a["reference"] or "", a["detail"] or "",
+               MODES_PAIEMENT.get(a["mode_paiement"], ""), a["montant_total"],
+               "oui" if a["justificatif"] else "non") for a in rows], {6: EURO})
+
+
 def feuille_clients(wb, conn):
     from vues_clients import STATS_CLIENTS
     rows = conn.execute(STATS_CLIENTS + " ORDER BY c.nom").fetchall()
@@ -298,6 +334,7 @@ def feuille_recettes(wb, conn):
 
 EXPORTS = {
     "livre-recettes": "Livre des recettes",
+    "achats": "Registre des achats",
     "ventes": "Ventes détaillées",
     "lots": "Registre des lots",
     "stock": "Stock",
@@ -325,8 +362,11 @@ def export(nom):
         feuille_ventes(wb, conn, debut, fin, couts)
     if nom in ("lots", "complet"):
         feuille_lots(wb, conn, conf)
+    if nom in ("achats", "complet"):
+        feuille_achats(wb, conn, debut, fin)
     if nom in ("stock", "complet"):
         feuille_stock(wb, conn, conf, couts)
+        feuille_matieres(wb, conn)
     if nom in ("clients", "complet"):
         feuille_clients(wb, conn)
     if nom in ("recettes", "complet"):

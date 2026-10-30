@@ -1,0 +1,15 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Hors ligne · Maison Corsaire</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body class="page-connexion" style="padding-bottom:0">
+  <div class="boite-connexion" style="text-align:center">
+    <h1>Pas de réseau</h1>
+    <p>Cette page n'est pas disponible hors ligne. La <strong>caisse</strong> fonctionne sans réseau si vous l'avez ouverte au moins une fois avec une connexion.</p>
+    <a class="btn btn-or btn-plein" href="{{ url_for('caisse') }}">Ouvrir la caisse</a>
+  </div>
+</body>
+</html>

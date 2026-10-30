@@ -1,0 +1,13 @@
+<div class="champs c3">
+  <div><label for="mp-nom">Nom</label><input id="mp-nom" type="text" name="nom" value="{{ mp.nom or '' }}" required placeholder="ex. Rhum agricole blanc 50°"></div>
+  <div><label for="mp-cat">Catégorie</label><select id="mp-cat" name="categorie">{% for k, v in CATEGORIES.items() %}<option value="{{ k }}" {{ 'selected' if mp.categorie == k }}>{{ v }}</option>{% endfor %}</select></div>
+  <div><label for="mp-unite">Unité de stock</label><input id="mp-unite" type="text" name="unite" list="unites-mp" value="{{ mp.unite or 'kg' }}" required>
+    <datalist id="unites-mp"><option value="L"><option value="kg"><option value="g"><option value="pièce"></datalist></div>
+  <div><label for="mp-seuil">Seuil d'alerte <span class="aide">(0 = pas d'alerte)</span></label><input id="mp-seuil" type="number" name="seuil_alerte" step="any" min="0" inputmode="decimal" value="{{ mp.seuil_alerte if mp.seuil_alerte is not none else '' }}"></div>
+  <div><label for="mp-cout">Prix par unité (€)</label><input id="mp-cout" type="number" name="cout_unitaire" step="any" min="0" inputmode="decimal" value="{{ mp.cout_unitaire if mp.cout_unitaire is not none else '' }}">
+    <span class="aide">Mis à jour à chaque achat.</span></div>
+  <div><label for="mp-fournisseur">Fournisseur habituel</label><input id="mp-fournisseur" type="text" name="fournisseur" value="{{ mp.fournisseur or '' }}"></div>
+  <div><label for="mp-allergene">Allergène <span class="aide">(pour l'étiquette)</span></label><input id="mp-allergene" type="text" name="allergene" list="allergenes" value="{{ mp.allergene or '' }}" placeholder="ex. fruits à coque">
+    <datalist id="allergenes">{% for a in ['céréales contenant du gluten', 'crustacés', 'œufs', 'poissons', 'arachides', 'soja', 'lait', 'fruits à coque', 'céleri', 'moutarde', 'graines de sésame', 'anhydride sulfureux et sulfites', 'lupin', 'mollusques'] %}<option value="{{ a }}">{% endfor %}</datalist></div>
+  <div class="large" style="grid-column:1/-1"><label for="mp-notes">Notes</label><input id="mp-notes" type="text" name="notes" value="{{ mp.notes or '' }}"></div>
+</div>

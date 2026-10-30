@@ -7,6 +7,7 @@
 </div>
 
 <nav class="filtres" aria-label="Sections">
+  <a href="{{ url_for('statistiques') }}">Statistiques par recette →</a>
   <a href="#urssaf" class="actif">URSSAF</a><a href="#douanes">Douanes</a><a href="#tableurs">Tableurs</a>
 </nav>
 
@@ -92,7 +93,7 @@
     {% for nom, label in EXPORTS.items() %}
     <a class="carte carte-lien export" style="display:flex;gap:12px;align-items:center;background:var(--surface-2)" href="{{ url_for('export', nom=nom) }}">
       <span class="texte-or" style="width:28px;flex:none">{{ icone('tableur') }}</span>
-      <span><strong>{{ label }}</strong><br><small>{% if nom == 'livre-recettes' %}Obligatoire en micro-entreprise{% elif nom == 'ventes' %}Ligne par ligne, avec marges{% elif nom == 'lots' %}Traçabilité + ingrédients{% elif nom == 'stock' %}Bouteilles et matières{% elif nom == 'clients' %}Coordonnées, achats, bons{% elif nom == 'recettes' %}Ingrédients pour 1 L{% else %}Tout, en un fichier (sauvegarde){% endif %}</small></span>
+      <span><strong>{{ label }}</strong><br><small>{% if nom == 'livre-recettes' %}Obligatoire en micro-entreprise{% elif nom == 'achats' %}Obligatoire avec le livre des recettes{% elif nom == 'ventes' %}Ligne par ligne, avec marges{% elif nom == 'lots' %}Traçabilité + ingrédients{% elif nom == 'stock' %}Bouteilles, conditionnement, matières premières{% elif nom == 'clients' %}Coordonnées, achats, bons{% elif nom == 'recettes' %}Ingrédients pour 1 L{% else %}Tout, en un fichier (sauvegarde){% endif %}</small></span>
     </a>
     {% endfor %}
   </div>

@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+{% from "_icones.html" import icone %}
+{% block titre %}Étiquettes{% endblock %}
+{% block contenu %}
+<div class="titre-page">
+  <div><div class="surtitre">Module 5 · Mentions obligatoires</div><h1>Contre-étiquettes</h1><div class="filet"></div></div>
+</div>
+
+<div class="encart encart-or" style="margin-bottom:16px">
+  <strong>À relire avant d'imprimer.</strong> L'étiquette reprend : dénomination, ingrédients (allergènes en gras), volume, degré, case « LOT » à tamponner, producteur, pictogramme femme enceinte et consigne de tri.
+  La dénomination légale d'une boisson spiritueuse dépend de son degré et de sa teneur en sucre (le mot « rhum » seul est réservé aux produits d'au moins 37,5 % vol.) : faites valider vos textes et la taille du pictogramme par la DDPP ou la DGCCRF avant une impression en série.
+</div>
+
+<div class="grille-2-1">
+  <div class="grille">
+    {% for f in fiches %}{% set r = f.r %}
+    <details class="carte" id="recette-{{ r.id }}" {{ 'open' if choisie == r.id or (not choisie and loop.first) }}>
+      <summary style="font-size:1.1rem">{{ r.nom }}</summary>
+      <form method="post" action="{{ url_for('etiquette_enregistrer', recette_id=r.id) }}" class="mt">
+        <input type="hidden" name="csrf" value="{{ csrf_token }}">
+        <div class="grille" style="gap:12px">
+          <div><label for="den-{{ r.id }}">Dénomination de vente</label>
+            <input id="den-{{ r.id }}" type="text" name="denomination" value="{{ r.denomination or ('Rhum arrangé ' ~ r.nom) }}"></div>
+          <div><label for="ing-{{ r.id }}">Ingrédients <span class="aide">(ordre décroissant de quantité)</span></label>
+            <textarea id="ing-{{ r.id }}" name="etiquette_ingredients" rows="3">{{ r.etiquette_ingredients or f.ingredients_proposes }}</textarea>
+            {% if r.etiquette_ingredients and r.etiquette_ingredients != f.ingredients_proposes %}<span class="aide">Proposition d'après la recette : {{ f.ingredients_proposes }}</span>{% endif %}</div>
+          <div><label for="all-{{ r.id }}">Allergènes <span class="aide">(séparés par des virgules ; mis en gras)</span></label>
+            <input id="all-{{ r.id }}" type="text" name="allergenes" value="{{ r.allergenes if r.allergenes is not none else f.allergenes_proposes }}" placeholder="aucun">
+            <span class="aide">Les allergènes renseignés sur les matières premières sont proposés automatiquement.</span></div>
+          <div><label for="men-{{ r.id }}">Mentions libres <span class="aide">(facultatif)</span></label>
+            <textarea id="men-{{ r.id }}" name="etiquette_mentions" rows="2" placeholder="Fabrication artisanale en Charente-Maritime. Servir frais. Agiter avant de servir.">{{ r.etiquette_mentions or '' }}</textarea></div>
+        </div>
+        <div class="form-actions"><button class="btn btn-or">Enregistrer les textes</button></div>
+      </form>
+      <hr class="separateur">
+      <form method="get" action="{{ url_for('etiquette_recette_pdf', recette_id=r.id) }}" target="_blank" class="champs" style="align-items:end">
+        <div><label for="cp-{{ r.id }}">Nombre d'étiquettes</label><input id="cp-{{ r.id }}" type="number" name="copies" min="1" max="500" value="24" inputmode="numeric"></div>
+        <div><label for="fmt-{{ r.id }}">Format</label>
+          <select id="fmt-{{ r.id }}" name="format"><option value="planche">Planche A4 (imprimante de bureau)</option><option value="unite">Une étiquette par page (imprimante d'étiquettes)</option></select></div>
+        <div class="large"><button class="btn btn-ligne">{{ icone('imprimer') }}Générer le PDF — case lot vierge à tamponner</button></div>
+      </form>
+    </details>
+    {% else %}
+    <div class="carte"><p class="vide mb0">Aucune recette. <a href="{{ url_for('recette_nouvelle') }}">Créer une recette</a></p></div>
+    {% endfor %}
+  </div>
+
+  <div class="grille">
+    <section class="carte">
+      <h2>Par lot</h2>
+      <p class="aide">Reprend le degré et la contenance réels du lot.</p>
+      {% if lots %}
+      <form method="get" action="" id="form-lot" target="_blank" class="grille" style="gap:12px">
+        <div><label for="lot-choisi">Lot</label>
+          <select id="lot-choisi">{% for l in lots %}<option value="{{ url_for('etiquette_lot_pdf', lot_id=l.id) }}" data-nb="{{ l.nb_bouteilles }}">{{ l.numero }} — {{ l.recette_nom }}</option>{% endfor %}</select></div>
+        <div><label for="lot-copies">Nombre d'étiquettes</label><input id="lot-copies" type="number" name="copies" min="1" max="500" inputmode="numeric"></div>
+        <label class="case"><input type="checkbox" name="lot_imprime" value="1"> Imprimer le n° de lot dans la case (sinon case vierge à tamponner)</label>
+        <input type="hidden" name="format" value="planche">
+        <button class="btn btn-or">{{ icone('etiquette') }}Planche A4 du lot</button>
+      </form>
+      {% else %}<p class="vide mb0">Aucun lot en cours.</p>{% endif %}
+    </section>
+
+    <section class="carte">
+      <h2>Format</h2>
+      <form method="post" action="{{ url_for('etiquettes_reglages') }}">
+        <input type="hidden" name="csrf" value="{{ csrf_token }}">
+        <div class="champs">
+          <div><label for="largeur">Largeur (mm)</label><input id="largeur" type="number" name="largeur" min="30" max="190" step="1" value="{{ conf.etiquette_largeur|float|int }}"></div>
+          <div><label for="hauteur">Hauteur (mm)</label><input id="hauteur" type="number" name="hauteur" min="30" max="270" step="1" value="{{ conf.etiquette_hauteur|float|int }}"></div>
+          <div class="large"><label for="tri">Consigne de tri</label><textarea id="tri" name="tri" rows="2">{{ conf.etiquette_tri }}</textarea>
+            <span class="aide">Vérifiez sur le site de Citeo si le logo Triman et l'Info-tri sont requis pour vos emballages.</span></div>
+        </div>
+        <div class="form-actions"><button class="btn">Enregistrer</button></div>
+      </form>
+      <p class="aide mt mb0">Producteur imprimé : {{ conf.producteur_nom }}, {{ conf.producteur_adresse }} (<a href="{{ url_for('parametres') }}">modifier</a>).</p>
+    </section>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+(function () {
+  var f = document.getElementById('form-lot');
+  if (!f) return;
+  var sel = document.getElementById('lot-choisi'), cp = document.getElementById('lot-copies');
+  function maj() { f.action = sel.value; cp.value = sel.options[sel.selectedIndex].dataset.nb || 24; }
+  sel.addEventListener('change', maj); maj();
+})();
+</script>
+{% endblock %}

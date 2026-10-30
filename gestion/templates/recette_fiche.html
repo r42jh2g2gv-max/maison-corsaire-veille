@@ -62,7 +62,7 @@
         <tr><td>{{ CATEGORIES[i.categorie] }}</td><td>{{ i.nom }}</td>
           <td class="d">{{ (i.quantite_par_litre|nombre(2))|replace(',00', '') if i.quantite_par_litre is not none else '—' }} {{ i.unite or '' }}</td>
           <td class="d"><strong>{{ ((i.quantite_par_litre or 0) * litres)|nombre(2)|replace(',00', '') }} {{ i.unite or '' }}</strong></td>
-          <td class="d">{{ ((i.quantite_par_litre or 0) * litres * (i.cout_unitaire or 0))|euro if i.cout_unitaire else '—' }}</td></tr>
+          <td class="d">{{ ((i.quantite_par_litre or 0) * litres * (i.cout_estime or 0))|euro if i.cout_estime else '—' }}</td></tr>
       {% endfor %}
       </tbody>
     </table>

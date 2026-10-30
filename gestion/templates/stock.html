@@ -5,6 +5,8 @@
 <div class="titre-page">
   <div><div class="surtitre">Bouteilles finies &amp; matières</div><h1>Stock</h1><div class="filet"></div></div>
   <div class="actions"><a class="btn btn-or" href="{{ url_for('caisse') }}">{{ icone('caisse') }}Encaisser</a>
+    <a class="btn btn-ligne" href="{{ url_for('matieres') }}">{{ icone('lot') }}Matières premières</a>
+    <a class="btn btn-ligne" href="{{ url_for('achats') }}">{{ icone('facture') }}Achats</a>
     <a class="btn btn-ligne" href="{{ url_for('export', nom='stock') }}">{{ icone('tableur') }}Excel</a></div>
 </div>
 

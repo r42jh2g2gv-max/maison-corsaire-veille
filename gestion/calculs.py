@@ -78,3 +78,24 @@ def prix_depuis_marge(cout, marge_pct):
 
 def marge_pct(prix_ht, cout):
     return (prix_ht - cout) / prix_ht * 100 if prix_ht else 0.0
+
+
+# Conversions d'unités : (famille, facteur vers l'unité de base)
+UNITES = {
+    "kg": ("masse", 1000), "g": ("masse", 1),
+    "l": ("volume", 1000), "cl": ("volume", 10), "ml": ("volume", 1),
+    "pièce": ("piece", 1), "piece": ("piece", 1), "pièces": ("piece", 1), "pc": ("piece", 1),
+}
+
+
+def convertir(quantite, de, vers):
+    """Convertit une quantité (g → kg, cl → L...). None si les unités sont incompatibles."""
+    if quantite is None:
+        return None
+    de, vers = (de or "").strip().lower(), (vers or "").strip().lower()
+    if de == vers:
+        return quantite
+    a, b = UNITES.get(de), UNITES.get(vers)
+    if not a or not b or a[0] != b[0]:
+        return None
+    return quantite * a[1] / b[1]

@@ -6,10 +6,10 @@
 <div class="carte ligne-ing" style="padding:12px;background:var(--surface-2)">
   <div class="champs c3">
     <div><label>Catégorie</label><select name="ing_categorie">{% for k, v in CATEGORIES.items() %}<option value="{{ k }}" {{ 'selected' if i and i.categorie == k }}>{{ v }}</option>{% endfor %}</select></div>
-    <div><label>Ingrédient</label><input type="text" name="ing_nom" value="{{ i.nom if i else '' }}" placeholder="ex. Mangue"></div>
+    <div><label>Ingrédient</label><input type="text" name="ing_nom" list="matieres" value="{{ i.nom if i else '' }}" placeholder="ex. Mangue"></div>
     <div><label>Quantité pour 1 L</label><input type="number" name="ing_qte" step="any" min="0" inputmode="decimal" value="{{ i.quantite_par_litre if i and i.quantite_par_litre is not none else '' }}"></div>
     <div><label>Unité</label><input type="text" name="ing_unite" list="unites" value="{{ i.unite if i else '' }}" placeholder="L, kg, g, pièce"></div>
-    <div><label>Prix par unité (€) <span class="aide">€/L, €/kg, €/g…</span></label><input type="number" name="ing_cout" step="any" min="0" inputmode="decimal" value="{{ i.cout_unitaire if i and i.cout_unitaire is not none else '' }}"></div>
+    <div><label>Prix par unité (€) <span class="aide">si absent du stock</span></label><input type="number" name="ing_cout" step="any" min="0" inputmode="decimal" value="{{ i.cout_unitaire if i and i.cout_unitaire is not none else '' }}"></div>
     <div style="display:flex;align-items:flex-end"><button type="button" class="btn btn-danger btn-petit retirer">{{ icone('poubelle') }}Retirer</button></div>
   </div>
 </div>
@@ -33,6 +33,8 @@
       {% if not ingredients %}{{ ligne(None) }}{{ ligne(None) }}{{ ligne(None) }}{% endif %}
     </div>
     <template id="modele">{{ ligne(None) }}</template>
+    <datalist id="matieres">{% for m in matieres %}<option value="{{ m.nom }}">{% endfor %}</datalist>
+    <p class="aide mb0">Un ingrédient qui porte le même nom qu'une <a href="{{ url_for('matieres') }}">matière première</a> est relié au stock : son prix vient du dernier achat et il est déduit du stock quand vous lancez un lot.</p>
     <datalist id="unites"><option value="L"><option value="cl"><option value="ml"><option value="kg"><option value="g"><option value="pièce"></datalist>
   </section>
   <div class="form-actions" style="margin-top:0">

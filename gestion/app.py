@@ -9,8 +9,12 @@ import vues_accueil  # noqa: F401,E402
 import vues_agenda  # noqa: F401,E402
 import vues_clients  # noqa: F401,E402
 import vues_compte  # noqa: F401,E402
+import vues_etiquettes  # noqa: F401,E402
 import vues_lots  # noqa: F401,E402
+import vues_pwa  # noqa: F401,E402
+import vues_matieres  # noqa: F401,E402
 import vues_recettes  # noqa: F401,E402
+import vues_stats  # noqa: F401,E402
 import vues_ventes  # noqa: F401,E402
 
 if __name__ == "__main__":

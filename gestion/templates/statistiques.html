@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{% from "_icones.html" import icone %}
+{% block titre %}Statistiques par recette{% endblock %}
+{% block contenu %}
+<div class="titre-page">
+  <div><div class="surtitre">Analyse</div><h1>Statistiques par recette</h1><div class="filet"></div></div>
+</div>
+<nav class="filtres" aria-label="Période">
+  {% for k, v in periodes.items() %}<a href="{{ url_for('statistiques', periode=k) }}" class="{{ 'actif' if k == periode }}">{{ v }}</a>{% endfor %}
+</nav>
+
+<div class="grille-kpi">
+  <div class="kpi bois"><div class="etiquette">Chiffre d'affaires</div><div class="valeur">{{ ca_total|euro }}</div><div class="detail">avant bons d'achat</div></div>
+  <div class="kpi"><div class="etiquette">Marge dégagée</div><div class="valeur">{{ marge_totale|euro }}</div></div>
+  <div class="kpi"><div class="etiquette">Bouteilles vendues</div><div class="valeur">{{ vendues }}</div></div>
+  <div class="kpi"><div class="etiquette">Recettes vendues</div><div class="valeur">{{ lignes|selectattr('vendues')|list|length }}</div></div>
+</div>
+
+<section class="carte" style="margin-bottom:16px">
+  <h2>Classement</h2>
+  <div class="table-wrap">
+  <table class="empile">
+    <thead><tr><th>Recette</th><th class="droite">Vendues</th><th class="droite">CA</th><th class="droite">Part</th><th class="droite">Prix moyen</th><th class="droite">Coût / btl</th><th class="droite">Marge</th></tr></thead>
+    <tbody>
+      {% for f in lignes %}
+      <tr>
+        <td class="titre-ligne" data-label="Recette">{{ loop.index }}. {% if f.recette_id %}<a href="#rec-{{ loop.index }}">{{ f.nom }}</a>{% else %}{{ f.nom }}{% endif %}</td>
+        <td class="droite num" data-label="Vendues">{{ f.vendues }}</td>
+        <td class="droite num" data-label="CA"><strong>{{ f.ca|euro }}</strong></td>
+        <td class="droite num" data-label="Part du CA">{{ f.part|nombre(0) }} %</td>
+        <td class="droite num" data-label="Prix moyen">{{ f.prix_moyen|euro }}</td>
+        <td class="droite num" data-label="Coût / btl">{{ f.cout_moyen|euro }}</td>
+        <td class="droite num" data-label="Marge">{% if f.marge is not none %}<span class="positif">{{ f.marge|nombre(0) }} %</span> · {{ f.marge_euros|euro }}{% else %}—{% endif %}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<div class="grille-cartes">
+  {% for f in lignes %}
+  <article class="carte {{ 'bois' if loop.first and f.vendues }}" id="rec-{{ loop.index }}">
+    <div style="display:flex;justify-content:space-between;gap:10px;align-items:flex-start">
+      <h2 class="nom-carte" style="margin:0">{{ f.nom }}</h2>
+      {% if f.part %}<span class="badge badge-revendeur sans-point num">{{ f.part|nombre(0) }} % du CA</span>{% endif %}
+    </div>
+    <div class="stats-3">
+      <div><strong>{{ f.vendues }}</strong><span>vendues</span></div>
+      <div><strong class="or">{{ f.ca|euro }}</strong><span>CA</span></div>
+      <div><strong>{{ (f.marge|nombre(0) ~ ' %') if f.marge is not none else '—' }}</strong><span>marge</span></div>
+    </div>
+    <div class="barres" style="grid-template-columns:repeat(12, minmax(0, 1fr));height:110px;gap:4px" role="img" aria-label="Bouteilles vendues par mois">
+      {% for n in f.serie %}
+      <div class="barre {{ 'courant' if loop.last }}"><span class="v num">{{ n or '' }}</span><div class="b" style="height: {{ (n / max_serie * 100)|round(1) }}%"></div><span class="m" style="font-size:.62rem">{{ mois[loop.index0][:3] }}</span></div>
+      {% endfor %}
+    </div>
+    <dl class="infos" style="margin-top:22px">
+      <dt>Production</dt><dd>{{ f.lots }} lot(s) · {{ f.produites }} btl embouteillées{% if f.en_cours %} · {{ f.en_cours }} en macération{% endif %}</dd>
+      <dt>Stock</dt><dd>{% if not f.stock and f.produites %}épuisé{% else %}{{ f.stock }} btl{% if f.stock and f.autonomie is not none %} · ≈ {{ f.autonomie|nombre(1) }} mois de vente{% elif f.stock %} · pas de vente récente{% endif %}{% endif %}</dd>
+      <dt>Écoulement</dt><dd>{{ (f.taux_ecoulement|nombre(0) ~ ' % des bouteilles produites') if f.taux_ecoulement is not none else '—' }}</dd>
+      <dt>Canaux</dt><dd>{{ f.direct }} en direct · {{ f.revendeur }} en revendeur</dd>
+      <dt>Prix moyen</dt><dd>{{ f.prix_moyen|euro }} (coût {{ f.cout_moyen|euro }})</dd>
+      {% if f.top_clients %}<dt>Meilleurs clients</dt><dd>{% for c, n in f.top_clients %}{{ c }} ({{ n }}){{ ', ' if not loop.last }}{% endfor %}</dd>{% endif %}
+    </dl>
+    {% if f.recette_id %}
+    <div class="form-actions"><a class="btn btn-ligne btn-petit" href="{{ url_for('lot_nouveau', recette_id=f.recette_id) }}">{{ icone('lot') }}Relancer un lot</a></div>
+    {% endif %}
+  </article>
+  {% else %}
+  <div class="carte"><p class="vide mb0">Pas encore de données.</p></div>
+  {% endfor %}
+</div>
+{% endblock %}

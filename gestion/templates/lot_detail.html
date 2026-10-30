@@ -12,6 +12,7 @@
   <div class="actions">
     {% if stock > 0 %}<a class="btn btn-or" href="{{ url_for('caisse', lot_id=lot.id) }}">{{ icone('caisse') }}Vendre</a>{% endif %}
     <a class="btn btn-ligne" href="{{ url_for('lot_fiche', lot_id=lot.id) }}" target="_blank">{{ icone('imprimer') }}Fiche PDF</a>
+    <a class="btn btn-ligne" href="{{ url_for('etiquette_lot_pdf', lot_id=lot.id, copies=lot.nb_bouteilles or 24) }}" target="_blank">{{ icone('etiquette') }}Étiquettes</a>
     <a class="btn btn-ligne" href="{{ url_for('calculateur', lot_id=lot.id) }}">Prix</a>
     <a class="btn btn-ligne" href="{{ url_for('lot_modifier', lot_id=lot.id) }}">Modifier</a>
   </div>
@@ -77,7 +78,7 @@
     {% for i in ingredients %}
       <tr>
         <td data-label="Catégorie">{{ CATEGORIES[i.categorie] }}</td>
-        <td class="titre-ligne" data-label="Ingrédient">{{ i.nom }}</td>
+        <td class="titre-ligne" data-label="Ingrédient">{% if i.mp_id %}<a href="{{ url_for('matiere_detail', mp_id=i.mp_id) }}" title="Relié au stock">{{ i.nom }}</a>{% else %}{{ i.nom }}{% endif %}</td>
         <td data-label="Quantité"><input form="ing-{{ i.id }}" type="number" name="quantite" step="any" min="0" inputmode="decimal" value="{{ i.quantite if i.quantite is not none else '' }}" style="max-width:110px"></td>
         <td data-label="Unité"><input form="ing-{{ i.id }}" type="text" name="unite" value="{{ i.unite or '' }}" style="max-width:90px"></td>
         <td data-label="Coût (€)"><input form="ing-{{ i.id }}" type="number" name="cout" step="0.01" min="0" inputmode="decimal" value="{{ '%.2f'|format(i.cout) }}" style="max-width:110px"></td>
@@ -100,12 +101,18 @@
     <form method="post" action="{{ url_for('ingredient_ajouter', lot_id=lot.id) }}" class="mt">
       <input type="hidden" name="csrf" value="{{ csrf_token }}">
       <div class="champs c3">
-        <div><label for="categorie">Catégorie</label>
+        <div class="large" style="grid-column:1/-1"><label for="mp_id">Depuis le stock</label>
+          <select id="mp_id" name="mp_id">
+            <option value="">— Ingrédient hors stock —</option>
+            {% for m in matieres %}<option value="{{ m.id }}" data-unite="{{ m.unite }}" data-cout="{{ m.cout_unitaire }}">{{ m.nom }} · {{ m.stock|nombre(2)|replace(',00', '') }} {{ m.unite }} en stock</option>{% endfor %}
+          </select>
+          <span class="aide">La quantité est déduite du stock de matières premières, et le coût calculé au dernier prix d'achat.</span></div>
+        <div class="hors-stock"><label for="categorie">Catégorie</label>
           <select id="categorie" name="categorie">{% for k, v in CATEGORIES.items() %}<option value="{{ k }}">{{ v }}</option>{% endfor %}</select></div>
-        <div><label for="nom">Ingrédient</label><input id="nom" type="text" name="nom" required placeholder="ex. Rhum agricole 50°"></div>
+        <div class="hors-stock"><label for="nom">Ingrédient</label><input id="nom" type="text" name="nom" placeholder="ex. Cannelle"></div>
         <div><label for="quantite">Quantité</label><input id="quantite" type="number" name="quantite" step="any" min="0" inputmode="decimal"></div>
         <div><label for="unite">Unité</label><input id="unite" type="text" name="unite" list="unites" placeholder="L, kg, g, pièce"></div>
-        <div><label for="cout">Coût total (€)</label><input id="cout" type="number" name="cout" step="0.01" min="0" inputmode="decimal"></div>
+        <div><label for="cout">Coût total (€) <span class="aide" id="cout-aide">vide = calculé</span></label><input id="cout" type="number" name="cout" step="0.01" min="0" inputmode="decimal"></div>
       </div>
       <datalist id="unites"><option value="L"><option value="cl"><option value="kg"><option value="g"><option value="pièce"></datalist>
       <div class="form-actions"><button class="btn" type="submit">Ajouter</button></div>
@@ -141,4 +148,18 @@
     </form>
   </div>
 </details>
+{% endblock %}
+{% block scripts %}
+<script>
+(function () {
+  var sel = document.getElementById('mp_id');
+  if (!sel) return;
+  function maj() {
+    var opt = sel.options[sel.selectedIndex];
+    document.querySelectorAll('.hors-stock').forEach(function (b) { b.hidden = !!sel.value; });
+    if (opt.dataset.unite) document.getElementById('unite').value = opt.dataset.unite;
+  }
+  sel.addEventListener('change', maj); maj();
+})();
+</script>
 {% endblock %}

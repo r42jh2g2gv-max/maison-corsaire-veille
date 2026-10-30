@@ -176,6 +176,54 @@ CREATE TABLE IF NOT EXISTS messages (
     mode TEXT NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS matieres_premieres (
+    id INTEGER PRIMARY KEY,
+    nom TEXT NOT NULL,
+    categorie TEXT NOT NULL DEFAULT 'autre',
+    unite TEXT NOT NULL DEFAULT 'kg',
+    seuil_alerte REAL NOT NULL DEFAULT 0,
+    -- prix d'achat par unité de stock (dernier achat)
+    cout_unitaire REAL NOT NULL DEFAULT 0,
+    fournisseur TEXT,
+    allergene TEXT,
+    notes TEXT
+);
+
+-- Stock = somme des mouvements (achat +, utilisation -, ajustement +/-)
+CREATE TABLE IF NOT EXISTS mouvements_mp (
+    id INTEGER PRIMARY KEY,
+    mp_id INTEGER NOT NULL REFERENCES matieres_premieres(id) ON DELETE CASCADE,
+    date_mouvement TEXT NOT NULL,
+    type TEXT NOT NULL,
+    quantite REAL NOT NULL,
+    lot_ingredient_id INTEGER REFERENCES lot_ingredients(id) ON DELETE CASCADE,
+    achat_ligne_id INTEGER REFERENCES achat_lignes(id) ON DELETE CASCADE,
+    notes TEXT
+);
+
+CREATE TABLE IF NOT EXISTS achats (
+    id INTEGER PRIMARY KEY,
+    date_achat TEXT NOT NULL,
+    fournisseur TEXT NOT NULL,
+    reference TEXT,
+    mode_paiement TEXT NOT NULL DEFAULT 'carte',
+    montant_total REAL NOT NULL DEFAULT 0,
+    justificatif TEXT,
+    notes TEXT,
+    created_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS achat_lignes (
+    id INTEGER PRIMARY KEY,
+    achat_id INTEGER NOT NULL REFERENCES achats(id) ON DELETE CASCADE,
+    mp_id INTEGER REFERENCES matieres_premieres(id) ON DELETE SET NULL,
+    materiau_id INTEGER REFERENCES materiaux(id) ON DELETE SET NULL,
+    designation TEXT NOT NULL,
+    quantite REAL,
+    unite TEXT,
+    montant REAL NOT NULL DEFAULT 0
+);
+
 CREATE TABLE IF NOT EXISTS declarations (
     periode TEXT PRIMARY KEY,
     declare_le TEXT NOT NULL,
@@ -207,6 +255,9 @@ DEFAULT_SETTINGS = {
     "smtp_user": "",
     "smtp_password": "",
     "smtp_expediteur": "",
+    "etiquette_largeur": "70",
+    "etiquette_hauteur": "100",
+    "etiquette_tri": "Bouteille en verre et bouchon : à déposer dans le bac de tri.",
 }
 
 # Colonnes ajoutées après la première version : (table, colonne, définition)
@@ -214,6 +265,13 @@ MIGRATIONS = [
     ("recettes", "instructions", "TEXT"),
     ("recette_ingredients", "cout_unitaire", "REAL"),
     ("ventes", "ticket_id", "INTEGER REFERENCES tickets(id) ON DELETE CASCADE"),
+    ("lot_ingredients", "mp_id", "INTEGER REFERENCES matieres_premieres(id) ON DELETE SET NULL"),
+    ("recette_ingredients", "mp_id", "INTEGER REFERENCES matieres_premieres(id) ON DELETE SET NULL"),
+    ("recettes", "denomination", "TEXT"),
+    ("recettes", "etiquette_ingredients", "TEXT"),
+    ("recettes", "allergenes", "TEXT"),
+    ("recettes", "etiquette_mentions", "TEXT"),
+    ("tickets", "uuid", "TEXT"),
 ]
 
 
@@ -273,6 +331,7 @@ def init_db(app):
     conn.execute("PRAGMA foreign_keys = ON")
     conn.executescript(SCHEMA)
     migrer(conn)
+    conn.execute("CREATE UNIQUE INDEX IF NOT EXISTS tickets_uuid ON tickets(uuid)")
     for key, value in DEFAULT_SETTINGS.items():
         conn.execute("INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)", (key, value))
     if not conn.execute("SELECT 1 FROM users").fetchone():
@@ -288,8 +347,9 @@ def init_db(app):
 def clear_data(conn):
     """Supprime toutes les données métier (garde le compte et les réglages)."""
     for table in ("consignes", "bons", "ventes", "tickets", "messages", "declarations",
-                  "evenements", "clients", "lot_ingredients", "lots",
-                  "recette_ingredients", "recettes", "materiaux"):
+                  "evenements", "clients", "mouvements_mp", "achat_lignes", "achats",
+                  "lot_ingredients", "lots", "recette_ingredients", "recettes",
+                  "matieres_premieres", "materiaux"):
         conn.execute(f"DELETE FROM {table}")
 
 
@@ -531,6 +591,7 @@ def seed_demo(conn):
         " notes) VALUES (?, ?, ?, ?, ?, ?)",
         (client_ids[2], "Sophie Martin", d(-1), -1, consigne, "Bouteille rapportée propre"),
     )
+    seed_matieres(conn, d)
 
     conn.executemany(
         "INSERT INTO bons (code, client_id, beneficiaire, montant, motif, date_emission,"
@@ -551,3 +612,102 @@ def seed_demo(conn):
             continue
         conn.execute("INSERT OR IGNORE INTO declarations (periode, declare_le) VALUES (?, ?)",
                      (f"urssaf:{y}-{m:02d}", d(-30 * k + 25)))
+
+
+def seed_matieres(conn, d):
+    """Matières premières, achats et consommation des lots d'exemple."""
+    from calculs import convertir
+
+    matieres = [
+        # nom, catégorie, unité, seuil, coût, fournisseur, allergène
+        ("Rhum agricole blanc 50°", "rhum", "L", 10, 14.0, "Distillerie des Alizés", None),
+        ("Rhum ambré 45°", "rhum", "L", 5, 17.0, "Distillerie des Alizés", None),
+        ("Ananas Victoria", "fruit", "kg", 0, 6.5, "Primeur du marché", None),
+        ("Mangue", "fruit", "kg", 0, 6.0, "Primeur du marché", None),
+        ("Fruit de la passion", "fruit", "kg", 0, 12.0, "Primeur du marché", None),
+        ("Gousse de vanille", "epice", "pièce", 10, 2.6, "Épices du Monde", None),
+        ("Grains de café arabica", "epice", "kg", 0.3, 30.0, "Torréfaction Saint-Nicolas", None),
+        ("Fèves de cacao", "epice", "kg", 0.2, 30.0, "Épices du Monde", None),
+        ("Noix de coco râpée toastée", "fruit", "kg", 0.5, 12.0, "Épices du Monde", None),
+        ("Citron vert (zestes)", "fruit", "pièce", 10, 0.3, "Primeur du marché", None),
+        ("Sucre de canne roux", "sucre", "kg", 2, 4.0, "Épicerie en gros", None),
+        ("Sirop de canne", "sucre", "L", 0.5, 8.0, "Épicerie en gros", None),
+    ]
+    ids = {}
+    for nom, cat, unite, seuil, cout, fournisseur, allergene in matieres:
+        cur = conn.execute(
+            "INSERT INTO matieres_premieres (nom, categorie, unite, seuil_alerte, cout_unitaire,"
+            " fournisseur, allergene) VALUES (?, ?, ?, ?, ?, ?, ?)",
+            (nom, cat, unite, seuil, cout, fournisseur, allergene))
+        ids[nom.lower()] = (cur.lastrowid, unite)
+
+    now = datetime.now().isoformat(timespec="seconds")
+    achats = [
+        (-250, "Distillerie des Alizés", "FA-2026-118", "virement",
+         [("Rhum agricole blanc 50°", 40, 560.0), ("Rhum ambré 45°", 10, 170.0)]),
+        (-245, "Verrerie Atlantique", "V-88412", "carte",
+         [("@Bouteille flasque 50 cl", 120, 144.0), ("@Bouchon liège tête bois", 200, 90.0)]),
+        (-242, "Primeur du marché", None, "especes",
+         [("Ananas Victoria", 4.2, 25.2), ("Sucre de canne roux", 5, 20.0)]),
+        (-240, "Épices du Monde", "EM-5521", "carte",
+         [("Gousse de vanille", 50, 130.0), ("Fèves de cacao", 0.5, 15.0),
+          ("Noix de coco râpée toastée", 1, 12.0)]),
+        (-201, "Primeur du marché", None, "especes",
+         [("Mangue", 3.3, 19.8), ("Fruit de la passion", 1.1, 13.2), ("Sirop de canne", 1, 8.0)]),
+        (-152, "Torréfaction Saint-Nicolas", "TSN-301", "carte",
+         [("Grains de café arabica", 0.5, 15.0)]),
+        (-120, "Imprimerie du Port", "IP-2026-044", "virement",
+         [("@Étiquette avant + contre-étiquette", 100, 38.0)]),
+        (-65, "Distillerie des Alizés", "FA-2026-301", "virement",
+         [("Rhum agricole blanc 50°", 20, 280.0)]),
+        (-63, "Primeur du marché", None, "especes", [("Ananas Victoria", 4.2, 27.3)]),
+        (-47, "Primeur du marché", None, "especes",
+         [("Citron vert (zestes)", 25, 7.5), ("Noix de coco râpée toastée", 0.5, 6.0)]),
+    ]
+    for jours, fournisseur, ref, paiement, lignes in achats:
+        cur = conn.execute(
+            "INSERT INTO achats (date_achat, fournisseur, reference, mode_paiement, montant_total,"
+            " created_at) VALUES (?, ?, ?, ?, ?, ?)",
+            (d(jours), fournisseur, ref, paiement, sum(l[2] for l in lignes), now))
+        achat_id = cur.lastrowid
+        for nom, qte, montant in lignes:
+            if nom.startswith("@"):  # matière de conditionnement (stock déjà à jour)
+                mat = conn.execute("SELECT id FROM materiaux WHERE nom = ?", (nom[1:],)).fetchone()
+                conn.execute(
+                    "INSERT INTO achat_lignes (achat_id, materiau_id, designation, quantite, unite,"
+                    " montant) VALUES (?, ?, ?, ?, 'pièce', ?)",
+                    (achat_id, mat[0] if mat else None, nom[1:], qte, montant))
+                continue
+            mp_id, unite = ids[nom.lower()]
+            ligne = conn.execute(
+                "INSERT INTO achat_lignes (achat_id, mp_id, designation, quantite, unite, montant)"
+                " VALUES (?, ?, ?, ?, ?, ?)", (achat_id, mp_id, nom, qte, unite, montant))
+            conn.execute(
+                "INSERT INTO mouvements_mp (mp_id, date_mouvement, type, quantite, achat_ligne_id)"
+                " VALUES (?, ?, 'achat', ?, ?)", (mp_id, d(jours), qte, ligne.lastrowid))
+
+    # Les lots d'exemple consomment ces matières
+    for ing in conn.execute(
+            """SELECT i.*, l.date_maceration FROM lot_ingredients i
+               JOIN lots l ON l.id = i.lot_id""").fetchall():
+        trouve = ids.get(ing["nom"].lower())
+        if not trouve:
+            continue
+        mp_id, unite = trouve
+        qte = convertir(ing["quantite"] or 0, ing["unite"], unite)
+        conn.execute("UPDATE lot_ingredients SET mp_id = ? WHERE id = ?", (mp_id, ing["id"]))
+        if qte:
+            conn.execute(
+                "INSERT INTO mouvements_mp (mp_id, date_mouvement, type, quantite,"
+                " lot_ingredient_id) VALUES (?, ?, 'utilisation', ?, ?)",
+                (mp_id, ing["date_maceration"], -qte, ing["id"]))
+    for ing in conn.execute("SELECT id, nom FROM recette_ingredients").fetchall():
+        trouve = ids.get(ing["nom"].lower())
+        if trouve:
+            conn.execute("UPDATE recette_ingredients SET mp_id = ? WHERE id = ?",
+                         (trouve[0], ing["id"]))
+    # Un écart d'inventaire corrigé, pour l'exemple
+    conn.execute(
+        "INSERT INTO mouvements_mp (mp_id, date_mouvement, type, quantite, notes)"
+        " VALUES (?, ?, 'ajustement', ?, ?)",
+        (ids["sucre de canne roux"][0], d(-30), -0.3, "Inventaire : sachet entamé jeté"))

@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+{% from "_icones.html" import icone %}
+{% block titre %}{{ mp.nom }}{% endblock %}
+{% block contenu %}
+<div class="titre-page">
+  <div><div class="surtitre">Matière première · {{ CATEGORIES[mp.categorie] }}</div><h1>{{ mp.nom }}</h1><div class="filet"></div></div>
+  <div class="actions"><a class="btn btn-or" href="{{ url_for('achat_nouveau', article='mp:' ~ mp.id) }}">{{ icone('plus') }}Saisir un achat</a>
+    <a class="btn btn-ligne" href="{{ url_for('matieres') }}">Toutes les matières</a></div>
+</div>
+
+<div class="grille-kpi">
+  <div class="kpi bois"><div class="etiquette">En stock</div><div class="valeur {{ 'negatif' if mp.stock < 0 }}">{{ mp.stock|nombre(2)|replace(',00', '') }} {{ mp.unite }}</div>
+    <div class="detail">{% if mp_en_alerte(mp) %}sous le seuil ({{ mp.seuil_alerte|nombre(2)|replace(',00', '') }}){% else %}seuil : {{ mp.seuil_alerte|nombre(2)|replace(',00', '') }}{% endif %}</div></div>
+  <div class="kpi"><div class="etiquette">Prix</div><div class="valeur">{{ mp.cout_unitaire|euro }}</div><div class="detail">par {{ mp.unite }} (dernier achat)</div></div>
+  <div class="kpi"><div class="etiquette">Valeur</div><div class="valeur">{{ (mp.stock * mp.cout_unitaire if mp.stock > 0 else 0)|euro }}</div></div>
+  <div class="kpi"><div class="etiquette">Mouvements</div><div class="valeur">{{ mouvements|length }}</div></div>
+</div>
+
+<div class="grille-2-1">
+  <section class="carte" id="mouvements">
+    <h2>Mouvements de stock</h2>
+    <p class="aide">Corrigez ou supprimez un mouvement en cas d'erreur : le stock est recalculé immédiatement.</p>
+    {% if mouvements %}
+    <div class="table-wrap">
+    <table class="empile">
+      <thead><tr><th>Date</th><th>Type</th><th>Origine</th><th class="droite">Quantité</th><th></th></tr></thead>
+      <tbody>
+      {% for v in mouvements %}
+        <tr>
+          <td data-label="Date">{{ v.date_mouvement|datefr }}</td>
+          <td data-label="Type"><span class="badge {{ {'achat': 'badge-ok', 'utilisation': 'badge-urgent', 'ajustement': 'badge-info'}[v.type] }}">{{ TYPES_MOUVEMENTS[v.type] }}</span></td>
+          <td data-label="Origine">{% if v.lot_id %}<a class="code" href="{{ url_for('lot_detail', lot_id=v.lot_id) }}#ingredients">Lot {{ v.lot_numero }}</a>
+            {% elif v.achat_id %}<a href="{{ url_for('achat_modifier', achat_id=v.achat_id) }}">{{ v.achat_fournisseur }}</a>
+            {% else %}{{ v.notes or 'Correction' }}{% endif %}</td>
+          <td class="droite num" data-label="Quantité"><strong class="{{ 'positif' if v.quantite > 0 else 'negatif' }}">{{ '%+g'|format(v.quantite|round(3)) }} {{ mp.unite }}</strong></td>
+          <td data-label="">
+            <details><summary>Corriger</summary>
+              <form method="post" action="{{ url_for('mouvement_modifier', mvt_id=v.id) }}" class="grille mt" style="gap:8px;min-width:220px;text-align:left">
+                <input type="hidden" name="csrf" value="{{ csrf_token }}">
+                <div><label>Quantité ({{ mp.unite }}){% if v.type == 'ajustement' %} <span class="aide">+ ou −</span>{% endif %}</label>
+                  <input type="number" name="quantite" step="any" value="{{ v.quantite if v.type == 'ajustement' else (v.quantite|abs) }}"></div>
+                <div><label>Date</label><input type="date" name="date" value="{{ v.date_mouvement }}"></div>
+                <div><label>Note</label><input type="text" name="notes" value="{{ v.notes or '' }}"></div>
+                {% if v.lot_id or v.achat_id %}<p class="aide mb0">Ce mouvement vient d'{{ 'un lot' if v.lot_id else 'un achat' }} : le modifier ici ne change pas {{ 'le lot' if v.lot_id else "l'achat" }}.</p>{% endif %}
+                <div class="groupe-boutons">
+                  <button class="btn btn-petit" name="action" value="maj">Enregistrer</button>
+                  <button class="btn btn-danger btn-petit" name="action" value="supprimer" onclick="return confirm('Supprimer ce mouvement ?')">Supprimer</button>
+                </div>
+              </form>
+            </details>
+          </td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    </div>
+    {% else %}<p class="vide mb0">Aucun mouvement.</p>{% endif %}
+  </section>
+
+  <div class="grille">
+    <section class="carte">
+      <h2>Inventaire</h2>
+      <form method="post" action="{{ url_for('matiere_inventaire', mp_id=mp.id) }}">
+        <input type="hidden" name="csrf" value="{{ csrf_token }}">
+        <div class="grille" style="gap:12px">
+          <div><label for="stock_reel">Quantité réellement en stock ({{ mp.unite }})</label>
+            <input id="stock_reel" type="number" name="stock_reel" step="any" inputmode="decimal" required></div>
+          <div><label for="inv-notes">Motif</label><input id="inv-notes" type="text" name="notes" placeholder="Inventaire, casse, fruits abîmés…"></div>
+        </div>
+        <div class="form-actions"><button class="btn">{{ icone('check') }}Corriger le stock</button></div>
+      </form>
+    </section>
+    <details class="carte">
+      <summary>Modifier la fiche</summary>
+      <form method="post" class="mt">
+        <input type="hidden" name="csrf" value="{{ csrf_token }}">
+        {% include "_matiere_champs.html" %}
+        <div class="form-actions">
+          <button class="btn btn-or" name="action" value="maj">Enregistrer</button>
+          <button class="btn btn-danger" name="action" value="supprimer" onclick="return confirm('Supprimer cette matière et son historique de stock ?')">{{ icone('poubelle') }}Supprimer</button>
+        </div>
+      </form>
+    </details>
+  </div>
+</div>
+{% endblock %}

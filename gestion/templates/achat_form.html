@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+{% from "_icones.html" import icone %}
+{% block titre %}{{ 'Nouvel achat' if nouveau else 'Achat du ' ~ (achat.date_achat|datefr) }}{% endblock %}
+{% block contenu %}
+{% macro ligne(l) %}
+<div class="carte ligne-achat" style="padding:12px;background:var(--surface-2)">
+  <div class="champs c3">
+    <div class="large" style="grid-column:1/-1"><label>Article</label>
+      <select name="l_article" class="l-article">
+        <option value="">— Autre (non stocké : transport, petit matériel…) —</option>
+        {% for groupe in ['Matières premières', 'Conditionnement'] %}
+        <optgroup label="{{ groupe }}">
+          {% for a in articles if a.groupe == groupe %}<option value="{{ a.cle }}" data-unite="{{ a.unite }}" {{ 'selected' if l and l.cle == a.cle }}>{{ a.nom }}</option>{% endfor %}
+        </optgroup>
+        {% endfor %}
+      </select></div>
+    <div class="l-designation-bloc"><label>Désignation</label><input type="text" name="l_designation" class="l-designation" value="{{ l.designation if l else '' }}"></div>
+    <div><label>Quantité</label><input type="number" name="l_qte" step="any" min="0" inputmode="decimal" value="{{ l.quantite if l and l.quantite is not none else '' }}"></div>
+    <div><label>Unité</label><input type="text" name="l_unite" class="l-unite" list="unites-achat" value="{{ l.unite if l else '' }}"></div>
+    <div><label>Montant TTC (€)</label><input type="number" name="l_montant" class="l-montant" step="0.01" min="0" inputmode="decimal" value="{{ l.montant if l else '' }}"></div>
+    <div style="display:flex;align-items:flex-end"><button type="button" class="btn btn-danger btn-petit retirer">{{ icone('poubelle') }}Retirer</button></div>
+  </div>
+</div>
+{% endmacro %}
+<div class="titre-page"><div><div class="surtitre">Registre des achats</div><h1>{{ 'Saisir un achat' if nouveau else "Modifier l'achat" }}</h1><div class="filet"></div></div></div>
+
+<form method="post" enctype="multipart/form-data" class="grille" id="form-achat">
+  <input type="hidden" name="csrf" value="{{ csrf_token }}">
+  <section class="carte">
+    <div class="champs c3">
+      <div><label for="fournisseur">Fournisseur</label><input id="fournisseur" type="text" name="fournisseur" list="fournisseurs" value="{{ achat.fournisseur or '' }}" required>
+        <datalist id="fournisseurs">{% for f in fournisseurs %}<option value="{{ f }}">{% endfor %}</datalist></div>
+      <div><label for="date_achat">Date</label><input id="date_achat" type="date" name="date_achat" value="{{ achat.date_achat }}" required></div>
+      <div><label for="reference">N° de facture</label><input id="reference" type="text" name="reference" value="{{ achat.reference or '' }}"></div>
+      <div><label for="mode_paiement">Payé par</label><select id="mode_paiement" name="mode_paiement">{% for k, v in MODES_PAIEMENT.items() %}<option value="{{ k }}" {{ 'selected' if achat.mode_paiement == k }}>{{ v }}</option>{% endfor %}</select></div>
+      <div><label for="justificatif">Justificatif <span class="aide">(photo ou PDF)</span></label><input id="justificatif" type="file" name="justificatif" accept="image/*,application/pdf" capture="environment" style="min-height:auto">
+        {% if achat.justificatif %}<span class="aide"><a href="{{ url_for('achat_justificatif', achat_id=achat.id) }}" target="_blank">Pièce actuelle</a> (une nouvelle la remplace)</span>{% endif %}</div>
+      <div><label for="notes">Note</label><input id="notes" type="text" name="notes" value="{{ achat.notes or '' }}"></div>
+    </div>
+  </section>
+  <section class="carte">
+    <div class="carte-tete"><h2>Articles</h2><strong class="num">Total : <span id="total">0,00 €</span></strong></div>
+    <div class="grille" id="lignes" style="gap:10px">
+      {% for l in lignes %}{{ ligne(l) }}{% endfor %}
+      {% if not lignes %}{{ ligne({'cle': mp_preselect}) if mp_preselect else ligne(None) }}{% endif %}
+    </div>
+    <template id="modele">{{ ligne(None) }}</template>
+    <datalist id="unites-achat"><option value="L"><option value="cl"><option value="kg"><option value="g"><option value="pièce"></datalist>
+    <button type="button" class="btn btn-ligne btn-petit mt" id="ajouter">{{ icone('plus') }}Ajouter une ligne</button>
+    <p class="aide mt mb0">Les matières premières et le conditionnement entrent en stock et leur prix unitaire est mis à jour. L'unité peut différer du stock (ex. 500 g pour un stock en kg) : la conversion est automatique.</p>
+  </section>
+  <div class="form-actions" style="margin-top:0">
+    <button class="btn btn-or">{{ "Enregistrer l'achat" if nouveau else 'Enregistrer les modifications' }}</button>
+    <a class="btn btn-ligne" href="{{ url_for('achats') }}">Annuler</a>
+  </div>
+</form>
+{% if not nouveau %}
+<form method="post" class="mt" onsubmit="return confirm('Supprimer cet achat ? Les quantités seront retirées du stock.')">
+  <input type="hidden" name="csrf" value="{{ csrf_token }}">
+  <button class="btn btn-danger" name="action" value="supprimer">{{ icone('poubelle') }}Supprimer l'achat</button>
+</form>
+{% endif %}
+{% endblock %}
+{% block scripts %}
+<script>
+(function () {
+  var liste = document.getElementById('lignes');
+  function total() {
+    var t = 0;
+    liste.querySelectorAll('.l-montant').forEach(function (i) { t += parseFloat((i.value || '0').replace(',', '.')) || 0; });
+    document.getElementById('total').textContent = t.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' });
+  }
+  function article(sel) {
+    var bloc = sel.closest('.ligne-achat'), opt = sel.options[sel.selectedIndex];
+    var unite = bloc.querySelector('.l-unite'), des = bloc.querySelector('.l-designation');
+    if (opt.dataset.unite && !unite.value) unite.value = opt.dataset.unite;
+    if (sel.value) { if (!des.value || des.dataset.auto) { des.value = opt.textContent.trim(); des.dataset.auto = '1'; } }
+  }
+  document.getElementById('ajouter').addEventListener('click', function () {
+    liste.appendChild(document.getElementById('modele').content.cloneNode(true));
+  });
+  liste.addEventListener('click', function (e) { var b = e.target.closest('.retirer'); if (b) { b.closest('.ligne-achat').remove(); total(); } });
+  liste.addEventListener('change', function (e) { if (e.target.classList.contains('l-article')) article(e.target); });
+  liste.addEventListener('input', function (e) { if (e.target.classList.contains('l-designation')) delete e.target.dataset.auto; total(); });
+  liste.querySelectorAll('.l-article').forEach(function (s) { if (s.value) article(s); });
+  total();
+})();
+</script>
+{% endblock %}

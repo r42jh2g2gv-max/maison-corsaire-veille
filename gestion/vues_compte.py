@@ -1,4 +1,7 @@
 """Connexion, paramètres et gestion des données."""
+import os
+import time
+
 from flask import flash, redirect, render_template, request, session, url_for
 from werkzeug.security import check_password_hash, generate_password_hash
 
@@ -14,9 +17,23 @@ CHAMPS_NOMBRE = ("tva_taux", "accise_hlap", "secu_hlap", "consigne_montant",
                  "urssaf_taux", "cfp_taux", "smtp_port")
 
 
+# Protection contre les essais de mot de passe en série (application en ligne)
+ECHECS = {}
+MAX_ECHECS, FENETRE = 5, 15 * 60
+
+
+def _bloque(ip):
+    maintenant = time.time()
+    ECHECS[ip] = [t for t in ECHECS.get(ip, []) if maintenant - t < FENETRE]
+    return len(ECHECS[ip]) >= MAX_ECHECS
+
+
 @app.route("/connexion", methods=["GET", "POST"])
 def connexion():
-    if request.method == "POST":
+    ip = request.headers.get("X-Real-IP") or request.remote_addr or "?"
+    if request.method == "POST" and _bloque(ip):
+        flash("Trop d'essais. Réessayez dans 15 minutes.", "erreur")
+    elif request.method == "POST":
         email = request.form.get("email", "").strip().lower()
         password = request.form.get("password", "")
         user = get_db().execute(
@@ -28,9 +45,12 @@ def connexion():
             session["csrf"] = csrf
             session.permanent = True
             session["user_id"] = user["id"]
+            ECHECS.pop(ip, None)
             return redirection_sure(request.args.get("next"), url_for("tableau_de_bord"))
+        ECHECS.setdefault(ip, []).append(time.time())
         flash("Email ou mot de passe incorrect.", "erreur")
-    demo = check_password_hash(
+    # Les identifiants de démonstration ne s'affichent jamais sur une application en ligne.
+    demo = os.environ.get("HTTPS") != "1" and check_password_hash(
         get_db().execute("SELECT password_hash FROM users LIMIT 1").fetchone()[0],
         "corsaire2026",
     )

@@ -105,6 +105,17 @@ def calculer_rappels(conn, conf):
                 f"Reste {m['stock']} · seuil {m['seuil_alerte']}", None,
                 url_for("stock") + "#materiaux")
 
+    # Matières premières sous le seuil (rhum, épices, sucre...)
+    for m in conn.execute(
+            """SELECT m.*, COALESCE((SELECT SUM(quantite) FROM mouvements_mp v
+                 WHERE v.mp_id = m.id), 0) AS stock FROM matieres_premieres m
+               WHERE m.seuil_alerte > 0"""):
+        if m["stock"] <= m["seuil_alerte"]:
+            ajouter("urgent" if m["stock"] <= 0 else "info", "stock", f"Racheter : {m['nom']}",
+                    f"Reste {m['stock']:g} {m['unite']} · seuil {m['seuil_alerte']:g}"
+                    + (f" · {m['fournisseur']}" if m["fournisseur"] else ""), None,
+                    url_for("matiere_detail", mp_id=m["id"]))
+
     # DLC / DDM proches pour des bouteilles encore en stock
     for l in conn.execute(
             """SELECT l.*, l.nb_bouteilles - COALESCE((SELECT SUM(quantite) FROM ventes v

@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% from "_icones.html" import icone %}
+{% block titre %}Registre des achats{% endblock %}
+{% block contenu %}
+<div class="titre-page">
+  <div><div class="surtitre">Comptabilité</div><h1>Registre des achats</h1><div class="filet"></div></div>
+  <div class="actions">
+    <a class="btn btn-or" href="{{ url_for('achat_nouveau') }}">{{ icone('plus') }}Saisir un achat</a>
+    <a class="btn btn-ligne" href="{{ url_for('export', nom='achats', debut=annee ~ '-01-01', fin=annee ~ '-12-31') }}">{{ icone('tableur') }}Excel {{ annee }}</a>
+  </div>
+</div>
+
+<nav class="filtres" aria-label="Année">
+  {% for a in annees %}<a href="{{ url_for('achats', annee=a) }}" class="{{ 'actif' if a == annee }}">{{ a }}</a>{% endfor %}
+  <a href="{{ url_for('matieres') }}">{{ 'Stock des matières premières' }} →</a>
+</nav>
+
+<div class="grille-2-1">
+  <section class="carte">
+    {% if achats %}
+    <div class="table-wrap">
+    <table class="empile">
+      <thead><tr><th>Date</th><th>Fournisseur</th><th>Détail</th><th>Paiement</th><th class="droite">Montant</th><th></th></tr></thead>
+      <tbody>
+        {% for a in achats %}
+        <tr>
+          <td data-label="Date">{{ a.date_achat|datefr }}</td>
+          <td class="titre-ligne" data-label="Fournisseur"><a href="{{ url_for('achat_modifier', achat_id=a.id) }}">{{ a.fournisseur }}</a>
+            {% if a.reference %}<br><small class="code">{{ a.reference }}</small>{% endif %}</td>
+          <td data-label="Détail"><span style="overflow-wrap:anywhere">{{ a.detail or '' }}</span></td>
+          <td data-label="Paiement">{{ MODES_PAIEMENT[a.mode_paiement] }}</td>
+          <td class="droite num" data-label="Montant"><strong>{{ a.montant_total|euro }}</strong></td>
+          <td data-label="Justificatif">{% if a.justificatif %}<a class="btn btn-ligne btn-petit" href="{{ url_for('achat_justificatif', achat_id=a.id) }}" target="_blank">{{ icone('facture') }}Pièce</a>{% else %}<small class="doux">sans pièce</small>{% endif %}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+      <tfoot><tr><td colspan="4">Total {{ annee }}</td><td class="droite num">{{ total|euro }}</td><td></td></tr></tfoot>
+    </table>
+    </div>
+    {% else %}<p class="vide mb0">Aucun achat en {{ annee }}.</p>{% endif %}
+  </section>
+  <section class="carte">
+    <h2>Par fournisseur</h2>
+    {% if par_fournisseur %}
+    <ul class="liste">
+      {% for f in par_fournisseur %}<li><div><span class="principal">{{ f.fournisseur }}</span><br><small>{{ f.n }} achat(s)</small></div><strong class="num">{{ f.total|euro }}</strong></li>{% endfor %}
+    </ul>
+    {% else %}<p class="vide mb0">—</p>{% endif %}
+    <p class="aide mt mb0">Le registre des achats (date, fournisseur, référence, montant, mode de règlement) se tient avec le livre des recettes. Gardez les justificatifs : prenez la facture en photo lors de la saisie.</p>
+  </section>
+</div>
+{% endblock %}

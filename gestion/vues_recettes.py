@@ -1,21 +1,33 @@
 """Module 2 — bibliothèque de recettes."""
 from flask import flash, redirect, render_template, request, url_for
 
-from calculs import CATEGORIES_INGREDIENTS, to_float
+from calculs import CATEGORIES_INGREDIENTS, convertir, to_float
 from noyau import app, get_db, get_or_404, settings, to_int
+
+
+def cout_unitaire_estime(ing):
+    """Prix par unité de la recette : celui du stock (dernier achat) s'il est relié, sinon saisi."""
+    if ing["mp_id"] and ing["cout_mp"]:
+        facteur = convertir(1, ing["unite"], ing["unite_mp"])
+        if facteur is not None:
+            return ing["cout_mp"] * facteur
+    return ing["cout_unitaire"]
 
 
 def details_recette(conn, recette):
     """Ingrédients et coût estimé d'une recette (pour 1 L mis en macération)."""
     ingredients = conn.execute(
-        "SELECT * FROM recette_ingredients WHERE recette_id = ? ORDER BY "
-        "CASE categorie WHEN 'rhum' THEN 0 WHEN 'fruit' THEN 1 WHEN 'epice' THEN 2 "
-        "WHEN 'sucre' THEN 3 ELSE 4 END, id",
+        "SELECT i.*, m.cout_unitaire AS cout_mp, m.unite AS unite_mp, m.allergene,"
+        " COALESCE((SELECT SUM(quantite) FROM mouvements_mp v WHERE v.mp_id = m.id), 0) AS stock_mp"
+        " FROM recette_ingredients i LEFT JOIN matieres_premieres m ON m.id = i.mp_id"
+        " WHERE i.recette_id = ? ORDER BY "
+        "CASE i.categorie WHEN 'rhum' THEN 0 WHEN 'fruit' THEN 1 WHEN 'epice' THEN 2 "
+        "WHEN 'sucre' THEN 3 ELSE 4 END, i.id",
         (recette["id"],),
     ).fetchall()
-    cout_litre = sum((i["quantite_par_litre"] or 0) * (i["cout_unitaire"] or 0)
-                     for i in ingredients)
-    complet = all(i["cout_unitaire"] for i in ingredients) and bool(ingredients)
+    ingredients = [dict(i, cout_estime=cout_unitaire_estime(i)) for i in ingredients]
+    cout_litre = sum((i["quantite_par_litre"] or 0) * (i["cout_estime"] or 0) for i in ingredients)
+    complet = all(i["cout_estime"] for i in ingredients) and bool(ingredients)
     nb_lots = conn.execute("SELECT COUNT(*) FROM lots WHERE recette_id = ?",
                            (recette["id"],)).fetchone()[0]
     return {"ingredients": ingredients, "cout_litre": cout_litre, "complet": complet,
@@ -26,6 +38,10 @@ def cout_materiaux_bouteille(conn):
     return conn.execute(
         "SELECT COALESCE(SUM(cout_unitaire), 0) FROM materiaux WHERE par_bouteille = 1"
     ).fetchone()[0]
+
+
+def _matieres(conn):
+    return conn.execute("SELECT nom FROM matieres_premieres ORDER BY nom").fetchall()
 
 
 # Environ 85 % du volume mis en macération finit en bouteille (fruits retirés).
@@ -56,6 +72,11 @@ def enregistrer_ingredients(conn, recette_id, form):
             (recette_id, categorie if categorie in CATEGORIES_INGREDIENTS else "autre",
              nom.strip(), to_float(qte, None), unite.strip(), to_float(cout, None)),
         )
+    # Relie chaque ingrédient à la matière première du même nom (stock)
+    conn.execute(
+        """UPDATE recette_ingredients SET mp_id = (SELECT m.id FROM matieres_premieres m
+           WHERE lower(m.nom) = lower(recette_ingredients.nom)) WHERE recette_id = ?""",
+        (recette_id,))
 
 
 def lire_recette(form):
@@ -85,7 +106,7 @@ def recette_nouvelle():
             flash(f"Recette « {data['nom']} » créée.", "succes")
             return redirect(url_for("recettes") + f"#recette-{cur.lastrowid}")
     return render_template("recette_form.html", recette={"duree_maceration_jours": 60},
-                           ingredients=[], nouveau=True)
+                           ingredients=[], nouveau=True, matieres=_matieres(conn))
 
 
 @app.route("/recettes/<int:recette_id>/modifier", methods=["GET", "POST"])
@@ -107,7 +128,7 @@ def recette_modifier(recette_id):
             return redirect(url_for("recettes") + f"#recette-{recette_id}")
     return render_template("recette_form.html", recette=recette,
                            ingredients=details_recette(conn, recette)["ingredients"],
-                           nouveau=False)
+                           nouveau=False, matieres=_matieres(conn))
 
 
 @app.route("/recettes/<int:recette_id>/supprimer", methods=["POST"])

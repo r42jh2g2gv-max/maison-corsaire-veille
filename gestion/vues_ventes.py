@@ -52,6 +52,12 @@ def caisse():
     conf = settings()
     if request.method == "POST":
         ticket_id, erreurs = encaisser(conn, conf, request.form)
+        if request.headers.get("X-Requested-With") == "fetch":
+            if erreurs:
+                return jsonify({"ok": False, "erreurs": erreurs})
+            conn.commit()
+            return jsonify({"ok": True, "url": url_for("ticket_detail", ticket_id=ticket_id,
+                                                       nouveau=1)})
         if erreurs:
             for e in erreurs:
                 flash(e, "erreur")
@@ -91,8 +97,11 @@ def caisse():
     )
 
 
-def encaisser(conn, conf, form):
+def encaisser(conn, conf, form, hors_ligne=False, avertissements=None):
+    """Crée un ticket. Hors ligne, la vente a déjà eu lieu : on l'enregistre même si le stock
+    ou le bon d'achat posent problème, en le signalant dans `avertissements`."""
     erreurs = []
+    avertissements = avertissements if avertissements is not None else []
     try:
         panier = json.loads(form.get("panier") or "[]")
     except ValueError:
@@ -113,11 +122,12 @@ def encaisser(conn, conf, form):
             erreurs.append("Un prix est manquant ou négatif.")
     for lot_id, qte in demande.items():
         lot = lots_avec_stock("WHERE l.id = ?", (lot_id,))
-        if not lot or lot[0]["statut"] != "embouteille":
-            erreurs.append("Un produit du panier n'est plus disponible.")
-        elif qte > stock_lot(lot[0]):
-            erreurs.append(f"Stock insuffisant pour {lot[0]['recette_nom']} "
-                           f"({lot[0]['numero']}) : {stock_lot(lot[0])} disponible(s).")
+        if not lot:
+            erreurs.append("Un produit du panier n'existe plus.")
+        elif lot[0]["statut"] not in ("embouteille", "epuise") or qte > stock_lot(lot[0]):
+            message = (f"Stock insuffisant pour {lot[0]['recette_nom']} "
+                       f"({lot[0]['numero']}) : {stock_lot(lot[0])} disponible(s).")
+            (avertissements if hors_ligne else erreurs).append(message)
 
     client_id = to_int(form.get("client_id")) or None
     client = None
@@ -136,7 +146,9 @@ def encaisser(conn, conf, form):
     bon = None
     if form.get("bon_code", "").strip():
         bon, err = verifier_bon(conn, form["bon_code"], client_id, jour)
-        if err:
+        if err and hors_ligne:
+            avertissements.append(f"Bon d'achat non appliqué : {err}")
+        elif err:
             erreurs.append(err)
     remise = round(min(bon["montant"], sous_total), 2) if bon else 0.0
 
@@ -144,19 +156,21 @@ def encaisser(conn, conf, form):
     sorties = max(to_int(form.get("consigne_btl")), 0)
     retours = max(to_int(form.get("consigne_retour")), 0)
     consigne = round((sorties - retours) * montant_consigne, 2)
-    if (sorties or retours) and not client_id and client_nom == "Client de passage":
+    if (sorties or retours) and not client_id and client_nom == "Client de passage" \
+            and not hors_ligne:
         erreurs.append("Pour une consigne, indiquez le client (pour suivre ses bouteilles).")
     if erreurs:
         return None, erreurs
 
     cur = conn.execute(
         """INSERT INTO tickets (numero, date_vente, client_id, client_nom, canal, mode_paiement,
-           evenement_id, sous_total, remise, consigne, total, client_adresse, notes, created_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+           evenement_id, sous_total, remise, consigne, total, client_adresse, notes, created_at,
+           uuid) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
         (database.prochain_numero(conn, "tickets", "numero", "T", jour[:4], 4), jour, client_id,
          client_nom, canal, mode, evenement_id, sous_total, remise, consigne,
          round(sous_total - remise + consigne, 2), client["adresse"] if client else None,
-         form.get("notes", "").strip(), datetime.now().isoformat(timespec="seconds")),
+         form.get("notes", "").strip(), datetime.now().isoformat(timespec="seconds"),
+         form.get("uuid") or None),
     )
     ticket_id = cur.lastrowid
     for lot_id, qte, prix in lignes:
@@ -177,6 +191,40 @@ def encaisser(conn, conf, form):
                 (client_id, client_nom, jour, qte, montant_consigne, ticket_id, note),
             )
     return ticket_id, []
+
+
+@app.route("/api/synchro", methods=["POST"])
+def api_synchro():
+    """Reçoit les ventes faites hors ligne (au marché sans réseau) et les enregistre."""
+    conn = get_db()
+    conf = settings()
+    donnees = request.get_json(silent=True) or {}
+    resultats = []
+    for vente in donnees.get("ventes", [])[:200]:
+        uuid = str(vente.get("uuid", ""))[:64]
+        if not uuid:
+            continue
+        deja = conn.execute("SELECT id, numero FROM tickets WHERE uuid = ?", (uuid,)).fetchone()
+        if deja:  # déjà reçue (envoi répété après une coupure)
+            resultats.append({"uuid": uuid, "ok": True, "numero": deja["numero"],
+                              "url": url_for("ticket_detail", ticket_id=deja["id"])})
+            continue
+        champs = {k: ("" if v is None else str(v)) for k, v in vente.items() if k != "panier"}
+        champs["panier"] = json.dumps(vente.get("panier") or [])
+        champs["uuid"] = uuid
+        avertissements = []
+        ticket_id, erreurs = encaisser(conn, conf, champs, hors_ligne=True,
+                                       avertissements=avertissements)
+        if erreurs:
+            conn.rollback()
+            resultats.append({"uuid": uuid, "ok": False, "erreurs": erreurs})
+            continue
+        conn.commit()
+        numero = conn.execute("SELECT numero FROM tickets WHERE id = ?", (ticket_id,)).fetchone()[0]
+        resultats.append({"uuid": uuid, "ok": True, "numero": numero,
+                          "url": url_for("ticket_detail", ticket_id=ticket_id),
+                          "avertissements": avertissements})
+    return jsonify({"ok": True, "resultats": resultats})
 
 
 @app.route("/api/bon")

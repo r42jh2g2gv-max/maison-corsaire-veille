@@ -4,14 +4,14 @@ import secrets
 from datetime import date, datetime, timedelta
 from pathlib import Path
 
-from flask import Flask, abort, g, render_template, request, session, url_for, redirect
+from flask import Flask, abort, g, jsonify, render_template, request, session, url_for, redirect
 
 import db as database
 from calculs import (CATEGORIES_INGREDIENTS, STATUTS, STATUTS_EMBOUTEILLES,
                      TYPES_MATERIAUX, cout_revient)
 
 BASE = Path(__file__).parent
-INSTANCE = BASE / "instance"
+INSTANCE = Path(os.environ.get("DATA_DIR") or BASE / "instance")
 MOIS = ["janv.", "févr.", "mars", "avr.", "mai", "juin", "juil.", "août",
         "sept.", "oct.", "nov.", "déc."]
 MOIS_LONGS = ["janvier", "février", "mars", "avril", "mai", "juin", "juillet", "août",
@@ -24,7 +24,7 @@ TYPES_EVENEMENTS = {"marche": "Marché", "salon": "Salon", "degustation": "Dégu
                     "autre": "Autre"}
 
 app = Flask(__name__)
-INSTANCE.mkdir(exist_ok=True)
+INSTANCE.mkdir(parents=True, exist_ok=True)
 
 
 def _secret_key():
@@ -44,6 +44,8 @@ app.config.update(
     PERMANENT_SESSION_LIFETIME=timedelta(days=30),
     SESSION_COOKIE_HTTPONLY=True,
     SESSION_COOKIE_SAMESITE="Lax",
+    SESSION_COOKIE_SECURE=os.environ.get("HTTPS") == "1",
+    MAX_CONTENT_LENGTH=12 * 1024 * 1024,
 )
 app.teardown_appcontext(database.close_db)
 database.init_db(app)
@@ -223,7 +225,7 @@ def inject_globals():
 # Sécurité : connexion obligatoire et jeton CSRF
 # --------------------------------------------------------------------------
 
-PUBLIC = ("static", "connexion", "theme")
+PUBLIC = ("static", "connexion", "theme", "service_worker", "manifeste", "hors_ligne")
 
 
 @app.before_request
@@ -235,6 +237,8 @@ def securite():
     if request.endpoint in PUBLIC:
         return None
     if not session.get("user_id"):
+        if request.path.startswith("/api/"):
+            return jsonify({"ok": False, "message": "Session expirée : reconnectez-vous."}), 401
         return redirect(url_for("connexion", next=request.path))
     return None
 
@@ -254,4 +258,11 @@ def introuvable(_e):
 
 @app.errorhandler(400)
 def requete_invalide(e):
+    if request.path.startswith("/api/") or request.headers.get("X-Requested-With") == "fetch":
+        return jsonify({"ok": False, "message": e.description}), 400
     return render_template("erreur.html", message=e.description), 400
+
+
+@app.errorhandler(413)
+def trop_gros(_e):
+    return render_template("erreur.html", message="Fichier trop volumineux (12 Mo maximum)."), 413

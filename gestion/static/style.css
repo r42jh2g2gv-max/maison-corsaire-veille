@@ -441,3 +441,10 @@ details > summary { cursor: pointer; font-weight: 600; color: var(--or-clair); p
 .rappel-retard, .rappel-urgent { border-left-width: 4px; }
 .rappel-urgent { background: rgba(224, 160, 40, .09); }
 .rappel-retard { background: rgba(214, 69, 50, .11); }
+
+/* En-tête : le nom se réduit pour laisser la place à l'indicateur hors ligne */
+.entete .logo { flex: 1 1 auto; overflow: hidden; }
+.logo .nom strong, .logo .nom span { overflow: hidden; text-overflow: ellipsis; }
+.actions-entete { flex: none; }
+#indicateur-reseau { text-decoration: none; max-width: 46vw; overflow: hidden; text-overflow: ellipsis; }
+@media (max-width: 480px) { .entete .logo .nom span { display: none; } }

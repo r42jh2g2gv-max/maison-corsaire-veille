@@ -7,6 +7,17 @@
   <div class="actions"><a class="btn btn-ligne btn-petit" href="{{ url_for('ventes') }}">{{ icone('ventes') }}Historique</a></div>
 </div>
 
+<section class="carte encart-or" id="attente" hidden style="margin-bottom:16px">
+  <div class="carte-tete" style="margin-bottom:8px">
+    <h2 style="font-size:1.15rem">Ventes enregistrées sur ce téléphone</h2>
+    <button type="button" class="btn btn-or btn-petit" id="envoyer-attente">{{ icone('partager') }}Envoyer maintenant</button>
+  </div>
+  <p class="aide" id="attente-info">Elles partent automatiquement dès que le réseau revient. Ne videz pas les données du navigateur d'ici là.</p>
+  <ul class="liste" id="attente-liste"></ul>
+</section>
+<div class="flash flash-succes" id="confirmation-hors-ligne" hidden style="margin-bottom:16px"></div>
+<div class="flashs" id="erreurs-caisse" hidden></div>
+
 <form method="post" id="form-caisse" class="caisse" autocomplete="off">
   <input type="hidden" name="csrf" value="{{ csrf_token }}">
   <input type="hidden" name="panier" id="panier">
@@ -115,6 +126,9 @@
   var CLIENTS = {{ clients|tojson }};
   var CONSIGNE = {{ consigne_montant|tojson }};
   var parId = {}; PRODUITS.forEach(function (p) { parId[p.id] = p; });
+  (window.MC ? MC.attente() : []).forEach(function (v) {
+    (v.panier || []).forEach(function (l) { if (parId[l.lot_id]) parId[l.lot_id].stock -= l.quantite; });
+  });
   var panier = [];  // {id, quantite, prix, manuel}
   var remise = 0;
   var $ = function (id) { return document.getElementById(id); };
@@ -141,7 +155,7 @@
       b.classList.toggle('choisi', !!ligne);
       b.querySelector('.pastille').textContent = ligne ? ligne.quantite : '';
       b.querySelector('.dispo').textContent = p.stock - (ligne ? ligne.quantite : 0);
-      b.disabled = ligne && ligne.quantite >= p.stock;
+      b.disabled = (ligne ? ligne.quantite : 0) >= p.stock;
     });
   }
 
@@ -192,7 +206,7 @@
     $('a-rendre').textContent = recu ? 'À rendre : ' + eur(recu - total) : '';
   }
 
-  function maj() { rendre(); totaux(); majTuiles(); }
+  function maj() { rendre(); totaux(); majTuiles(); if (typeof majPaiement === 'function') majPaiement(); }
 
   function repricer() {
     panier.forEach(function (l) { if (!l.manuel) l.prix = prixDefaut(parId[l.id]); });
@@ -251,10 +265,96 @@
   $('bon_code').addEventListener('input', function () { remise = 0; $('info-bon').textContent = ''; totaux(); });
   $('bon_code').addEventListener('change', function () { $('verifier-bon').click(); });
 
+  function lignesPanier() {
+    return panier.map(function (l) { return { lot_id: l.id, quantite: l.quantite, prix: l.prix }; });
+  }
+  function totalCourant() { return $('d-total').textContent; }
+
+  function reinitialiser() {
+    panier = []; remise = 0;
+    ['consigne_btl', 'consigne_retour'].forEach(function (id) { $(id).value = 0; });
+    $('bon_code').value = ''; $('info-bon').textContent = ''; $('recu').value = ''; $('notes').value = '';
+    $('client_nom').value = ''; $('client_id').value = ''; $('info-client').textContent = '';
+    maj();
+  }
+
+  function enregistrerHorsLigne() {
+    var f = $('form-caisse');
+    var champ = function (nom) { var el = f.querySelector('[name="' + nom + '"]:checked') || f.querySelector('[name="' + nom + '"]'); return el ? el.value : ''; };
+    var vente = MC.ajouter({
+      panier: lignesPanier(), client_id: champ('client_id'), client_nom: champ('client_nom'),
+      canal: champ('canal'), mode_paiement: champ('mode_paiement'), evenement_id: champ('evenement_id'),
+      bon_code: '', consigne_btl: champ('consigne_btl'), consigne_retour: champ('consigne_retour'),
+      date_vente: champ('date_vente'), notes: champ('notes'),
+      resume: { total: totalCourant(), client: champ('client_nom') || 'Client de passage',
+                articles: panier.map(function (l) { return l.quantite + ' × ' + parId[l.id].nom; }).join(', ') }
+    });
+    panier.forEach(function (l) { parId[l.id].stock -= l.quantite; });
+    var c = $('confirmation-hors-ligne');
+    c.hidden = false;
+    c.innerHTML = '<strong>Vente enregistrée sur le téléphone : ' + vente.resume.total + '</strong><br>Pas de réseau : elle sera envoyée automatiquement dès le retour de la connexion.';
+    reinitialiser(); afficherAttente();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
   $('form-caisse').addEventListener('submit', function (e) {
-    if (!panier.length) { e.preventDefault(); return; }
-    $('panier').value = JSON.stringify(panier.map(function (l) { return { lot_id: l.id, quantite: l.quantite, prix: l.prix }; }));
+    e.preventDefault();
+    if (!panier.length) return;
+    $('panier').value = JSON.stringify(lignesPanier());
+    $('erreurs-caisse').hidden = true; $('confirmation-hors-ligne').hidden = true;
+    if (navigator.onLine === false) { enregistrerHorsLigne(); return; }
     $('encaisser').disabled = true; $('encaisser').textContent = 'Enregistrement…';
+    fetch(this.action || location.pathname, { method: 'POST', body: new FormData(this), credentials: 'same-origin', headers: { 'X-Requested-With': 'fetch' } })
+      .then(function (r) {
+        if (r.status === 401 || r.redirected) throw new Error('session');
+        return r.json();
+      })
+      .then(function (d) {
+        if (d.ok) { location.href = d.url; return; }
+        var box = $('erreurs-caisse'); box.innerHTML = '';
+        (d.erreurs || [d.message]).forEach(function (m) { var div = document.createElement('div'); div.className = 'flash flash-erreur'; div.textContent = m; box.appendChild(div); });
+        box.hidden = false; totaux(); window.scrollTo({ top: 0, behavior: 'smooth' });
+      })
+      .catch(function (err) {
+        if (err.message === 'session') { location.href = '{{ url_for("connexion", next=url_for("caisse")) }}'; return; }
+        enregistrerHorsLigne();  // réseau coupé pendant l'envoi
+      });
+  });
+
+  function afficherAttente() {
+    var l = MC.attente(), bloc = $('attente'), ul = $('attente-liste');
+    bloc.hidden = !l.length; ul.innerHTML = '';
+    l.forEach(function (v) {
+      var li = document.createElement('li');
+      var d = new Date(v.cree_le);
+      li.innerHTML = '<div><span class="principal"></span><br><small></small></div><strong class="num"></strong>';
+      li.querySelector('.principal').textContent = (v.resume && v.resume.client) || 'Vente';
+      li.querySelector('small').textContent = d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) + ' · ' + ((v.resume && v.resume.articles) || '');
+      li.querySelector('strong').textContent = (v.resume && v.resume.total) || '';
+      ul.appendChild(li);
+    });
+  }
+  $('envoyer-attente').addEventListener('click', function () {
+    $('attente-info').textContent = 'Envoi en cours…';
+    MC.synchroniser();
+  });
+  document.addEventListener('mc-attente', function (e) {
+    afficherAttente();
+    var hl = e.detail.horsLigne;
+    $('bon_code').disabled = hl; $('verifier-bon').disabled = hl;
+    if (hl) { $('info-bon').textContent = 'Bons d\'achat : réseau nécessaire.'; $('info-bon').style.color = 'var(--texte-doux)'; }
+  });
+  document.addEventListener('mc-synchro', function (e) {
+    var ok = e.detail.rapport.filter(function (x) { return x.ok; });
+    var avert = [];
+    e.detail.rapport.forEach(function (x) { (x.avertissements || []).forEach(function (a) { avert.push((x.numero || '') + ' : ' + a); }); (x.erreurs || []).forEach(function (a) { avert.push('Refusée : ' + a); }); });
+    var c = $('confirmation-hors-ligne');
+    if (ok.length) { c.hidden = false; c.innerHTML = '<strong>' + ok.length + ' vente(s) hors ligne envoyée(s).</strong>' + (avert.length ? '<br>À vérifier : ' + avert.join(' · ') : ''); }
+    $('attente-info').textContent = 'Elles partent automatiquement dès que le réseau revient.';
+    afficherAttente();
+  });
+  document.addEventListener('mc-synchro-erreur', function (e) {
+    $('attente-info').textContent = 'Envoi impossible pour le moment (' + e.detail.message + '). Nouvel essai automatique.';
   });
   document.addEventListener('click', majPaiement);
 
@@ -264,7 +364,7 @@
   var lot0 = {{ lot_preselect|tojson }};
   if (lot0 && parId[lot0]) ajouter(lot0);
   if ($('bon_code').value || $('consigne_btl').value !== '0' || $('consigne_retour').value !== '0') $('options-plus').open = true;
-  maj(); majPaiement();
+  maj(); majPaiement(); afficherAttente();
 })();
 </script>
 {% endblock %}

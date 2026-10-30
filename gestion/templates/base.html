@@ -14,7 +14,8 @@
   <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
   <link rel="icon" href="{{ url_for('static', filename='ancre.svg') }}" type="image/svg+xml">
-  <link rel="apple-touch-icon" href="{{ url_for('static', filename='ancre.svg') }}">
+  <link rel="apple-touch-icon" href="{{ url_for('static', filename='icones/apple-touch-icon.png') }}">
+  <link rel="manifest" href="{{ url_for('manifeste') }}">
   {% block tete %}{% endblock %}
 </head>
 <body>
@@ -24,13 +25,17 @@
   ('caisse', 'Caisse', 'caisse', ['caisse', 'ticket_detail']),
   ('lots', 'Lots', 'lots', ['lots', 'lot_nouveau', 'lot_detail', 'lot_modifier']),
   ('recettes', 'Recettes', 'recettes', ['recettes', 'recette_nouvelle', 'recette_modifier']),
-  ('stock', 'Stock', 'stock', ['stock']),
+  ('stock', 'Stock', 'stock', ['stock', 'matieres', 'matiere_detail', 'achats', 'achat_nouveau', 'achat_modifier']),
   ('ventes', 'Ventes', 'ventes', ['ventes']),
   ('clients', 'Clients', 'clients', ['clients', 'client_nouveau', 'client_detail', 'client_modifier']),
   ('agenda', 'Agenda', 'agenda', ['agenda', 'evenement_modifier']),
   ('chiffres', 'Chiffres', 'chiffres', ['chiffres']),
 ] %}
 {% set secondaires = [
+  ('matieres', 'Matières premières', 'lot', ['matieres', 'matiere_detail']),
+  ('achats', 'Registre des achats', 'facture', ['achats', 'achat_nouveau', 'achat_modifier']),
+  ('etiquettes', 'Étiquettes', 'etiquette', ['etiquettes']),
+  ('statistiques', 'Statistiques par recette', 'chiffres', ['statistiques']),
   ('calculateur', 'Calculateur de prix', 'prix', ['calculateur']),
   ('bons', "Bons d'achat", 'bon', ['bons']),
   ('clients_message', 'Annoncer une nouveauté', 'message', ['clients_message']),
@@ -49,6 +54,7 @@
       {% endfor %}
     </nav>
     <div class="actions-entete">
+      <a id="indicateur-reseau" href="{{ url_for('caisse') }}#attente" class="badge badge-urgent" hidden></a>
       <details class="menu-plus">
         <summary class="bouton-icone" aria-label="Toutes les pages">{{ icone('menu') }}</summary>
         <div class="panneau">
@@ -110,6 +116,7 @@
     }
   };
 </script>
+<script src="{{ url_for('static', filename='js/hors-ligne.js') }}"></script>
 {% block scripts %}{% endblock %}
 </body>
 </html>
