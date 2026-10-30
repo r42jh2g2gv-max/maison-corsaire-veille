@@ -83,6 +83,17 @@
   </form>
 </section>
 
+{% if mise_a_jour_possible() %}
+<section class="carte mt" id="mise-a-jour">
+  <h2>Mise à jour de l'application</h2>
+  <p>Installe la dernière version publiée (nouvelles fonctions, corrections). Vos données sont conservées.</p>
+  <form method="post" action="{{ url_for('parametres_mise_a_jour') }}" onsubmit="this.querySelector('button').disabled = true; this.querySelector('button').textContent = 'Mise à jour en cours (1 à 2 minutes)…';">
+    <input type="hidden" name="csrf" value="{{ csrf_token }}">
+    <button class="btn btn-or">{{ icone('telecharger') }}Mettre à jour l'application</button>
+  </form>
+</section>
+{% endif %}
+
 <section class="carte mt" id="donnees">
   <h2>Données</h2>
   <p>Téléchargez une sauvegarde complète au format Excel, ou effacez les données d'exemple pour démarrer votre vrai registre (le compte et les paramètres sont conservés).</p>

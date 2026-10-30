@@ -1,6 +1,8 @@
 """Connexion, paramètres et gestion des données."""
 import os
+import subprocess
 import time
+from pathlib import Path
 
 from flask import flash, redirect, render_template, request, session, url_for
 from werkzeug.security import check_password_hash, generate_password_hash
@@ -8,7 +10,7 @@ from werkzeug.security import check_password_hash, generate_password_hash
 import db as database
 from calculs import to_float
 from emails import envoyer, smtp_configure
-from noyau import app, get_db, redirection_sure, set_setting, settings
+from noyau import BASE, app, get_db, redirection_sure, set_setting, settings
 
 CHAMPS_TEXTE = ("producteur_nom", "producteur_adresse", "producteur_email",
                 "producteur_telephone", "siret", "iban", "conditions_paiement",
@@ -123,6 +125,38 @@ def parametres_compte():
     conn.commit()
     flash("Compte mis à jour.", "succes")
     return redirect(url_for("parametres") + "#compte")
+
+
+def chemin_installeur():
+    """Script d'installation présent seulement sur une installation PythonAnywhere."""
+    chemin = BASE / "installer_pythonanywhere.sh"
+    config = Path(os.environ.get("DATA_DIR", "")) / "config.json"
+    return chemin if os.environ.get("HTTPS") == "1" and config.exists() else None
+
+
+app.jinja_env.globals["mise_a_jour_possible"] = lambda: chemin_installeur() is not None
+
+
+@app.route("/parametres/mise-a-jour", methods=["POST"])
+def parametres_mise_a_jour():
+    """Récupère la dernière version, installe les dépendances et relance l'application."""
+    script = chemin_installeur()
+    if not script:
+        flash("Mise à jour automatique disponible uniquement sur PythonAnywhere.", "erreur")
+        return redirect(url_for("parametres") + "#mise-a-jour")
+    try:
+        res = subprocess.run(["bash", str(script)], capture_output=True, text=True,
+                             timeout=280, stdin=subprocess.DEVNULL)
+    except subprocess.TimeoutExpired:
+        flash("La mise à jour prend du temps : patientez 2 minutes puis rechargez la page.",
+              "info")
+        return redirect(url_for("parametres") + "#mise-a-jour")
+    if res.returncode == 0:
+        flash("Mise à jour installée. Si rien ne change, touchez Reload dans l'onglet Web "
+              "de PythonAnywhere.", "succes")
+    else:
+        flash("Échec de la mise à jour : " + (res.stderr or res.stdout)[-400:], "erreur")
+    return redirect(url_for("parametres") + "#mise-a-jour")
 
 
 @app.route("/parametres/donnees", methods=["POST"])

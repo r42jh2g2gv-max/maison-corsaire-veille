@@ -448,3 +448,19 @@ details > summary { cursor: pointer; font-weight: 600; color: var(--or-clair); p
 .actions-entete { flex: none; }
 #indicateur-reseau { text-decoration: none; max-width: 46vw; overflow: hidden; text-overflow: ellipsis; }
 @media (max-width: 480px) { .entete .logo .nom span { display: none; } }
+
+/* Menu complet : il défile dans l'écran au lieu de dépasser */
+.menu-plus .panneau {
+  max-height: calc(100vh - 90px); max-height: calc(100dvh - 90px);
+  overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain;
+}
+@media (max-width: 1099px) {
+  .menu-plus .panneau {
+    position: fixed; left: 10px; right: 10px; top: 66px; min-width: 0;
+    max-height: calc(100dvh - 66px - 84px - env(safe-area-inset-bottom));
+    display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 2px;
+  }
+  .menu-plus .panneau a { padding: 10px; font-size: .92rem; gap: 8px; min-width: 0; }
+  .menu-plus .panneau a span, .menu-plus .panneau a { overflow-wrap: anywhere; }
+  .menu-plus .panneau hr { grid-column: 1 / -1; margin: 4px; }
+}
