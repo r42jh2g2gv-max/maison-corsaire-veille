@@ -290,6 +290,7 @@ MIGRATIONS = [
     ("lots", "volume_macere_l", "REAL"),
     ("lots", "perte_pct", "REAL"),
     ("lots", "volume_obtenu_l", "REAL"),
+    ("matieres_premieres", "degre", "REAL"),
 ]
 
 
@@ -742,6 +743,8 @@ def seed_matieres(conn, d):
         ("Citron vert (zestes)", "zestes de citron vert"), ("Sucre de canne roux", "sucre de canne"),
     ]:
         conn.execute("UPDATE matieres_premieres SET nom_etiquette = ? WHERE nom = ?", (etiquette, nom))
+    conn.execute("UPDATE matieres_premieres SET degre = 50 WHERE nom = 'Rhum agricole blanc 50°'")
+    conn.execute("UPDATE matieres_premieres SET degre = 45 WHERE nom = 'Rhum ambré 45°'")
     # Un écart d'inventaire corrigé, pour l'exemple
     conn.execute(
         "INSERT INTO mouvements_mp (mp_id, date_mouvement, type, quantite, notes)"

@@ -2,7 +2,8 @@
 from datetime import date, datetime
 from pathlib import Path
 
-from flask import abort, flash, redirect, render_template, request, send_file, url_for
+from flask import (abort, flash, jsonify, redirect, render_template, request, send_file,
+                   url_for)
 from werkzeug.utils import secure_filename
 
 from calculs import CATEGORIES_INGREDIENTS, convertir, to_float
@@ -80,6 +81,7 @@ def lire_mp(form):
         "fournisseur": form.get("fournisseur", "").strip(),
         "allergene": form.get("allergene", "").strip(),
         "nom_etiquette": form.get("nom_etiquette", "").strip() or None,
+        "degre": to_float(form.get("degre"), None),
         "notes": form.get("notes", "").strip(),
     }
 
@@ -105,8 +107,9 @@ def matiere_ajouter():
         return redirect(url_for("matieres"))
     cur = conn.execute(
         """INSERT INTO matieres_premieres (nom, categorie, unite, seuil_alerte, cout_unitaire,
-           fournisseur, allergene, notes, nom_etiquette) VALUES (:nom, :categorie, :unite,
-           :seuil_alerte, :cout_unitaire, :fournisseur, :allergene, :notes, :nom_etiquette)""",
+           fournisseur, allergene, notes, nom_etiquette, degre) VALUES (:nom, :categorie, :unite,
+           :seuil_alerte, :cout_unitaire, :fournisseur, :allergene, :notes, :nom_etiquette,
+           :degre)""",
         data)
     stock_initial = to_float(request.form.get("stock_initial"))
     if stock_initial:
@@ -120,6 +123,40 @@ def matiere_ajouter():
     flash(f"« {data['nom']} » ajouté au stock.", "succes")
     return redirection_sure(request.form.get("retour"),
                             url_for("matiere_detail", mp_id=cur.lastrowid))
+
+
+def ingredient_json(mp):
+    return {"id": mp["id"], "nom": mp["nom"], "categorie": mp["categorie"], "unite": mp["unite"],
+            "cout": mp["cout_unitaire"], "degre": mp["degre"], "allergene": mp["allergene"],
+            "stock": round(mp["stock"], 3) if "stock" in mp.keys() else 0}
+
+
+def repertoire_ingredients():
+    """Répertoire complet, pour composer une recette."""
+    return [ingredient_json(m) for m in matieres_avec_stock(
+        """ORDER BY CASE m.categorie WHEN 'rhum' THEN 0 WHEN 'fruit' THEN 1 WHEN 'epice' THEN 2
+           WHEN 'sucre' THEN 3 ELSE 4 END, m.nom""")]
+
+
+@app.route("/api/matieres", methods=["POST"])
+def api_matiere_creer():
+    """Ajoute un ingrédient au répertoire sans quitter la recette en cours."""
+    conn = get_db()
+    data = lire_mp(request.get_json(silent=True) or {})
+    if not data["nom"]:
+        return jsonify({"ok": False, "message": "Le nom est obligatoire."})
+    existant = trouver_mp(conn, data["nom"])
+    if existant:
+        mp = matieres_avec_stock("WHERE m.id = ?", (existant["id"],))[0]
+        return jsonify({"ok": True, "ingredient": ingredient_json(mp), "existant": True})
+    cur = conn.execute(
+        """INSERT INTO matieres_premieres (nom, categorie, unite, seuil_alerte, cout_unitaire,
+           fournisseur, allergene, notes, nom_etiquette, degre) VALUES (:nom, :categorie, :unite,
+           :seuil_alerte, :cout_unitaire, :fournisseur, :allergene, :notes, :nom_etiquette,
+           :degre)""", data)
+    conn.commit()
+    mp = matieres_avec_stock("WHERE m.id = ?", (cur.lastrowid,))[0]
+    return jsonify({"ok": True, "ingredient": ingredient_json(mp)})
 
 
 @app.route("/matieres/<int:mp_id>", methods=["GET", "POST"])
@@ -141,7 +178,8 @@ def matiere_detail(mp_id):
                 """UPDATE matieres_premieres SET nom = :nom, categorie = :categorie, unite = :unite,
                    seuil_alerte = :seuil_alerte, cout_unitaire = :cout_unitaire,
                    fournisseur = :fournisseur, allergene = :allergene, notes = :notes,
-                   nom_etiquette = :nom_etiquette WHERE id = :id""", {**data, "id": mp_id})
+                   nom_etiquette = :nom_etiquette, degre = :degre WHERE id = :id""",
+                {**data, "id": mp_id})
             conn.commit()
             flash("Matière première mise à jour.", "succes")
         return redirect(url_for("matiere_detail", mp_id=mp_id))

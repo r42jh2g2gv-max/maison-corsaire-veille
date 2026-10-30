@@ -40,8 +40,10 @@ def cout_materiaux_bouteille(conn):
     ).fetchone()[0]
 
 
-def _matieres(conn):
-    return conn.execute("SELECT nom FROM matieres_premieres ORDER BY nom").fetchall()
+def _contexte_formulaire(conn):
+    from vues_matieres import repertoire_ingredients
+    return {"repertoire": repertoire_ingredients(),
+            "materiaux": cout_materiaux_bouteille(conn)}
 
 
 def rendement(recette):
@@ -62,22 +64,33 @@ def recettes():
 
 
 def enregistrer_ingredients(conn, recette_id, form):
+    """Chaque ligne vient du répertoire (ing_mp) ou est saisie librement (hors répertoire)."""
     conn.execute("DELETE FROM recette_ingredients WHERE recette_id = ?", (recette_id,))
-    lignes = zip(form.getlist("ing_categorie"), form.getlist("ing_nom"),
+    noms = form.getlist("ing_nom")
+    mps = form.getlist("ing_mp")
+    mps += [""] * (len(noms) - len(mps))  # lignes sans choix de répertoire
+    lignes = zip(mps, form.getlist("ing_categorie"), noms,
                  form.getlist("ing_qte"), form.getlist("ing_unite"), form.getlist("ing_cout"))
-    for categorie, nom, qte, unite, cout in lignes:
+    for mp_id, categorie, nom, qte, unite, cout in lignes:
+        mp = conn.execute("SELECT * FROM matieres_premieres WHERE id = ?",
+                          (to_int(mp_id),)).fetchone() if to_int(mp_id) else None
+        if mp:
+            nom, categorie, cout = mp["nom"], mp["categorie"], None  # prix : celui du stock
+            unite = unite.strip() or mp["unite"]
         if not nom.strip():
             continue
         conn.execute(
             "INSERT INTO recette_ingredients (recette_id, categorie, nom, quantite_par_litre,"
-            " unite, cout_unitaire) VALUES (?, ?, ?, ?, ?, ?)",
+            " unite, cout_unitaire, mp_id) VALUES (?, ?, ?, ?, ?, ?, ?)",
             (recette_id, categorie if categorie in CATEGORIES_INGREDIENTS else "autre",
-             nom.strip(), to_float(qte, None), unite.strip(), to_float(cout, None)),
+             nom.strip(), to_float(qte, None), unite.strip(), to_float(cout, None),
+             mp["id"] if mp else None),
         )
-    # Relie chaque ingrédient à la matière première du même nom (stock)
+    # Lignes libres : reliées au répertoire si un ingrédient porte le même nom
     conn.execute(
         """UPDATE recette_ingredients SET mp_id = (SELECT m.id FROM matieres_premieres m
-           WHERE lower(m.nom) = lower(recette_ingredients.nom)) WHERE recette_id = ?""",
+           WHERE lower(m.nom) = lower(recette_ingredients.nom))
+           WHERE recette_id = ? AND mp_id IS NULL""",
         (recette_id,))
 
 
@@ -110,7 +123,7 @@ def recette_nouvelle():
             return redirect(url_for("recettes") + f"#recette-{cur.lastrowid}")
     return render_template("recette_form.html",
                            recette={"duree_maceration_jours": 60, "perte_pct": PERTE_DEFAUT},
-                           ingredients=[], nouveau=True, matieres=_matieres(conn))
+                           ingredients=[], nouveau=True, **_contexte_formulaire(conn))
 
 
 @app.route("/recettes/<int:recette_id>/modifier", methods=["GET", "POST"])
@@ -133,7 +146,27 @@ def recette_modifier(recette_id):
             return redirect(url_for("recettes") + f"#recette-{recette_id}")
     return render_template("recette_form.html", recette=recette,
                            ingredients=details_recette(conn, recette)["ingredients"],
-                           nouveau=False, matieres=_matieres(conn))
+                           nouveau=False, **_contexte_formulaire(conn))
+
+
+@app.route("/recettes/<int:recette_id>/dupliquer", methods=["POST"])
+def recette_dupliquer(recette_id):
+    """Nouvelle recette à partir d'une existante (variante, nouvel assemblage)."""
+    conn = get_db()
+    r = get_or_404("recettes", recette_id)
+    cur = conn.execute(
+        """INSERT INTO recettes (nom, duree_maceration_jours, degre, notes_degustation,
+           instructions, perte_pct) VALUES (?, ?, ?, ?, ?, ?)""",
+        (f"{r['nom']} (variante)", r["duree_maceration_jours"], r["degre"],
+         r["notes_degustation"], r["instructions"], r["perte_pct"]))
+    conn.execute(
+        """INSERT INTO recette_ingredients (recette_id, categorie, nom, quantite_par_litre, unite,
+           cout_unitaire, mp_id) SELECT ?, categorie, nom, quantite_par_litre, unite,
+           cout_unitaire, mp_id FROM recette_ingredients WHERE recette_id = ? ORDER BY id""",
+        (cur.lastrowid, recette_id))
+    conn.commit()
+    flash(f"Copie de « {r['nom']} » créée : renommez-la et ajustez l'assemblage.", "succes")
+    return redirect(url_for("recette_modifier", recette_id=cur.lastrowid))
 
 
 @app.route("/recettes/<int:recette_id>/supprimer", methods=["POST"])

@@ -147,3 +147,27 @@ r = c.post('/caisse', data={'csrf':csrf(),'panier':_json.dumps([{'lot_id':3,'qua
 assert 'Stock insuffisant' in r.get_data(as_text=True)
 assert c.get('/exports/stock.xlsx').data[:2] == b'PK'
 print('sorties OK')
+# Répertoire d'ingrédients et assemblage de recette
+r = c.post('/api/matieres', json={'nom':'Fève tonka','categorie':'epice','unite':'g','cout_unitaire':'0.5','allergene':''}, headers={'X-CSRF': csrf()})
+fid = r.json['ingredient']['id']; assert r.json['ok'] and r.json['ingredient']['unite'] == 'g'
+assert c.post('/api/matieres', json={'nom':'fève TONKA'}, headers={'X-CSRF': csrf()}).json.get('existant')
+r = c.post('/recettes/nouvelle', data={'csrf':csrf(),'nom':'Tonka – Vanille','duree_maceration_jours':'50','perte_pct':'12','degre':'',
+     'ing_mp':['1', str(fid), ''], 'ing_categorie':['rhum','epice','sucre'], 'ing_nom':['', '', 'Miel de châtaignier'],
+     'ing_qte':['700','2','40'], 'ing_unite':['ml','g','g'], 'ing_cout':['','','0.02']})
+rid = db.execute("select id from recettes where nom='Tonka – Vanille'").fetchone()[0]
+ings = [tuple(x) for x in db.execute('select nom, mp_id, unite, quantite_par_litre, cout_unitaire from recette_ingredients where recette_id=? order by id',(rid,))]
+assert ings[0][:2] == ('Rhum agricole blanc 50°', 1) and ings[0][2] == 'ml' and ings[0][4] is None, ings
+assert ings[1][:2] == ('Fève tonka', fid) and ings[2][:2] == ('Miel de châtaignier', None), ings
+assert 'Tonka' in c.get('/recettes').get_data(as_text=True)
+html = c.get(f'/recettes/{rid}/modifier').get_data(as_text=True)
+assert 'Fève tonka' in html and 'Miel de châtaignier' in html
+# Dupliquer -> variante modifiable
+r = c.post(f'/recettes/{rid}/dupliquer', data={'csrf':csrf()})
+vid = int(r.headers['Location'].split('/')[-2])
+assert tuple(db.execute('select nom, perte_pct from recettes where id=?',(vid,)).fetchone()) == ('Tonka – Vanille (variante)', 12)
+assert db.execute('select count(*) from recette_ingredients where recette_id=?',(vid,)).fetchone()[0] == 3
+# Lancer un lot depuis la recette composée : déduction du stock (700 ml -> 0,7 L par litre)
+ra = stock('Rhum agricole blanc 50°')
+r = c.post('/lots/nouveau', data={'csrf':csrf(),'recette_id':str(rid),'recette_nom':'','date_maceration':'2026-10-30','litres':'10','perte_pct':'12','volume_cl':'50','nb_bouteilles':'17','statut':'maceration'})
+assert stock('Rhum agricole blanc 50°') == round(ra - 7, 4)
+print('assemblage OK')

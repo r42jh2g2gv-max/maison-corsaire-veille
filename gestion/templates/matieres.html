@@ -1,11 +1,13 @@
 {% extends "base.html" %}
 {% from "_icones.html" import icone %}
-{% block titre %}Matières premières{% endblock %}
+{% block titre %}Ingrédients{% endblock %}
 {% block contenu %}
 <div class="titre-page">
-  <div><div class="surtitre">Stock · rhum, fruits, épices, sucre</div><h1>Matières premières</h1><div class="filet"></div></div>
+  <div><div class="surtitre">Répertoire &amp; stock des matières premières</div><h1>Ingrédients</h1><div class="filet"></div>
+    <div class="sous-titre">Tous vos ingrédients, achetés ou non : on les choisit ici pour composer les recettes.</div></div>
   <div class="actions">
-    <a class="btn btn-or" href="{{ url_for('achat_nouveau') }}">{{ icone('plus') }}Saisir un achat</a>
+    <a class="btn btn-or" href="#nouvelle" onclick="document.getElementById('nouvelle').open = true">{{ icone('plus') }}Nouvel ingrédient</a>
+    <a class="btn btn-ligne" href="{{ url_for('achat_nouveau') }}">{{ icone('facture') }}Saisir un achat</a>
     <a class="btn btn-ligne" href="{{ url_for('achats') }}">{{ icone('facture') }}Registre des achats</a>
   </div>
 </div>
@@ -22,11 +24,11 @@
   {% if matieres %}
   <div class="table-wrap">
   <table class="empile">
-    <thead><tr><th>Matière</th><th>Catégorie</th><th class="droite">En stock</th><th class="droite">Seuil</th><th class="droite">Prix</th><th>Fournisseur</th><th>Corriger (inventaire)</th></tr></thead>
+    <thead><tr><th>Ingrédient</th><th>Catégorie</th><th class="droite">En stock</th><th class="droite">Seuil</th><th class="droite">Prix</th><th>Fournisseur</th><th>Corriger (inventaire)</th></tr></thead>
     <tbody>
       {% for m in matieres %}
       <tr class="{{ 'ligne-alerte' if mp_en_alerte(m) }}">
-        <td class="titre-ligne" data-label="Matière"><a href="{{ url_for('matiere_detail', mp_id=m.id) }}">{{ m.nom }}</a>
+        <td class="titre-ligne" data-label="Ingrédient"><a href="{{ url_for('matiere_detail', mp_id=m.id) }}">{{ m.nom }}</a>{% if m.degre %} <small>{{ m.degre|nombre(0) }} % vol.</small>{% endif %}
           {% if m.allergene %}<br><small>Allergène : {{ m.allergene }}</small>{% endif %}</td>
         <td data-label="Catégorie">{{ CATEGORIES[m.categorie] }}</td>
         <td class="droite num" data-label="En stock"><strong class="{{ 'negatif' if m.stock < 0 }}">{{ m.stock|nombre(2)|replace(',00', '') }} {{ m.unite }}</strong>
@@ -51,7 +53,7 @@
 </section>
 
 <details class="carte mt" id="nouvelle">
-  <summary>+ Ajouter une matière première</summary>
+  <summary>+ Ajouter un ingrédient au répertoire</summary>
   <form method="post" action="{{ url_for('matiere_ajouter') }}" class="mt">
     <input type="hidden" name="csrf" value="{{ csrf_token }}">
     {% with mp={'categorie': 'fruit', 'unite': 'kg'} %}{% include "_matiere_champs.html" %}{% endwith %}

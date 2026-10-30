@@ -5,40 +5,89 @@
 {% macro ligne(i) %}
 <div class="carte ligne-ing" style="padding:12px;background:var(--surface-2)">
   <div class="champs c3">
-    <div><label>Catégorie</label><select name="ing_categorie">{% for k, v in CATEGORIES.items() %}<option value="{{ k }}" {{ 'selected' if i and i.categorie == k }}>{{ v }}</option>{% endfor %}</select></div>
-    <div><label>Ingrédient</label><input type="text" name="ing_nom" list="matieres" value="{{ i.nom if i else '' }}" placeholder="ex. Mangue"></div>
-    <div><label>Quantité pour 1 L</label><input type="number" name="ing_qte" step="any" min="0" inputmode="decimal" value="{{ i.quantite_par_litre if i and i.quantite_par_litre is not none else '' }}"></div>
-    <div><label>Unité</label><input type="text" name="ing_unite" list="unites" value="{{ i.unite if i else '' }}" placeholder="L, kg, g, pièce"></div>
-    <div><label>Prix par unité (€) <span class="aide">si absent du stock</span></label><input type="number" name="ing_cout" step="any" min="0" inputmode="decimal" value="{{ i.cout_unitaire if i and i.cout_unitaire is not none else '' }}"></div>
-    <div style="display:flex;align-items:flex-end"><button type="button" class="btn btn-danger btn-petit retirer">{{ icone('poubelle') }}Retirer</button></div>
+    <div class="large" style="grid-column:1/-1"><label>Ingrédient</label>
+      <select name="ing_mp" class="i-mp">
+        <option value="">— Hors répertoire (saisie libre) —</option>
+        {% for k, v in CATEGORIES.items() %}
+        <optgroup label="{{ v }}" data-categorie="{{ k }}">
+          {% for m in repertoire if m.categorie == k %}<option value="{{ m.id }}" {{ 'selected' if i and i.mp_id == m.id }}>{{ m.nom }}</option>{% endfor %}
+        </optgroup>
+        {% endfor %}
+      </select>
+      <span class="aide i-info" style="display:block;margin-top:4px"></span></div>
+    <div class="i-libre"><label>Nom</label><input type="text" name="ing_nom" value="{{ i.nom if i and not i.mp_id else '' }}" placeholder="ex. Cannelle"></div>
+    <div class="i-libre"><label>Catégorie</label><select name="ing_categorie">{% for k, v in CATEGORIES.items() %}<option value="{{ k }}" {{ 'selected' if i and i.categorie == k }}>{{ v }}</option>{% endfor %}</select></div>
+    <div class="i-libre"><label>Prix par unité (€)</label><input type="number" name="ing_cout" step="any" min="0" inputmode="decimal" value="{{ i.cout_unitaire if i and i.cout_unitaire is not none else '' }}"></div>
+    <div><label>Quantité pour 1 L</label><input type="number" name="ing_qte" class="i-qte" step="any" min="0" inputmode="decimal" value="{{ i.quantite_par_litre if i and i.quantite_par_litre is not none else '' }}"></div>
+    <div><label>Unité</label><input type="text" name="ing_unite" class="i-unite" list="unites" value="{{ i.unite if i else '' }}" placeholder="L, kg, g, pièce"></div>
+    <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:10px">
+      <div><span class="aide">Coût</span><br><strong class="num i-cout">—</strong></div>
+      <button type="button" class="btn btn-danger btn-petit retirer" aria-label="Retirer">{{ icone('poubelle') }}</button>
+    </div>
   </div>
 </div>
 {% endmacro %}
-<div class="titre-page"><div><div class="surtitre">Recette</div><h1>{{ 'Nouvelle recette' if nouveau else recette.nom }}</h1><div class="filet"></div></div></div>
-<form method="post" class="grille">
+<div class="titre-page">
+  <div><div class="surtitre">Recette · assemblage</div><h1>{{ 'Nouvelle recette' if nouveau else recette.nom }}</h1><div class="filet"></div></div>
+  <div class="actions"><a class="btn btn-ligne btn-petit" href="{{ url_for('matieres') }}">{{ icone('lot') }}Répertoire d'ingrédients</a></div>
+</div>
+
+<form method="post" class="grille" id="form-recette">
   <input type="hidden" name="csrf" value="{{ csrf_token }}">
   <section class="carte">
     <div class="champs c3">
       <div><label for="nom">Nom</label><input id="nom" type="text" name="nom" value="{{ recette.nom or '' }}" required></div>
       <div><label for="duree">Macération (jours)</label><input id="duree" type="number" name="duree_maceration_jours" min="0" inputmode="numeric" value="{{ recette.duree_maceration_jours or 60 }}"></div>
-      <div><label for="perte_pct">Perte à la macération (%)</label><input id="perte_pct" type="number" name="perte_pct" min="0" max="95" step="1" inputmode="numeric" value="{{ recette.perte_pct if recette.perte_pct is not none else 15 }}">
-        <span class="aide">Part du volume perdue (fruits retirés, filtration). Proposée pour chaque nouveau lot.</span></div>
-      <div><label for="degre">Degré final estimé (% vol.)</label><input id="degre" type="number" name="degre" step="0.1" min="0" inputmode="decimal" value="{{ recette.degre if recette.degre is not none else '' }}"></div>
+      <div><label for="perte_pct">Perte à la macération (%)</label><input id="perte_pct" type="number" name="perte_pct" min="0" max="95" step="1" inputmode="numeric" value="{{ '%g'|format(recette.perte_pct) if recette.perte_pct is not none else 15 }}">
+        <span class="aide">Fruits retirés, filtration. Proposée pour chaque nouveau lot.</span></div>
+      <div><label for="degre">Degré final (% vol.)</label><input id="degre" type="number" name="degre" step="0.1" min="0" inputmode="decimal" value="{{ recette.degre if recette.degre is not none else '' }}">
+        <span class="aide">Mesuré, ou estimé ci-dessous.</span></div>
       <div class="large" style="grid-column:1/-1"><label for="notes_degustation">Notes de dégustation</label><textarea id="notes_degustation" name="notes_degustation" rows="2">{{ recette.notes_degustation or '' }}</textarea></div>
-      <div class="large" style="grid-column:1/-1"><label for="instructions">Étapes de préparation</label><textarea id="instructions" name="instructions" rows="6" placeholder="1. Peler et couper les fruits…">{{ recette.instructions or '' }}</textarea></div>
+      <div class="large" style="grid-column:1/-1"><label for="instructions">Étapes de préparation</label><textarea id="instructions" name="instructions" rows="5" placeholder="1. Peler et couper les fruits…">{{ recette.instructions or '' }}</textarea></div>
     </div>
   </section>
+
   <section class="carte">
-    <div class="carte-tete"><h2>Ingrédients pour 1 litre</h2><button type="button" class="btn btn-ligne btn-petit" id="ajouter">{{ icone('plus') }}Ajouter</button></div>
+    <div class="carte-tete"><h2>Assemblage pour 1 litre</h2></div>
+    <p class="aide">Choisissez chaque ingrédient dans votre répertoire : son prix (dernier achat), son degré et ses allergènes sont repris automatiquement, et il sera déduit du stock quand vous lancerez un lot.</p>
     <div class="grille" id="ingredients" style="gap:10px">
       {% for i in ingredients %}{{ ligne(i) }}{% endfor %}
       {% if not ingredients %}{{ ligne(None) }}{{ ligne(None) }}{{ ligne(None) }}{% endif %}
     </div>
     <template id="modele">{{ ligne(None) }}</template>
-    <datalist id="matieres">{% for m in matieres %}<option value="{{ m.nom }}">{% endfor %}</datalist>
-    <p class="aide mb0">Un ingrédient qui porte le même nom qu'une <a href="{{ url_for('matieres') }}">matière première</a> est relié au stock : son prix vient du dernier achat et il est déduit du stock quand vous lancez un lot.</p>
     <datalist id="unites"><option value="L"><option value="cl"><option value="ml"><option value="kg"><option value="g"><option value="pièce"></datalist>
+    <div class="form-actions" style="margin-top:12px">
+      <button type="button" class="btn btn-ligne btn-petit" id="ajouter">{{ icone('plus') }}Ajouter un ingrédient</button>
+    </div>
+
+    <details class="mt" id="creer-ingredient">
+      <summary>+ Nouvel ingrédient dans le répertoire</summary>
+      <div class="champs c3 mt">
+        <div><label for="n-nom">Nom</label><input id="n-nom" type="text" placeholder="ex. Fève tonka"></div>
+        <div><label for="n-cat">Catégorie</label><select id="n-cat">{% for k, v in CATEGORIES.items() %}<option value="{{ k }}">{{ v }}</option>{% endfor %}</select></div>
+        <div><label for="n-unite">Unité de stock</label><input id="n-unite" type="text" list="unites" value="kg"></div>
+        <div><label for="n-cout">Prix par unité (€)</label><input id="n-cout" type="number" step="any" min="0" inputmode="decimal"></div>
+        <div><label for="n-degre">Degré (% vol.) <span class="aide">alcools</span></label><input id="n-degre" type="number" step="0.1" min="0" inputmode="decimal"></div>
+        <div><label for="n-allergene">Allergène</label><input id="n-allergene" type="text" placeholder="ex. fruits à coque"></div>
+      </div>
+      <div class="form-actions"><button type="button" class="btn" id="n-ajouter">{{ icone('plus') }}Ajouter au répertoire et à la recette</button>
+        <span class="aide" id="n-message"></span></div>
+    </details>
   </section>
+
+  <section class="carte bois" id="bilan">
+    <h2>Bilan de l'assemblage</h2>
+    <div class="stats-3" style="border-top:0;margin-top:0;padding-top:0">
+      <div><strong class="or" id="b-litre">—</strong><span>ingrédients pour 1 L</span></div>
+      <div><strong class="or" id="b-bouteille">—</strong><span>par bouteille 50 cl*</span></div>
+      <div><strong id="b-degre">—</strong><span>degré estimé</span></div>
+    </div>
+    <p class="mb0 mt" id="b-alcool"></p>
+    <p class="mb0" id="b-allergenes"></p>
+    <div class="form-actions" style="margin-top:10px"><button type="button" class="btn btn-ligne btn-petit" id="reporter-degre" hidden>Utiliser comme degré final</button></div>
+    <p class="aide mt mb0">* après la perte à la macération, avec {{ materiaux|euro }} de conditionnement (bouteille, bouchon, étiquette…). Le degré est une estimation (le jus des fruits le fait baisser) : mesurez-le à l'alcoomètre avant l'étiquetage.</p>
+  </section>
+
   <div class="form-actions" style="margin-top:0">
     <button class="btn btn-or">{{ 'Créer la recette' if nouveau else 'Enregistrer' }}</button>
     <a class="btn btn-ligne" href="{{ url_for('recettes') }}">Annuler</a>
@@ -48,14 +97,113 @@
 {% block scripts %}
 <script>
 (function () {
-  var liste = document.getElementById('ingredients');
-  document.getElementById('ajouter').addEventListener('click', function () {
-    liste.appendChild(document.getElementById('modele').content.cloneNode(true));
+  var REPERTOIRE = {{ repertoire|tojson }};
+  var MATERIAUX = {{ materiaux|tojson }};
+  var parId = {}; REPERTOIRE.forEach(function (m) { parId[m.id] = m; });
+  var UNITES = { kg: ['m', 1000], g: ['m', 1], l: ['v', 1000], cl: ['v', 10], ml: ['v', 1], 'pièce': ['p', 1], piece: ['p', 1], 'pièces': ['p', 1], pc: ['p', 1] };
+  function convertir(q, de, vers) {
+    de = (de || '').trim().toLowerCase(); vers = (vers || '').trim().toLowerCase();
+    if (de === vers) return q;
+    var a = UNITES[de], b = UNITES[vers];
+    if (!a || !b || a[0] !== b[0]) return null;
+    return q * a[1] / b[1];
+  }
+  var $ = function (id) { return document.getElementById(id); };
+  var eur = function (v) { return v.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' }); };
+  var num = function (el) { var v = parseFloat(String(el.value).replace(',', '.')); return isNaN(v) ? 0 : v; };
+  var liste = $('ingredients');
+
+  function majLigne(bloc, changeIngredient) {
+    var sel = bloc.querySelector('.i-mp'), mp = parId[sel.value];
+    var unite = bloc.querySelector('.i-unite'), info = bloc.querySelector('.i-info');
+    bloc.querySelectorAll('.i-libre').forEach(function (el) { el.hidden = !!mp; });
+    if (mp && (changeIngredient || !unite.value)) unite.value = mp.unite;
+    info.textContent = mp ? [
+      'Stock : ' + (mp.stock || 0).toLocaleString('fr-FR') + ' ' + mp.unite,
+      mp.cout ? eur(mp.cout) + ' / ' + mp.unite : 'prix non renseigné',
+      mp.degre ? mp.degre + ' % vol.' : '',
+      mp.allergene ? 'allergène : ' + mp.allergene : ''
+    ].filter(Boolean).join(' · ') : '';
+    var q = num(bloc.querySelector('.i-qte')), cout = null, alcool = 0;
+    if (mp) {
+      var qMp = convertir(q, unite.value, mp.unite);
+      if (qMp === null) info.textContent += ' — unité incompatible avec le stock (' + mp.unite + ')';
+      else cout = qMp * (mp.cout || 0);
+      if (mp.degre) { var litres = convertir(q, unite.value, 'l'); if (litres) alcool = litres * mp.degre / 100; }
+    } else {
+      cout = q * num(bloc.querySelector('[name=ing_cout]'));
+    }
+    bloc.querySelector('.i-cout').textContent = cout ? eur(cout) : '—';
+    return { cout: cout || 0, alcool: alcool, mp: mp, litres: mp && mp.degre ? convertir(q, unite.value, 'l') : 0 };
+  }
+
+  function bilan() {
+    var total = 0, alcool = 0, spiritueux = 0, allergenes = {};
+    liste.querySelectorAll('.ligne-ing').forEach(function (bloc) {
+      var r = majLigne(bloc, false);
+      total += r.cout; alcool += r.alcool; spiritueux += r.litres || 0;
+      if (r.mp && r.mp.allergene) allergenes[r.mp.allergene] = 1;
+    });
+    var perte = num($('perte_pct')) / 100;
+    $('b-litre').textContent = total ? eur(total) : '—';
+    $('b-bouteille').textContent = total ? eur(total / Math.max(1 - perte, 0.05) * 0.5 + MATERIAUX) : '—';
+    var degre = Math.round(alcool * 1000) / 10;  // alcool pur (L) dans 1 L
+    $('b-degre').textContent = degre ? '≈ ' + degre.toLocaleString('fr-FR') + ' %' : '—';
+    $('b-alcool').textContent = spiritueux ? 'Spiritueux : ' + spiritueux.toLocaleString('fr-FR', { maximumFractionDigits: 2 }) + ' L pour 1 L de macération.' : '';
+    var a = Object.keys(allergenes);
+    $('b-allergenes').textContent = a.length ? 'Allergènes : ' + a.join(', ') + ' (repris sur l’étiquette).' : '';
+    $('reporter-degre').hidden = !degre;
+    $('reporter-degre').dataset.degre = degre;
+  }
+
+  liste.addEventListener('change', function (e) {
+    if (e.target.classList.contains('i-mp')) majLigne(e.target.closest('.ligne-ing'), true);
+    bilan();
   });
+  liste.addEventListener('input', bilan);
+  $('perte_pct').addEventListener('input', bilan);
   liste.addEventListener('click', function (e) {
     var b = e.target.closest('.retirer');
-    if (b) b.closest('.ligne-ing').remove();
+    if (b) { b.closest('.ligne-ing').remove(); bilan(); }
   });
+  function nouvelleLigne() {
+    liste.appendChild($('modele').content.cloneNode(true));
+    return liste.lastElementChild;
+  }
+  $('ajouter').addEventListener('click', function () { nouvelleLigne().querySelector('.i-mp').focus(); });
+  $('reporter-degre').addEventListener('click', function () { $('degre').value = this.dataset.degre; });
+
+  // Création d'un ingrédient sans quitter la recette
+  $('n-ajouter').addEventListener('click', function () {
+    var msg = $('n-message');
+    var donnees = { nom: $('n-nom').value, categorie: $('n-cat').value, unite: $('n-unite').value,
+                    cout_unitaire: $('n-cout').value, degre: $('n-degre').value, allergene: $('n-allergene').value };
+    if (!donnees.nom.trim()) { msg.textContent = 'Indiquez un nom.'; return; }
+    fetch('{{ url_for("api_matiere_creer") }}', { method: 'POST', credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json', 'X-CSRF': window.CSRF }, body: JSON.stringify(donnees) })
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        if (!d.ok) { msg.textContent = d.message; return; }
+        var m = d.ingredient;
+        if (!parId[m.id]) {
+          parId[m.id] = m; REPERTOIRE.push(m);
+          document.querySelectorAll('.i-mp optgroup[data-categorie="' + m.categorie + '"]').forEach(function (g) {
+            var o = document.createElement('option'); o.value = m.id; o.textContent = m.nom; g.appendChild(o);
+          });
+          var g = $('modele').content.querySelector('optgroup[data-categorie="' + m.categorie + '"]');
+          var o = document.createElement('option'); o.value = m.id; o.textContent = m.nom; g.appendChild(o);
+        }
+        var vide = Array.prototype.find.call(liste.querySelectorAll('.ligne-ing'), function (b) {
+          return !b.querySelector('.i-mp').value && !b.querySelector('[name=ing_nom]').value; });
+        var bloc = vide || nouvelleLigne();
+        bloc.querySelector('.i-mp').value = m.id; majLigne(bloc, true); bilan();
+        bloc.querySelector('.i-qte').focus();
+        msg.textContent = d.existant ? '« ' + m.nom + ' » existait déjà : ajouté à la recette.' : '« ' + m.nom + ' » ajouté au répertoire.';
+        ['n-nom', 'n-cout', 'n-degre', 'n-allergene'].forEach(function (id) { $(id).value = ''; });
+      })
+      .catch(function () { msg.textContent = 'Connexion impossible, réessayez.'; });
+  });
+  bilan();
 })();
 </script>
 {% endblock %}

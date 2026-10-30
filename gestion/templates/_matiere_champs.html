@@ -9,6 +9,7 @@
   <div><label for="mp-fournisseur">Fournisseur habituel</label><input id="mp-fournisseur" type="text" name="fournisseur" value="{{ mp.fournisseur or '' }}"></div>
   <div><label for="mp-allergene">Allergène <span class="aide">(pour l'étiquette)</span></label><input id="mp-allergene" type="text" name="allergene" list="allergenes" value="{{ mp.allergene or '' }}" placeholder="ex. fruits à coque">
     <datalist id="allergenes">{% for a in ['céréales contenant du gluten', 'crustacés', 'œufs', 'poissons', 'arachides', 'soja', 'lait', 'fruits à coque', 'céleri', 'moutarde', 'graines de sésame', 'anhydride sulfureux et sulfites', 'lupin', 'mollusques'] %}<option value="{{ a }}">{% endfor %}</datalist></div>
+  <div><label for="mp-degre">Degré (% vol.) <span class="aide">pour les alcools</span></label><input id="mp-degre" type="number" name="degre" step="0.1" min="0" max="100" inputmode="decimal" value="{{ mp.degre if mp.degre is not none else '' }}" placeholder="ex. 50"></div>
   <div><label for="mp-etiq">Nom sur l'étiquette</label><input id="mp-etiq" type="text" name="nom_etiquette" value="{{ mp.nom_etiquette or '' }}" placeholder="ex. rhum agricole">
     <span class="aide">Vide = nom ci-dessus, sans le degré.</span></div>
   <div class="large" style="grid-column:1/-1"><label for="mp-notes">Notes</label><input id="mp-notes" type="text" name="notes" value="{{ mp.notes or '' }}"></div>

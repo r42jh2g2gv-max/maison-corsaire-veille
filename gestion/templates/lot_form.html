@@ -54,7 +54,7 @@
     </div>
     <div>
       <label for="perte_pct">Perte à la macération (%)</label>
-      <input id="perte_pct" type="number" name="perte_pct" min="0" max="95" step="1" inputmode="numeric" value="{{ lot.perte_pct if lot.perte_pct is not none else 15 }}">
+      <input id="perte_pct" type="number" name="perte_pct" min="0" max="95" step="1" inputmode="numeric" value="{{ '%g'|format(lot.perte_pct) if lot.perte_pct is not none else 15 }}">
       <span class="aide">Fruits retirés, filtration, dépôt.</span>
     </div>
     <div>

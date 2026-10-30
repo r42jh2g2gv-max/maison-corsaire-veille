@@ -6,6 +6,7 @@
   <div><div class="surtitre">Module 2 · Bibliothèque</div><h1>Recettes</h1><div class="filet"></div></div>
   <div class="actions">
     <a class="btn btn-or" href="{{ url_for('recette_nouvelle') }}">{{ icone('plus') }}Nouvelle recette</a>
+    <a class="btn btn-ligne" href="{{ url_for('matieres') }}">{{ icone('lot') }}Ingrédients</a>
     <a class="btn btn-ligne" href="{{ url_for('export', nom='recettes') }}">{{ icone('tableur') }}Excel</a>
   </div>
 </div>
@@ -39,6 +40,10 @@
       <a class="btn btn-or" href="{{ url_for('lot_nouveau', recette_id=r.id) }}">{{ icone('lot') }}Lancer un lot</a>
       <a class="btn btn-ligne btn-petit" href="{{ url_for('recette_fiche', recette_id=r.id) }}" target="_blank" aria-label="Fiche recette imprimable">{{ icone('imprimer') }}Fiche</a>
       <a class="btn btn-ligne btn-petit" href="{{ url_for('etiquettes', recette=r.id) }}#recette-{{ r.id }}" aria-label="Étiquette">{{ icone('etiquette') }}Étiquette</a>
+      <form method="post" action="{{ url_for('recette_dupliquer', recette_id=r.id) }}" class="inline">
+        <input type="hidden" name="csrf" value="{{ csrf_token }}">
+        <button class="btn btn-ligne btn-petit" title="Créer une variante à partir de cette recette">{{ icone('plus') }}Dupliquer</button>
+      </form>
       <a class="btn btn-ligne btn-petit" href="{{ url_for('recette_modifier', recette_id=r.id) }}" aria-label="Modifier">{{ icone('crayon') }}</a>
       <form method="post" action="{{ url_for('recette_supprimer', recette_id=r.id) }}" class="inline" onsubmit="return confirm('Supprimer la recette {{ r.nom|replace("'", " ") }} ?')">
         <input type="hidden" name="csrf" value="{{ csrf_token }}">
