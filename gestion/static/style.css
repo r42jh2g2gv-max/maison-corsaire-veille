@@ -464,3 +464,17 @@ details > summary { cursor: pointer; font-weight: 600; color: var(--or-clair); p
   .menu-plus .panneau a span, .menu-plus .panneau a { overflow-wrap: anywhere; }
   .menu-plus .panneau hr { grid-column: 1 / -1; margin: 4px; }
 }
+
+/* Appli installée sur iPhone (plein écran) : laisser la place à l'heure, la batterie et l'encoche */
+.entete { padding-top: env(safe-area-inset-top); }
+.entete .interieur { padding-left: max(16px, env(safe-area-inset-left)); padding-right: max(16px, env(safe-area-inset-right)); }
+@media (max-width: 1099px) {
+  .menu-plus .panneau {
+    top: calc(66px + env(safe-area-inset-top));
+    max-height: calc(100dvh - 66px - env(safe-area-inset-top) - 84px - env(safe-area-inset-bottom));
+  }
+}
+.page-connexion { padding-top: max(24px, env(safe-area-inset-top)); }
+
+/* Icônes placées dans un titre (cloche « À faire »…) : taille explicite pour Safari */
+h2 > span > svg, h2 > .texte-or svg { width: 24px; height: 24px; display: block; }
