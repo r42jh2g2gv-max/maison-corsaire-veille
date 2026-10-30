@@ -256,7 +256,7 @@ DEFAULT_SETTINGS = {
     "smtp_password": "",
     "smtp_expediteur": "",
     "etiquette_largeur": "70",
-    "etiquette_hauteur": "100",
+    "etiquette_hauteur": "75",
     "etiquette_tri": "Bouteille en verre et bouchon : à déposer dans le bac de tri.",
 }
 
@@ -272,6 +272,7 @@ MIGRATIONS = [
     ("recettes", "allergenes", "TEXT"),
     ("recettes", "etiquette_mentions", "TEXT"),
     ("tickets", "uuid", "TEXT"),
+    ("matieres_premieres", "nom_etiquette", "TEXT"),
 ]
 
 
@@ -706,6 +707,13 @@ def seed_matieres(conn, d):
         if trouve:
             conn.execute("UPDATE recette_ingredients SET mp_id = ? WHERE id = ?",
                          (trouve[0], ing["id"]))
+    for nom, etiquette in [
+        ("Rhum agricole blanc 50°", "rhum agricole"), ("Rhum ambré 45°", "rhum ambré"),
+        ("Ananas Victoria", "ananas"), ("Gousse de vanille", "vanille"),
+        ("Grains de café arabica", "café"), ("Noix de coco râpée toastée", "noix de coco"),
+        ("Citron vert (zestes)", "zestes de citron vert"), ("Sucre de canne roux", "sucre de canne"),
+    ]:
+        conn.execute("UPDATE matieres_premieres SET nom_etiquette = ? WHERE nom = ?", (etiquette, nom))
     # Un écart d'inventaire corrigé, pour l'exemple
     conn.execute(
         "INSERT INTO mouvements_mp (mp_id, date_mouvement, type, quantite, notes)"

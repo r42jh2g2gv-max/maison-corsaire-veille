@@ -86,7 +86,22 @@ assert stock('Noisettes torréfiées') == 1
 c.post('/recettes/nouvelle', data={'csrf':csrf(),'nom':'Noisette – Caramel','duree_maceration_jours':'40','degre':'30','ing_categorie':['rhum','fruit','sucre'],'ing_nom':['Rhum ambré 45°','Noisettes torréfiées','Sucre de canne roux'],'ing_qte':['0.7','60','50'],'ing_unite':['L','g','g'],'ing_cout':['','','']})
 rid = db.execute("select id from recettes where nom='Noisette – Caramel'").fetchone()[0]
 html = c.get(f'/etiquettes?recette={rid}').get_data(as_text=True)
-assert 'fruits à coque' in html and 'Rhum ambré 45°, noisettes torréfiées, sucre de canne roux.' in html.replace('&#39;', "'"), 'ingrédients proposés'
+assert 'fruits à coque' in html and 'Rhum ambré, noisettes torréfiées, sucre de canne.' in html.replace('&#39;', "'"), 'ingrédients automatiques'
+# L'étiquette d'un lot suit les ingrédients réellement utilisés
+import vues_etiquettes
+with app.test_request_context():
+    from noyau import get_db
+    avant = vues_etiquettes.ingredients_lot(get_db(), 2)[0]
+c.post('/lots/2/ingredients', data={'csrf':csrf(),'mp_id':str(db.execute("select id from matieres_premieres where nom='Noisettes torréfiées'").fetchone()[0]),'quantite':'50','unite':'g'})
+with app.test_request_context():
+    texte, allergenes = vues_etiquettes.ingredients_lot(get_db(), 2)
+print('lot 2 avant :', avant); print('lot 2 après :', texte, allergenes)
+assert 'noisettes torréfiées' in texte and 'fruits à coque' in allergenes and texte != avant
+# Liste personnalisée puis retour à l'automatique
+c.post(f'/etiquettes/recette/{rid}', data={'csrf':csrf(),'denomination':'','etiquette_ingredients':'Rhum, noisettes.','allergenes':''})
+assert db.execute('select etiquette_ingredients from recettes where id=?',(rid,)).fetchone()[0] == 'Rhum, noisettes.'
+c.post(f'/etiquettes/recette/{rid}', data={'csrf':csrf(),'action':'auto','etiquette_ingredients':'Rhum, noisettes.'})
+assert db.execute('select etiquette_ingredients from recettes where id=?',(rid,)).fetchone()[0] is None
 c.post(f'/etiquettes/recette/{rid}', data={'csrf':csrf(),'denomination':'Boisson spiritueuse à base de rhum','etiquette_ingredients':'Rhum, noisettes, sucre.','allergenes':'noisettes','etiquette_mentions':'Servir frais.'})
 assert db.execute('select denomination from recettes where id=?',(rid,)).fetchone()[0] == 'Boisson spiritueuse à base de rhum'
 c.post('/etiquettes/reglages', data={'csrf':csrf(),'largeur':'60','hauteur':'90','tri':'Verre à recycler'})

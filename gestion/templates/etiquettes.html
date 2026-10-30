@@ -21,16 +21,19 @@
           <div><label for="den-{{ r.id }}">Dénomination de vente</label>
             <input id="den-{{ r.id }}" type="text" name="denomination" value="{{ r.denomination or DENOMINATION_DEFAUT }}">
             <span class="aide">Imprimée sous le nom du parfum « {{ r.nom }} ».</span></div>
-          <div><label for="ing-{{ r.id }}">Ingrédients <span class="aide">(ordre décroissant de quantité)</span></label>
-            <textarea id="ing-{{ r.id }}" name="etiquette_ingredients" rows="3">{{ r.etiquette_ingredients or f.ingredients_proposes }}</textarea>
-            {% if r.etiquette_ingredients and r.etiquette_ingredients != f.ingredients_proposes %}<span class="aide">Proposition d'après la recette : {{ f.ingredients_proposes }}</span>{% endif %}</div>
-          <div><label for="all-{{ r.id }}">Allergènes <span class="aide">(séparés par des virgules ; mis en gras)</span></label>
-            <input id="all-{{ r.id }}" type="text" name="allergenes" value="{{ r.allergenes if r.allergenes is not none else f.allergenes_proposes }}" placeholder="aucun">
-            <span class="aide">Les allergènes renseignés sur les matières premières sont proposés automatiquement.</span></div>
+          <div><label for="ing-{{ r.id }}">Ingrédients
+              {% if r.etiquette_ingredients %}<span class="badge badge-urgent">personnalisée</span>{% else %}<span class="badge badge-ok">automatique</span>{% endif %}</label>
+            <textarea id="ing-{{ r.id }}" name="etiquette_ingredients" rows="3">{{ r.etiquette_ingredients or f.auto }}</textarea>
+            <span class="aide">{% if r.etiquette_ingredients %}Liste automatique actuelle : {{ f.auto }}{% else %}Calculée d'après la recette, par ordre décroissant de quantité, et mise à jour à chaque modification. Si vous changez ce texte, il devient une liste personnalisée.{% endif %}
+              Les étiquettes <strong>de lot</strong> reprennent toujours les ingrédients réellement utilisés dans le lot.</span></div>
+          <div><label for="all-{{ r.id }}">Allergènes supplémentaires <span class="aide">(séparés par des virgules)</span></label>
+            <input id="all-{{ r.id }}" type="text" name="allergenes" value="{{ r.allergenes or '' }}" placeholder="aucun">
+            <span class="aide">Ajoutés automatiquement depuis les matières premières : {{ f.allergenes_auto or 'aucun' }}. Ils sont mis en gras dans la liste.</span></div>
           <div><label for="men-{{ r.id }}">Mentions libres <span class="aide">(facultatif)</span></label>
             <textarea id="men-{{ r.id }}" name="etiquette_mentions" rows="2" placeholder="Fabrication artisanale en Charente-Maritime. Servir frais. Agiter avant de servir.">{{ r.etiquette_mentions or '' }}</textarea></div>
         </div>
-        <div class="form-actions"><button class="btn btn-or">Enregistrer les textes</button></div>
+        <div class="form-actions"><button class="btn btn-or">Enregistrer</button>
+          {% if r.etiquette_ingredients %}<button class="btn btn-ligne" name="action" value="auto">Revenir à la liste automatique</button>{% endif %}</div>
       </form>
       <hr class="separateur">
       <form method="get" action="{{ url_for('etiquette_recette_pdf', recette_id=r.id) }}" target="_blank" class="champs" style="align-items:end">
@@ -48,11 +51,12 @@
   <div class="grille">
     <section class="carte">
       <h2>Par lot</h2>
-      <p class="aide">Reprend le degré et la contenance réels du lot.</p>
+      <p class="aide">Reprend les ingrédients réellement utilisés, le degré et la contenance du lot.</p>
       {% if lots %}
       <form method="get" action="" id="form-lot" target="_blank" class="grille" style="gap:12px">
         <div><label for="lot-choisi">Lot</label>
-          <select id="lot-choisi">{% for l in lots %}<option value="{{ url_for('etiquette_lot_pdf', lot_id=l.id) }}" data-nb="{{ l.nb_bouteilles }}">{{ l.numero }} — {{ l.recette_nom }}</option>{% endfor %}</select></div>
+          <select id="lot-choisi">{% for l in lots %}<option value="{{ url_for('etiquette_lot_pdf', lot_id=l.id) }}" data-nb="{{ l.nb_bouteilles }}" data-ingredients="{{ apercus_lots[l.id] }}">{{ l.numero }} — {{ l.recette_nom }}</option>{% endfor %}</select>
+          <p class="aide" id="apercu-lot" style="margin:8px 0 0"></p></div>
         <div><label for="lot-copies">Nombre d'étiquettes</label><input id="lot-copies" type="number" name="copies" min="1" max="500" inputmode="numeric"></div>
         <label class="case"><input type="checkbox" name="lot_imprime" value="1"> Imprimer le n° de lot dans la case (sinon case vierge à tamponner)</label>
         <input type="hidden" name="format" value="planche">
@@ -84,7 +88,11 @@
   var f = document.getElementById('form-lot');
   if (!f) return;
   var sel = document.getElementById('lot-choisi'), cp = document.getElementById('lot-copies');
-  function maj() { f.action = sel.value; cp.value = sel.options[sel.selectedIndex].dataset.nb || 24; }
+  function maj() {
+    var o = sel.options[sel.selectedIndex];
+    f.action = sel.value; cp.value = o.dataset.nb || 24;
+    document.getElementById('apercu-lot').textContent = 'Ingrédients : ' + (o.dataset.ingredients || '—');
+  }
   sel.addEventListener('change', maj); maj();
 })();
 </script>

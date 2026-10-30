@@ -79,6 +79,7 @@ def lire_mp(form):
         "cout_unitaire": max(to_float(form.get("cout_unitaire")), 0),
         "fournisseur": form.get("fournisseur", "").strip(),
         "allergene": form.get("allergene", "").strip(),
+        "nom_etiquette": form.get("nom_etiquette", "").strip() or None,
         "notes": form.get("notes", "").strip(),
     }
 
@@ -104,8 +105,9 @@ def matiere_ajouter():
         return redirect(url_for("matieres"))
     cur = conn.execute(
         """INSERT INTO matieres_premieres (nom, categorie, unite, seuil_alerte, cout_unitaire,
-           fournisseur, allergene, notes) VALUES (:nom, :categorie, :unite, :seuil_alerte,
-           :cout_unitaire, :fournisseur, :allergene, :notes)""", data)
+           fournisseur, allergene, notes, nom_etiquette) VALUES (:nom, :categorie, :unite,
+           :seuil_alerte, :cout_unitaire, :fournisseur, :allergene, :notes, :nom_etiquette)""",
+        data)
     stock_initial = to_float(request.form.get("stock_initial"))
     if stock_initial:
         conn.execute(
@@ -138,8 +140,8 @@ def matiere_detail(mp_id):
             conn.execute(
                 """UPDATE matieres_premieres SET nom = :nom, categorie = :categorie, unite = :unite,
                    seuil_alerte = :seuil_alerte, cout_unitaire = :cout_unitaire,
-                   fournisseur = :fournisseur, allergene = :allergene, notes = :notes
-                   WHERE id = :id""", {**data, "id": mp_id})
+                   fournisseur = :fournisseur, allergene = :allergene, notes = :notes,
+                   nom_etiquette = :nom_etiquette WHERE id = :id""", {**data, "id": mp_id})
             conn.commit()
             flash("Matière première mise à jour.", "succes")
         return redirect(url_for("matiere_detail", mp_id=mp_id))

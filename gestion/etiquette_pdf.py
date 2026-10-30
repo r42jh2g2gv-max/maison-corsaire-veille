@@ -116,50 +116,53 @@ def dessiner_etiquette(c, x, y, L, H, e, trait_coupe=True):
         c.setDash()
     largeur = L - 2 * m
 
-    # --- Bloc bas (fixe) : pictogramme, lot, volume/degré, producteur, tri ---
-    d = min(15 * mm, largeur * 0.3)
-    bas = y + m
-    tri = Paragraph(escape(e["tri"] or ""), _style(5.2, interligne=1.15))
-    _, h_tri = tri.wrap(largeur - d - 2 * mm, 30 * mm)
-    picto_femme_enceinte(c, x + L - m - d, bas, d)
-    if e["tri"]:
-        tri.drawOn(c, x + m, bas)
-    y_bloc = bas + max(d, h_tri) + 2 * mm
-
-    producteur = Paragraph(
+    # --- Pied : producteur puis consigne de tri (petits caractères) ---
+    pied = [Paragraph(
         f"Élaboré par <b>{escape(e['producteur_nom'])}</b>, {escape(e['producteur_adresse'])}",
-        _style(5.6, interligne=1.2))
-    _, h_prod = producteur.wrap(largeur, 30 * mm)
-    producteur.drawOn(c, x + m, y_bloc)
-    y_bloc += h_prod + 2 * mm
+        _style(5.8, interligne=1.2))]
+    if e["tri"]:
+        pied.append(Paragraph(escape(e["tri"]), _style(5.4, interligne=1.15)))
+    yb = y + m
+    for para in reversed(pied):
+        h = para.wrap(largeur, 40 * mm)[1]
+        para.drawOn(c, x + m, yb)
+        yb += h + 1.2 * mm
+    yb += 1 * mm
 
-    # Volume et degré (gros caractères) + case lot à tamponner
-    h_case = 9.5 * mm
+    # --- Une seule rangée : volume + degré | case LOT à tamponner | pictogramme ---
+    d = min(15 * mm, largeur * 0.26)
+    picto_femme_enceinte(c, x + L - m - d, yb, d)
+    taille_vol = 12 if largeur >= 55 * mm else 10
+    l_texte = max(c.stringWidth(e["volume"], "Helvetica-Bold", taille_vol),
+                  c.stringWidth(e["degre"], "Helvetica-Bold", taille_vol))
     c.setFillColor(NOIR)
-    c.setFont("Helvetica-Bold", 12)
-    c.drawString(x + m, y_bloc + 5.2 * mm, e["volume"])
-    c.drawString(x + m, y_bloc + 0.4 * mm, e["degre"])
-    l_case = min(30 * mm, largeur * 0.52)
-    xc = x + L - m - l_case
+    c.setFont("Helvetica-Bold", taille_vol)
+    c.drawString(x + m, yb + d / 2 + 0.8 * mm, e["volume"])
+    c.drawString(x + m, yb + d / 2 - taille_vol * 0.36 - 1.4 * mm, e["degre"])
+    h_case = min(10 * mm, d)
+    xc = x + m + l_texte + 3 * mm
+    l_case = (x + L - m - d - 2.5 * mm) - xc
+    yc = yb + (d - h_case) / 2
     c.setStrokeColor(NOIR)
     c.setLineWidth(0.7)
-    c.rect(xc, y_bloc, l_case, h_case)
+    c.rect(xc, yc, l_case, h_case)
     c.setFont("Helvetica-Bold", 6.5)
-    c.drawString(xc + 1.3 * mm, y_bloc + h_case - 2.6 * mm, "LOT")
+    c.drawString(xc + 1.3 * mm, yc + h_case - 2.6 * mm, "LOT")
     if e.get("lot"):
-        c.setFont("Helvetica-Bold", 9)
-        c.drawCentredString(xc + l_case / 2, y_bloc + 2 * mm, e["lot"])
-    y_bloc += h_case + 2.2 * mm
+        c.setFont("Helvetica-Bold", 8.5)
+        c.drawCentredString(xc + l_case / 2, yc + 1.8 * mm, e["lot"])
+    yb += d + 2.5 * mm
 
-    # --- Bloc haut (texte) : on réduit la taille jusqu'à ce que tout tienne ---
+    # --- Texte : la plus grande taille de caractères qui tient dans la place restante ---
     haut = y + H - m
-    place = haut - y_bloc
+    place = haut - yb
     allergenes = [a.strip() for a in (e["allergenes"] or "").split(",") if a.strip()]
-    for taille in (7.2, 6.8, 6.4, 6.0, 5.6, 5.2, 4.8):
+    espace = 1.6 * mm
+    for taille in (13, 12, 11, 10.5, 10, 9.5, 9, 8.5, 8, 7.5, 7, 6.6, 6.2, 5.8, 5.4, 5, 4.6):
         # Nom du parfum (nom commercial), puis dénomination légale
         blocs = [Paragraph(f"<b>{escape(e['nom'])}</b>",
                            _style(taille + 2.6, gras=True, interligne=1.15)),
-                 Paragraph(escape(e["denomination"]), _style(taille + 0.6, interligne=1.2))]
+                 Paragraph(escape(e["denomination"]), _style(taille + 0.4, interligne=1.2))]
         if e["ingredients"]:
             blocs.append(Paragraph(
                 "<b>Ingrédients :</b> " + _avec_allergenes_en_gras(e["ingredients"], allergenes),
@@ -169,11 +172,13 @@ def dessiner_etiquette(c, x, y, L, H, e, trait_coupe=True):
                                    _style(taille)))
         if e["mentions"]:
             blocs.append(Paragraph(escape(e["mentions"]).replace("\n", "<br/>"),
-                                   _style(taille - 0.4)))
+                                   _style(taille - 0.6)))
         hauteurs = [b.wrap(largeur, place)[1] for b in blocs]
-        espace = 1.6 * mm
         if sum(hauteurs) + espace * (len(blocs) - 1) <= place:
             break
+    # La place restante est répartie entre les blocs : pas de grand vide au milieu
+    reste = place - sum(hauteurs) - espace * (len(blocs) - 1)
+    espace += max(min(reste / len(blocs), 7 * mm), 0)
     yy = haut
     for b, h in zip(blocs, hauteurs):
         yy -= h
