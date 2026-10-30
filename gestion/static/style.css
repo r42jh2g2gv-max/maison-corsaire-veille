@@ -478,3 +478,7 @@ details > summary { cursor: pointer; font-weight: 600; color: var(--or-clair); p
 
 /* Icônes placées dans un titre (cloche « À faire »…) : taille explicite pour Safari */
 h2 > span > svg, h2 > .texte-or svg { width: 24px; height: 24px; display: block; }
+
+/* Logo personnalisé dans le médaillon */
+.medaillon.perso { overflow: hidden; }
+.medaillon.perso img { width: 100%; height: 100%; object-fit: contain; padding: 3px; display: block; }

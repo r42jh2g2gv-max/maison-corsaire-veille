@@ -13,8 +13,8 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-  <link rel="icon" href="{{ url_for('static', filename='ancre.svg') }}" type="image/svg+xml">
-  <link rel="apple-touch-icon" href="{{ url_for('static', filename='icones/apple-touch-icon.png') }}">
+  {% if logo_perso() %}<link rel="icon" href="{{ url_for('icone', nom='icone-192', v=version_logo()) }}" type="image/png">{% else %}<link rel="icon" href="{{ url_for('static', filename='ancre.svg') }}" type="image/svg+xml">{% endif %}
+  <link rel="apple-touch-icon" href="{{ url_for('icone', nom='apple-touch-icon', v=version_logo()) }}">
   <link rel="manifest" href="{{ url_for('manifeste') }}">
   {% block tete %}{% endblock %}
 </head>
@@ -45,7 +45,7 @@
 <header class="entete">
   <div class="interieur">
     <a class="logo" href="{{ url_for('tableau_de_bord') }}">
-      <span class="medaillon">{{ logo() }}</span>
+      <span class="medaillon{{ ' perso' if logo_perso() }}"{% if logo_perso() %} style="background:{{ logo_fond() }}"{% endif %}>{% if logo_perso() %}<img src="{{ url_for('icone', nom='logo', v=version_logo()) }}" alt="">{% else %}{{ logo() }}{% endif %}</span>
       <span class="nom"><strong>Maison Corsaire</strong><span>Rhum arrangé artisanal</span></span>
     </a>
     <nav class="nav-haut" aria-label="Navigation principale">

@@ -8,12 +8,13 @@
   <title>Connexion · Maison Corsaire</title>
   <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-  <link rel="icon" href="{{ url_for('static', filename='ancre.svg') }}" type="image/svg+xml">
+  {% if logo_perso() %}<link rel="icon" href="{{ url_for('icone', nom='icone-192', v=version_logo()) }}" type="image/png">{% else %}<link rel="icon" href="{{ url_for('static', filename='ancre.svg') }}" type="image/svg+xml">{% endif %}
+  <link rel="apple-touch-icon" href="{{ url_for('icone', nom='apple-touch-icon', v=version_logo()) }}">
 </head>
 <body class="page-connexion" style="padding-bottom:0">
   <div class="boite-connexion">
     <div class="logo-centre">
-      <div class="medaillon">{{ logo() }}</div>
+      <div class="medaillon{{ ' perso' if logo_perso() }}"{% if logo_perso() %} style="background:{{ logo_fond() }}"{% endif %}>{% if logo_perso() %}<img src="{{ url_for('icone', nom='logo', v=version_logo()) }}" alt="">{% else %}{{ logo() }}{% endif %}</div>
       <h1 style="margin:0">Maison Corsaire</h1>
       <div class="surtitre" style="margin-top:6px">Rhum arrangé artisanal</div>
     </div>

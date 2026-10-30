@@ -14,6 +14,26 @@ LIGNE = colors.HexColor("#d8cfbd")
 MODERATION = ("L'abus d'alcool est dangereux pour la santé, à consommer avec modération.")
 
 
+def _logo():
+    """Logo personnalisé (Paramètres → Logo et icône) : (image, largeur/hauteur) ou None."""
+    from vues_logo import logo_pour_pdf  # import tardif : évite une boucle d'import
+    donnees = logo_pour_pdf()
+    if not donnees:
+        return None
+    from reportlab.lib.utils import ImageReader
+    image = ImageReader(donnees)
+    l, h = image.getSize()
+    return image, l / h
+
+
+def _dessiner_logo(c, logo, x, y, hauteur, centre=False):
+    """Dessine le logo (hauteur fixée, largeur proportionnelle) ; x = centre si centre=True."""
+    image, ratio = logo
+    largeur = min(hauteur * ratio, hauteur * 3)
+    hauteur = largeur / ratio
+    c.drawImage(image, x - largeur / 2 if centre else x, y, largeur, hauteur, mask="auto")
+
+
 def _euro(v):
     txt = f"{v:,.2f}".replace(",", " ").replace(".", ",")
     return f"{txt} €"
@@ -58,13 +78,17 @@ def _designation(l):
 def ticket_pdf(ticket, lignes, conf, bon_code=None):
     largeur = 80 * mm
     marge = 5 * mm
+    logo = _logo()
     hauteur = (104 + 11 * len(lignes) + (6 if ticket["remise"] else 0)
-               + (6 if ticket["consigne"] else 0)) * mm
+               + (6 if ticket["consigne"] else 0) + (18 if logo else 0)) * mm
     buf = BytesIO()
     c = canvas.Canvas(buf, pagesize=(largeur, hauteur))
     c.setTitle(f"Ticket {ticket['numero']}")
     y = hauteur - 10 * mm
     centre = largeur / 2
+    if logo:
+        _dessiner_logo(c, logo, centre, y - 10 * mm, 15 * mm, centre=True)
+        y -= 18 * mm
 
     c.setFillColor(NUIT)
     c.setFont("Times-Bold", 15)
@@ -104,8 +128,11 @@ def ticket_pdf(ticket, lignes, conf, bon_code=None):
     for l in lignes:
         nom, lot = _designation(l)
         c.setFillColor(NUIT)
-        c.setFont("Helvetica-Bold", 8)
-        c.drawString(marge, y, nom[:46])
+        taille = 8
+        while taille > 5.5 and c.stringWidth(nom, "Helvetica-Bold", taille) > largeur - 2 * marge:
+            taille -= 0.25  # nom long : on réduit plutôt que de couper
+        c.setFont("Helvetica-Bold", taille)
+        c.drawString(marge, y, nom)
         y -= 3.8 * mm
         c.setFont("Helvetica", 7.5)
         c.setFillColor(GRIS)
@@ -179,6 +206,10 @@ def facture_pdf(ticket, lignes, conf, bon_code=None):
     c.setFillColor(OR)
     c.rect(0, H - 9 * mm, L, 1 * mm, fill=1, stroke=0)
     y = H - 24 * mm
+    logo = _logo()
+    if logo:
+        _dessiner_logo(c, logo, m, H - 33 * mm, 20 * mm)
+        y = H - 40 * mm
     c.setFillColor(NUIT)
     c.setFont("Times-Bold", 22)
     c.drawString(m, y, conf.get("producteur_nom") or "Maison Corsaire")
@@ -342,11 +373,16 @@ def bon_pdf(bon, conf):
     c.setLineWidth(0.5)
     c.roundRect(7 * mm, 7 * mm, L - 14 * mm, H - 14 * mm, 3 * mm)
 
+    decalage = 0
+    logo = _logo()
+    if logo:
+        _dessiner_logo(c, logo, L / 2, H - 19 * mm, 10 * mm, centre=True)
+        decalage = 5 * mm
     c.setFillColor(colors.HexColor("#e6c983"))
     c.setFont("Times-Bold", 15)
-    c.drawCentredString(L / 2, H - 19 * mm, conf.get("producteur_nom") or "Maison Corsaire")
+    c.drawCentredString(L / 2, H - 19 * mm - decalage, conf.get("producteur_nom") or "Maison Corsaire")
     c.setFont("Helvetica", 7.5)
-    c.drawCentredString(L / 2, H - 24 * mm, "BON D'ACHAT", charSpace=2.5)
+    c.drawCentredString(L / 2, H - 24 * mm - decalage, "BON D'ACHAT", charSpace=2.5)
     c.setFont("Times-Bold", 38)
     c.drawCentredString(L / 2, H / 2 - 6 * mm, _euro(bon["montant"]))
     c.setFillColor(colors.white)

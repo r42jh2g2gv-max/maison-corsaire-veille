@@ -5,6 +5,7 @@ import json
 from flask import Response, render_template, url_for
 
 from noyau import BASE, app
+from vues_logo import version_logo
 
 
 def version_statique():
@@ -41,11 +42,11 @@ def manifeste():
         "background_color": "#0a1322",
         "theme_color": "#0a1322",
         "icons": [
-            {"src": url_for("static", filename="icones/icone-192.png"), "sizes": "192x192",
+            {"src": url_for("icone", nom="icone-192", v=version_logo()), "sizes": "192x192",
              "type": "image/png"},
-            {"src": url_for("static", filename="icones/icone-512.png"), "sizes": "512x512",
+            {"src": url_for("icone", nom="icone-512", v=version_logo()), "sizes": "512x512",
              "type": "image/png"},
-            {"src": url_for("static", filename="icones/icone-maskable-512.png"),
+            {"src": url_for("icone", nom="icone-maskable-512", v=version_logo()),
              "sizes": "512x512", "type": "image/png", "purpose": "maskable"},
         ],
         "shortcuts": [{"name": "Caisse", "url": url_for("caisse")}],
