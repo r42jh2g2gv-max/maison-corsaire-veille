@@ -10,6 +10,17 @@ Limites de l'offre gratuite à connaître : il faut cliquer une fois tous les 3 
 serveur est restreint (l'envoi d'emails depuis l'application peut ne pas fonctionner :
 le bouton « Partager le PDF » du téléphone, lui, fonctionne toujours).
 
+## Version rapide (faisable entièrement depuis un téléphone)
+1. Inscription gratuite sur pythonanywhere.com (offre *Beginner*).
+2. Onglet **Web → Add a new web app → Next → Manual configuration → Python 3.12 → Next**.
+3. Onglet **Consoles → Bash**, collez cette commande puis répondez aux 2 questions :
+   ```bash
+   git clone -b claude/app-gestion-maison-corsaire https://github.com/r42jh2g2gv-max/maison-corsaire-veille.git && bash maison-corsaire-veille/gestion/installer_pythonanywhere.sh
+   ```
+4. Onglet **Web** : *Virtualenv* → `/home/NOM/venv-corsaire`, *Force HTTPS* activé, bouton **Reload**.
+
+La version détaillée ci-dessous fait la même chose à la main.
+
 ## 1. Créer le compte
 1. Inscrivez-vous sur https://www.pythonanywhere.com (offre *Beginner*, gratuite).
 2. Le nom d'utilisateur choisi donnera l'adresse : `https://NOM.pythonanywhere.com`.
