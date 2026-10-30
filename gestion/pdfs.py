@@ -8,7 +8,7 @@ from reportlab.lib.units import mm
 from reportlab.pdfgen import canvas
 
 NUIT = colors.HexColor("#0f1d33")
-OR = colors.HexColor("#b8902f")
+OR = colors.HexColor("#c86428")
 GRIS = colors.HexColor("#5b6170")
 LIGNE = colors.HexColor("#d8cfbd")
 MODERATION = ("L'abus d'alcool est dangereux pour la santé, à consommer avec modération.")
@@ -381,7 +381,7 @@ def bon_pdf(bon, conf):
     if logo:
         _dessiner_logo(c, logo, L / 2, H - 19 * mm, 10 * mm, centre=True)
         decalage = 5 * mm
-    c.setFillColor(colors.HexColor("#e6c983"))
+    c.setFillColor(colors.HexColor("#eba070"))
     c.setFont("Times-Bold", 15)
     c.drawCentredString(L / 2, H - 19 * mm - decalage, conf.get("producteur_nom") or "Maison Corsaire")
     c.setFont("Helvetica", 7.5)
@@ -396,7 +396,7 @@ def bon_pdf(bon, conf):
         c.setFont("Helvetica-Oblique", 8)
         c.drawCentredString(L / 2, H / 2 - 20 * mm, bon["motif"][:70])
     c.setFont("Helvetica-Bold", 9)
-    c.setFillColor(colors.HexColor("#e6c983"))
+    c.setFillColor(colors.HexColor("#eba070"))
     c.drawString(12 * mm, 12 * mm, f"Code : {bon['code']}")
     if bon["date_expiration"]:
         c.drawRightString(L - 12 * mm, 12 * mm, f"Valable jusqu'au {_date(bon['date_expiration'])}")
