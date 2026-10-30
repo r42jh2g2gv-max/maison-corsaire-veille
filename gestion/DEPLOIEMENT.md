@@ -5,8 +5,9 @@ adresse en `https://votre-nom.pythonanywhere.com` (le https est indispensable po
 caisse fonctionne sans réseau et que l'application s'installe sur le téléphone), et les
 données sont conservées sur leur disque.
 
-Limites de l'offre gratuite à connaître : il faut cliquer une fois tous les 3 mois sur
-« Run until 3 months from today » dans l'onglet *Web*, et l'accès à internet depuis le
+Limites de l'offre gratuite à connaître : il faut se connecter **une fois par mois** et cliquer sur
+« Run until 1 month from today » dans l'onglet *Web* (PythonAnywhere envoie un email de
+rappel une semaine avant ; sinon le site est mis en pause, les données restent), et l'accès à internet depuis le
 serveur est restreint (l'envoi d'emails depuis l'application peut ne pas fonctionner :
 le bouton « Partager le PDF » du téléphone, lui, fonctionne toujours).
 
