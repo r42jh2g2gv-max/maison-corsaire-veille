@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block titre %}Paramètres{% endblock %}
+{% block contenu %}
+<div class="titre-page"><h1>Paramètres</h1></div>
+
+<form method="post" class="grille">
+  <input type="hidden" name="csrf" value="{{ csrf_token }}">
+  <section class="carte">
+    <h2>Producteur</h2>
+    <p class="aide">Ces informations apparaissent sur les fiches de lot (et bientôt sur les étiquettes).</p>
+    <div class="champs">
+      <div><label for="producteur_nom">Nom commercial</label><input id="producteur_nom" type="text" name="producteur_nom" value="{{ conf.producteur_nom }}"></div>
+      <div><label for="siret">SIRET</label><input id="siret" type="text" name="siret" value="{{ conf.siret }}" inputmode="numeric"></div>
+      <div class="large"><label for="producteur_adresse">Adresse</label><input id="producteur_adresse" type="text" name="producteur_adresse" value="{{ conf.producteur_adresse }}"></div>
+    </div>
+  </section>
+
+  <section class="carte" id="fiscalite">
+    <h2>TVA et droits sur l'alcool</h2>
+    <div class="champs">
+      <div class="large"><label class="case"><input type="checkbox" name="tva_applicable" value="1" {{ 'checked' if conf.tva_applicable == '1' }}> Je facture la TVA</label>
+        <span class="aide">Décochez si vous êtes en franchise en base (cas courant en micro-entreprise : « TVA non applicable, art. 293 B du CGI »).</span></div>
+      <div><label for="tva_taux">Taux de TVA (%)</label><input id="tva_taux" type="number" step="0.1" min="0" name="tva_taux" value="{{ conf.tva_taux }}" inputmode="decimal"></div>
+      <div></div>
+      <div><label for="accise_hlap">Droit d'accise (€ / hl d'alcool pur)</label><input id="accise_hlap" type="number" step="0.01" min="0" name="accise_hlap" value="{{ conf.accise_hlap }}" inputmode="decimal"></div>
+      <div><label for="secu_hlap">Cotisation sécurité sociale (€ / hl d'alcool pur)</label><input id="secu_hlap" type="number" step="0.01" min="0" name="secu_hlap" value="{{ conf.secu_hlap }}" inputmode="decimal"></div>
+    </div>
+    <p class="aide mt mb0">Reportez les tarifs en vigueur publiés par les douanes pour les « autres produits intermédiaires et alcools » de l'année. Ils sont ajoutés au coût de chaque bouteille selon son volume et son degré. Laissez 0 s'ils sont déjà inclus dans le prix d'achat de votre rhum.</p>
+  </section>
+  <div><button class="btn btn-or" type="submit">Enregistrer les paramètres</button></div>
+</form>
+
+<section class="carte mt" id="compte">
+  <h2>Mon compte</h2>
+  <form method="post" action="{{ url_for('parametres_compte') }}">
+    <input type="hidden" name="csrf" value="{{ csrf_token }}">
+    <div class="champs c3">
+      <div><label for="email">Email de connexion</label><input id="email" type="email" name="email" value="{{ email }}" required autocomplete="username"></div>
+      <div><label for="nouveau">Nouveau mot de passe <span class="aide">(8 caractères min., vide = inchangé)</span></label><input id="nouveau" type="password" name="nouveau" autocomplete="new-password" minlength="8"></div>
+      <div><label for="actuel">Mot de passe actuel</label><input id="actuel" type="password" name="actuel" required autocomplete="current-password"></div>
+    </div>
+    <div class="form-actions"><button class="btn" type="submit">Mettre à jour le compte</button></div>
+  </form>
+</section>
+
+<section class="carte mt" id="donnees">
+  <h2>Données</h2>
+  <p>Lorsque vous avez fini de tester, effacez les données d'exemple pour démarrer votre registre réel. Votre compte et vos paramètres sont conservés.</p>
+  <form method="post" action="{{ url_for('parametres_donnees') }}">
+    <input type="hidden" name="csrf" value="{{ csrf_token }}">
+    <div class="champs">
+      <div><label for="confirmation">Tapez CONFIRMER</label><input id="confirmation" type="text" name="confirmation" autocomplete="off"></div>
+    </div>
+    <div class="form-actions">
+      <button class="btn btn-danger" name="action" value="vider">Tout effacer et démarrer</button>
+      <button class="btn btn-ligne" name="action" value="exemple">Recharger les données d'exemple</button>
+    </div>
+  </form>
+</section>
+{% endblock %}

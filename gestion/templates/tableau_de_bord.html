@@ -1,0 +1,114 @@
+{% extends "base.html" %}
+{% block titre %}Tableau de bord{% endblock %}
+{% block contenu %}
+<div class="titre-page">
+  <div>
+    <h1>Tableau de bord</h1>
+    <div class="sous-titre">{{ mois_label|capitalize }}</div>
+  </div>
+  <div class="actions">
+    <a class="btn btn-or" href="{{ url_for('ventes') }}#nouvelle">+ Vente</a>
+    <a class="btn btn-ligne" href="{{ url_for('lot_nouveau') }}">+ Lot</a>
+  </div>
+</div>
+
+<div class="grille-kpi">
+  <div class="kpi">
+    <div class="etiquette">CA du mois</div>
+    <div class="valeur num">{{ ca_mois|euro }}</div>
+    <div class="detail">{{ nb_ventes_mois }} vente{{ 's' if nb_ventes_mois > 1 }} · {{ btl_mois }} bouteille{{ 's' if btl_mois > 1 }}</div>
+  </div>
+  <div class="kpi">
+    <div class="etiquette">Bouteilles en stock</div>
+    <div class="valeur num">{{ stock_total }}</div>
+    <div class="detail">{{ lots_en_stock|length }} lot{{ 's' if lots_en_stock|length > 1 }} disponible{{ 's' if lots_en_stock|length > 1 }}</div>
+  </div>
+  <div class="kpi">
+    <div class="etiquette">Marge moyenne du mois</div>
+    <div class="valeur num">{{ (marge_mois|nombre(0) ~ ' %') if marge_mois is not none else '—' }}</div>
+    <div class="detail">Sur 12 mois : {{ (marge_12m|nombre(0) ~ ' %') if marge_12m is not none else '—' }}</div>
+  </div>
+  <div class="kpi">
+    <div class="etiquette">Lots en préparation</div>
+    <div class="valeur num">{{ prochains|length }}</div>
+    <div class="detail">{{ prochains|selectattr('statut', 'equalto', 'pret')|list|length }} prêt(s) à embouteiller</div>
+  </div>
+</div>
+
+<div class="grille-2-1">
+  <div class="grille">
+    <section class="carte">
+      <div class="carte-tete"><h2>Prochains lots prêts</h2><a href="{{ url_for('lots') }}">Tous les lots</a></div>
+      {% if prochains %}
+      <ul class="liste">
+        {% for l in prochains %}
+        <li>
+          <div>
+            <a class="principal" href="{{ url_for('lot_detail', lot_id=l.id) }}">{{ l.numero }}</a> · {{ l.recette_nom }}<br>
+            <small>{% if l.statut == 'pret' %}Prêt depuis le {{ l.date_prete|datefr }}{% elif l.date_prete < today %}Macération terminée le {{ l.date_prete|datefr }} — à goûter{% else %}Prêt vers le {{ l.date_prete|datefr }}{% endif %}
+              · {{ l.nb_bouteilles }} bouteilles prévues</small>
+          </div>
+          <span class="badge badge-{{ l.statut }}">{{ STATUTS[l.statut] }}</span>
+        </li>
+        {% endfor %}
+      </ul>
+      {% else %}<p class="vide">Aucun lot en macération. <a href="{{ url_for('lot_nouveau') }}">Lancer un lot</a></p>{% endif %}
+    </section>
+
+    <section class="carte">
+      <div class="carte-tete"><h2>Chiffre d'affaires</h2><small>6 derniers mois</small></div>
+      <div class="barres" role="img" aria-label="Chiffre d'affaires des 6 derniers mois">
+        {% for h in historique %}
+        <div class="barre {{ 'courant' if loop.last }}">
+          <span class="v num">{{ h.ca|round|int }} €</span>
+          <div class="b" style="height: {{ (h.ca / ca_max * 100)|round(1) }}%"></div>
+          <span class="m">{{ h.label }}</span>
+        </div>
+        {% endfor %}
+      </div>
+    </section>
+
+    <section class="carte">
+      <div class="carte-tete"><h2>Dernières ventes</h2><a href="{{ url_for('ventes') }}">Toutes les ventes</a></div>
+      {% if dernieres %}
+      <ul class="liste">
+        {% for v in dernieres %}
+        <li>
+          <div><span class="principal">{{ v.client }}</span><br>
+            <small>{{ v.date_vente|datefr }} · {{ v.quantite }} × {{ v.recette_nom }} ({{ v.numero }})</small></div>
+          <strong class="num">{{ (v.quantite * v.prix_unitaire_ttc)|euro }}</strong>
+        </li>
+        {% endfor %}
+      </ul>
+      {% else %}<p class="vide">Aucune vente enregistrée.</p>{% endif %}
+    </section>
+  </div>
+
+  <div class="grille">
+    <section class="carte">
+      <h2>Alertes stock</h2>
+      {% if alertes %}
+      <ul class="liste">
+        {% for m in alertes %}
+        <li><div><span class="principal">{{ m.nom }}</span><br><small>Seuil : {{ m.seuil_alerte }}</small></div>
+          <span class="badge badge-alerte">{{ m.stock }} restant{{ 's' if m.stock > 1 }}</span></li>
+        {% endfor %}
+      </ul>
+      <a class="btn btn-ligne btn-petit mt" href="{{ url_for('stock') }}#materiaux">Gérer les matières</a>
+      {% else %}<p class="vide">Tous les stocks de matières sont au-dessus du seuil.</p>{% endif %}
+    </section>
+
+    <section class="carte">
+      <h2>Bouteilles disponibles</h2>
+      {% if lots_en_stock %}
+      <ul class="liste">
+        {% for l in lots_en_stock %}
+        <li><div><a class="principal" href="{{ url_for('lot_detail', lot_id=l.id) }}">{{ l.recette_nom }}</a><br><small>{{ l.numero }}</small></div>
+          <strong class="num">{{ stock_lot(l) }}</strong></li>
+        {% endfor %}
+      </ul>
+      {% else %}<p class="vide">Aucune bouteille en stock.</p>{% endif %}
+    </section>
+  </div>
+</div>
+{% endblock %}

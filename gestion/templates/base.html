@@ -1,0 +1,58 @@
+{% from "_icones.html" import logo, icone %}
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0f1d33">
+  <title>{% block titre %}{% endblock %} · Maison Corsaire</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <link rel="icon" href="{{ url_for('static', filename='ancre.svg') }}" type="image/svg+xml">
+  {% block tete %}{% endblock %}
+</head>
+<body>
+{% set page = request.endpoint or '' %}
+{% set liens = [
+  ('tableau_de_bord', 'Tableau de bord', 'Accueil', 'accueil', ['tableau_de_bord']),
+  ('lots', 'Lots', 'Lots', 'lots', ['lots', 'lot_nouveau', 'lot_detail', 'lot_modifier']),
+  ('ventes', 'Ventes', 'Ventes', 'ventes', ['ventes']),
+  ('stock', 'Stock', 'Stock', 'stock', ['stock']),
+  ('calculateur', 'Calculateur de prix', 'Prix', 'prix', ['calculateur']),
+] %}
+<header class="entete">
+  <div class="interieur">
+    <a class="logo" href="{{ url_for('tableau_de_bord') }}">{{ logo() }}<span>Maison Corsaire</span></a>
+    <nav class="nav-haut" aria-label="Navigation principale">
+      {% for ep, label, court, ic, eps in liens %}
+        <a href="{{ url_for(ep) }}" class="{{ 'actif' if page in eps }}">{{ label }}</a>
+      {% endfor %}
+    </nav>
+    <div class="compte">
+      <a href="{{ url_for('parametres') }}" class="{{ 'actif' if page == 'parametres' }}" title="Paramètres">Paramètres</a>
+      <a href="{{ url_for('deconnexion') }}" title="Se déconnecter">Quitter</a>
+    </div>
+  </div>
+</header>
+
+<main>
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      <div class="flashs" role="status">
+        {% for cat, msg in messages %}<div class="flash flash-{{ cat }}">{{ msg }}</div>{% endfor %}
+      </div>
+    {% endif %}
+  {% endwith %}
+  {% block contenu %}{% endblock %}
+</main>
+
+<nav class="nav-bas" aria-label="Navigation">
+  {% for ep, label, court, ic, eps in liens %}
+    <a href="{{ url_for(ep) }}" class="{{ 'actif' if page in eps }}">{{ icone(ic) }}<span>{{ court }}</span></a>
+  {% endfor %}
+</nav>
+{% block scripts %}{% endblock %}
+</body>
+</html>

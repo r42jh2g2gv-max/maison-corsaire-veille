@@ -1,0 +1,39 @@
+{% from "_icones.html" import logo %}
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0f1d33">
+  <title>Connexion · Maison Corsaire</title>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <link rel="icon" href="{{ url_for('static', filename='ancre.svg') }}" type="image/svg+xml">
+</head>
+<body class="page-connexion" style="padding-bottom:0">
+  <div class="boite-connexion">
+    <div class="logo-centre">{{ logo() }}
+      <h1>Maison Corsaire</h1>
+      <p class="doux mb0">Registre de production &amp; ventes</p>
+    </div>
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% for cat, msg in messages %}<div class="flash flash-{{ cat }}" style="margin-bottom:12px">{{ msg }}</div>{% endfor %}
+    {% endwith %}
+    <form method="post">
+      <input type="hidden" name="csrf" value="{{ csrf_token }}">
+      <div class="champs" style="grid-template-columns:1fr">
+        <div><label for="email">Email</label>
+          <input id="email" type="email" name="email" autocomplete="username" required autofocus></div>
+        <div><label for="password">Mot de passe</label>
+          <input id="password" type="password" name="password" autocomplete="current-password" required></div>
+      </div>
+      <div class="form-actions"><button class="btn btn-or btn-plein" type="submit">Se connecter</button></div>
+    </form>
+    {% if demo %}
+      <div class="encart mt"><strong>Compte de démonstration</strong><br>
+        contact@maisoncorsaire.fr / corsaire2026<br>
+        <small>Changez ces identifiants dans Paramètres → Mon compte.</small></div>
+    {% endif %}
+  </div>
+</body>
+</html>

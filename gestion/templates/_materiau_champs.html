@@ -1,0 +1,8 @@
+<div class="champs" style="text-align:left">
+  <div class="large"><label>Nom</label><input type="text" name="nom" value="{{ m.nom or '' }}" required></div>
+  <div><label>Type</label><select name="type">{% for k, v in TYPES_MATERIAUX.items() %}<option value="{{ k }}" {{ 'selected' if m.type == k }}>{{ v }}</option>{% endfor %}</select></div>
+  <div><label>Stock</label><input type="number" name="stock" step="1" inputmode="numeric" value="{{ m.stock }}"></div>
+  <div><label>Seuil d'alerte</label><input type="number" name="seuil_alerte" step="1" min="0" inputmode="numeric" value="{{ m.seuil_alerte }}"></div>
+  <div><label>Coût unitaire (€)</label><input type="number" name="cout_unitaire" step="0.01" min="0" inputmode="decimal" value="{{ '%.2f'|format(m.cout_unitaire) }}"></div>
+  <div class="large"><label class="case"><input type="checkbox" name="par_bouteille" value="1" {{ 'checked' if m.par_bouteille }}> 1 unité par bouteille (déduite à l'embouteillage, comptée dans le coût)</label></div>
+</div>

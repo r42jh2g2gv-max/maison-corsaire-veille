@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block titre %}Registre des lots{% endblock %}
+{% block contenu %}
+<div class="titre-page">
+  <div><h1>Registre des lots</h1><div class="sous-titre">Traçabilité de chaque production</div></div>
+  <div class="actions"><a class="btn btn-or" href="{{ url_for('lot_nouveau') }}">+ Nouveau lot</a></div>
+</div>
+
+<nav class="filtres" aria-label="Filtrer par statut">
+  <a href="{{ url_for('lots') }}" class="{{ 'actif' if not statut }}">Tous<span class="compte">{{ compte.values()|sum }}</span></a>
+  {% for k, label in STATUTS.items() %}
+    <a href="{{ url_for('lots', statut=k) }}" class="{{ 'actif' if statut == k }}">{{ label }}<span class="compte">{{ compte[k] }}</span></a>
+  {% endfor %}
+</nav>
+
+{% if lots %}
+<div class="grille-lots">
+  {% for l in lots %}
+  <a class="carte lot-carte" href="{{ url_for('lot_detail', lot_id=l.id) }}">
+    <div class="carte-tete" style="margin-bottom:4px">
+      <span class="numero">{{ l.numero }}</span>
+      <span class="badge badge-{{ l.statut }}">{{ STATUTS[l.statut] }}</span>
+    </div>
+    <div>{{ l.recette_nom }}</div>
+    <div class="meta">
+      <span>Macération : {{ l.date_maceration|datefr }}</span>
+      {% if l.date_embouteillage %}<span>Embouteillé : {{ l.date_embouteillage|datefr }}</span>{% endif %}
+      <span>{{ l.nb_bouteilles }} × {{ l.volume_cl }} cl</span>
+      {% if l.statut in ('embouteille', 'epuise') %}<span>Stock : <strong>{{ stock_lot(l) }}</strong></span>{% endif %}
+    </div>
+  </a>
+  {% endfor %}
+</div>
+{% else %}
+<div class="carte"><p class="vide mb0">Aucun lot{% if statut %} avec ce statut{% endif %}.</p></div>
+{% endif %}
+{% endblock %}

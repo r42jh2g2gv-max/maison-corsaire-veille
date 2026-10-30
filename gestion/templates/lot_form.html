@@ -1,0 +1,105 @@
+{% extends "base.html" %}
+{% block titre %}{{ 'Nouveau lot' if nouveau else 'Modifier ' ~ numero }}{% endblock %}
+{% block contenu %}
+<div class="titre-page">
+  <div>
+    <h1>{{ 'Nouveau lot' if nouveau else 'Modifier le lot' }}</h1>
+    <div class="sous-titre">Numéro {{ 'attribué' if nouveau else '' }} : <strong>{{ numero }}</strong></div>
+  </div>
+  {% if not nouveau %}<div class="actions"><a class="btn btn-ligne" href="{{ url_for('lot_detail', lot_id=lot.id) }}">Annuler</a></div>{% endif %}
+</div>
+
+<form method="post" class="carte">
+  <input type="hidden" name="csrf" value="{{ csrf_token }}">
+  <div class="champs c3">
+    <div>
+      <label for="recette_id">Recette</label>
+      <select id="recette_id" name="recette_id">
+        <option value="">— Recette libre —</option>
+        {% for r in recettes %}
+          <option value="{{ r.id }}" data-nom="{{ r.nom }}" data-degre="{{ r.degre or '' }}"
+            {{ 'selected' if lot.recette_id == r.id }}>{{ r.nom }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div>
+      <label for="recette_nom">Nom du produit <span class="aide">(sur la fiche)</span></label>
+      <input id="recette_nom" type="text" name="recette_nom" value="{{ lot.recette_nom or '' }}" required>
+    </div>
+    <div>
+      <label for="statut">Statut</label>
+      <select id="statut" name="statut">
+        {% for k, label in STATUTS.items() %}<option value="{{ k }}" {{ 'selected' if lot.statut == k }}>{{ label }}</option>{% endfor %}
+      </select>
+    </div>
+
+    <div>
+      <label for="date_maceration">Mise en macération</label>
+      <input id="date_maceration" type="date" name="date_maceration" value="{{ lot.date_maceration or '' }}">
+    </div>
+    <div>
+      <label for="date_embouteillage">Embouteillage <span class="aide">(prévu ou réel)</span></label>
+      <input id="date_embouteillage" type="date" name="date_embouteillage" value="{{ lot.date_embouteillage or '' }}">
+    </div>
+    <div>
+      <label for="dlc">DLC / DDM</label>
+      <input id="dlc" type="date" name="dlc" value="{{ lot.dlc or '' }}">
+    </div>
+
+    {% if nouveau %}
+    <div>
+      <label for="litres">Volume mis en macération (L) <span class="aide">pré-remplit les ingrédients</span></label>
+      <input id="litres" type="number" name="litres" min="0" step="0.1" inputmode="decimal" value="{{ request.form.litres or '' }}" placeholder="ex. 12">
+    </div>
+    {% endif %}
+    <div>
+      <label for="nb_bouteilles">Bouteilles produites <span class="aide">(ou prévues)</span></label>
+      <input id="nb_bouteilles" type="number" name="nb_bouteilles" min="0" step="1" inputmode="numeric" value="{{ lot.nb_bouteilles or 0 }}">
+    </div>
+    <div>
+      <label for="volume_cl">Contenance (cl)</label>
+      <input id="volume_cl" type="number" name="volume_cl" min="1" step="1" inputmode="numeric" value="{{ lot.volume_cl or 50 }}">
+    </div>
+    <div>
+      <label for="degre">Degré d'alcool (% vol.)</label>
+      <input id="degre" type="number" name="degre" min="0" max="100" step="0.1" inputmode="decimal" value="{{ lot.degre if lot.degre is not none else '' }}">
+    </div>
+
+    <div class="large" style="grid-column:1/-1">
+      <label for="notes">Notes</label>
+      <textarea id="notes" name="notes" placeholder="Observations, dégustation, fournisseur des fruits…">{{ lot.notes or '' }}</textarea>
+    </div>
+  </div>
+  {% if not nouveau %}<p class="aide mt mb0">Passer le statut à « Embouteillé » déduit automatiquement une bouteille vide, un bouchon, une étiquette… par bouteille produite.</p>{% endif %}
+  <div class="form-actions">
+    <button class="btn btn-or" type="submit">{{ 'Créer le lot' if nouveau else 'Enregistrer' }}</button>
+    <a class="btn btn-ligne" href="{{ url_for('lots') if nouveau else url_for('lot_detail', lot_id=lot.id) }}">Annuler</a>
+  </div>
+</form>
+{% endblock %}
+{% block scripts %}
+<script>
+(function () {
+  var sel = document.getElementById('recette_id');
+  var nom = document.getElementById('recette_nom');
+  var degre = document.getElementById('degre');
+  var litres = document.getElementById('litres');
+  var nb = document.getElementById('nb_bouteilles');
+  var vol = document.getElementById('volume_cl');
+  sel.addEventListener('change', function () {
+    var opt = sel.options[sel.selectedIndex];
+    if (opt.dataset.nom) nom.value = opt.dataset.nom;
+    if (opt.dataset.degre) degre.value = opt.dataset.degre;
+  });
+  if (litres) litres.addEventListener('input', function () {
+    var l = parseFloat(litres.value.replace(',', '.')), v = parseFloat(vol.value);
+    // ~85 % du volume mis en macération se retrouve en bouteille (fruits retirés)
+    if (l > 0 && v > 0 && (!nb.value || nb.value === '0' || nb.dataset.auto)) {
+      nb.value = Math.floor(l * 0.85 * 100 / v);
+      nb.dataset.auto = '1';
+    }
+  });
+  nb.addEventListener('input', function () { delete nb.dataset.auto; });
+})();
+</script>
+{% endblock %}

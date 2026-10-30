@@ -1,0 +1,142 @@
+{% extends "base.html" %}
+{% block titre %}Lot {{ lot.numero }}{% endblock %}
+{% block contenu %}
+{% set suivant = {'maceration': 'pret', 'pret': 'embouteille'} %}
+<div class="titre-page">
+  <div>
+    <h1>{{ lot.numero }} <span class="badge badge-{{ lot.statut }}" style="vertical-align:middle">{{ STATUTS[lot.statut] }}</span></h1>
+    <div class="sous-titre">{{ lot.recette_nom }}</div>
+  </div>
+  <div class="actions">
+    {% if stock > 0 %}<a class="btn btn-or" href="{{ url_for('ventes', lot_id=lot.id) }}#nouvelle">Vendre</a>{% endif %}
+    <a class="btn btn-ligne" href="{{ url_for('lot_fiche', lot_id=lot.id) }}" target="_blank">Fiche PDF</a>
+    <a class="btn btn-ligne" href="{{ url_for('calculateur', lot_id=lot.id) }}">Prix</a>
+    <a class="btn btn-ligne" href="{{ url_for('lot_modifier', lot_id=lot.id) }}">Modifier</a>
+  </div>
+</div>
+
+{% if lot.statut in suivant %}
+<form method="post" action="{{ url_for('lot_statut', lot_id=lot.id) }}" class="carte" style="display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px;margin-bottom:16px;border-left:4px solid var(--or)">
+  <input type="hidden" name="csrf" value="{{ csrf_token }}">
+  <input type="hidden" name="statut" value="{{ suivant[lot.statut] }}">
+  <div>
+    {% if lot.statut == 'maceration' %}
+      <strong>En macération depuis {{ jours_maceration }} jour{{ 's' if jours_maceration and jours_maceration > 1 }}</strong>
+      {% if duree %}<br><small>Durée prévue par la recette : {{ duree }} jours{% if jours_maceration is not none and jours_maceration >= duree %} — <strong>c'est le moment de goûter !</strong>{% endif %}</small>{% endif %}
+    {% else %}
+      <strong>Prêt à embouteiller</strong><br><small>{{ lot.nb_bouteilles }} bouteilles · les matières seront déduites du stock</small>
+    {% endif %}
+  </div>
+  <button class="btn" type="submit">Passer à « {{ STATUTS[suivant[lot.statut]] }} »</button>
+</form>
+{% endif %}
+
+<div class="grille-2">
+  <section class="carte">
+    <h2>Informations</h2>
+    <dl class="infos">
+      <dt>Recette</dt><dd>{{ lot.recette_nom }}</dd>
+      <dt>Macération</dt><dd>{{ lot.date_maceration|datefr }}</dd>
+      <dt>Embouteillage</dt><dd>{{ lot.date_embouteillage|datefr }}</dd>
+      <dt>DLC / DDM</dt><dd>{{ lot.dlc|datefr }}</dd>
+      <dt>Production</dt><dd>{{ lot.nb_bouteilles }} bouteilles × {{ lot.volume_cl }} cl</dd>
+      <dt>Degré</dt><dd>{{ (lot.degre|nombre(1) ~ ' % vol.') if lot.degre is not none else '—' }}</dd>
+      {% if lot.statut in ('embouteille', 'epuise') %}
+      <dt>Vendues</dt><dd>{{ lot.vendu }}</dd>
+      <dt>En stock</dt><dd>{{ stock }}</dd>
+      {% endif %}
+    </dl>
+    {% if lot.notes %}<hr class="separateur"><p class="mb0" style="white-space:pre-line">{{ lot.notes }}</p>{% endif %}
+  </section>
+
+  <section class="carte">
+    <div class="carte-tete"><h2>Coût de revient</h2><a href="{{ url_for('calculateur', lot_id=lot.id) }}">Calculer le prix →</a></div>
+    {% if cout.calculable %}
+    <table class="decompte">
+      <tr><td>Ingrédients <small>({{ cout.ingredients_total|euro }} ÷ {{ lot.nb_bouteilles }})</small></td><td class="num">{{ cout.ingredients_bouteille|euro }}</td></tr>
+      {% for m in cout.materiaux %}<tr><td>{{ m.nom }}</td><td class="num">{{ m.cout_unitaire|euro }}</td></tr>{% endfor %}
+      {% if cout.droits_bouteille %}<tr><td>Droits sur l'alcool</td><td class="num">{{ cout.droits_bouteille|euro }}</td></tr>{% endif %}
+      <tr class="total"><td>Coût par bouteille</td><td class="num">{{ cout.total|euro }}</td></tr>
+    </table>
+    {% if lot.prix_vente_ttc %}<p class="mt mb0">Prix de vente enregistré : <strong>{{ lot.prix_vente_ttc|euro }}</strong>{% if lot.prix_revendeur_ht %} · revendeur : <strong>{{ lot.prix_revendeur_ht|euro }} HT</strong>{% endif %}</p>{% endif %}
+    {% else %}
+      <p class="vide">Renseignez le nombre de bouteilles pour calculer le coût par bouteille.</p>
+    {% endif %}
+  </section>
+</div>
+
+<section class="carte mt" id="ingredients">
+  <div class="carte-tete"><h2>Ingrédients utilisés</h2><strong class="num">Total : {{ cout.ingredients_total|euro }}</strong></div>
+  {% if ingredients %}
+  <div class="table-wrap">
+  <table class="empile">
+    <thead><tr><th>Catégorie</th><th>Ingrédient</th><th>Quantité</th><th>Unité</th><th>Coût total</th><th></th></tr></thead>
+    <tbody>
+    {% for i in ingredients %}
+      <tr>
+        <td data-label="Catégorie">{{ CATEGORIES[i.categorie] }}</td>
+        <td class="titre-ligne" data-label="Ingrédient">{{ i.nom }}</td>
+        <td data-label="Quantité"><input form="ing-{{ i.id }}" type="number" name="quantite" step="any" min="0" inputmode="decimal" value="{{ i.quantite if i.quantite is not none else '' }}" style="max-width:110px"></td>
+        <td data-label="Unité"><input form="ing-{{ i.id }}" type="text" name="unite" value="{{ i.unite or '' }}" style="max-width:90px"></td>
+        <td data-label="Coût (€)"><input form="ing-{{ i.id }}" type="number" name="cout" step="0.01" min="0" inputmode="decimal" value="{{ '%.2f'|format(i.cout) }}" style="max-width:110px"></td>
+        <td data-label="">
+          <form id="ing-{{ i.id }}" method="post" action="{{ url_for('ingredient_modifier', lot_id=lot.id, ing_id=i.id) }}" style="display:flex;gap:6px;justify-content:flex-end">
+            <input type="hidden" name="csrf" value="{{ csrf_token }}">
+            <button class="btn btn-ligne btn-petit" name="action" value="maj">OK</button>
+            <button class="btn btn-danger btn-petit" name="action" value="supprimer" onclick="return confirm('Retirer cet ingrédient ?')" aria-label="Supprimer">✕</button>
+          </form>
+        </td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% else %}<p class="vide">Aucun ingrédient enregistré pour ce lot.</p>{% endif %}
+
+  <details class="mt" {{ 'open' if not ingredients }}>
+    <summary>+ Ajouter un ingrédient</summary>
+    <form method="post" action="{{ url_for('ingredient_ajouter', lot_id=lot.id) }}" class="mt">
+      <input type="hidden" name="csrf" value="{{ csrf_token }}">
+      <div class="champs c3">
+        <div><label for="categorie">Catégorie</label>
+          <select id="categorie" name="categorie">{% for k, v in CATEGORIES.items() %}<option value="{{ k }}">{{ v }}</option>{% endfor %}</select></div>
+        <div><label for="nom">Ingrédient</label><input id="nom" type="text" name="nom" required placeholder="ex. Rhum agricole 50°"></div>
+        <div><label for="quantite">Quantité</label><input id="quantite" type="number" name="quantite" step="any" min="0" inputmode="decimal"></div>
+        <div><label for="unite">Unité</label><input id="unite" type="text" name="unite" list="unites" placeholder="L, kg, g, pièce"></div>
+        <div><label for="cout">Coût total (€)</label><input id="cout" type="number" name="cout" step="0.01" min="0" inputmode="decimal"></div>
+      </div>
+      <datalist id="unites"><option value="L"><option value="cl"><option value="kg"><option value="g"><option value="pièce"></datalist>
+      <div class="form-actions"><button class="btn" type="submit">Ajouter</button></div>
+    </form>
+  </details>
+</section>
+
+<section class="carte mt">
+  <div class="carte-tete"><h2>Ventes de ce lot</h2>{% if ventes %}<small>{{ lot.vendu }} bouteille{{ 's' if lot.vendu > 1 }}</small>{% endif %}</div>
+  {% if ventes %}
+  <ul class="liste">
+    {% for v in ventes %}
+    <li><div><span class="principal">{{ v.client }}</span> <span class="badge badge-{{ v.canal }}">{{ 'Revendeur' if v.canal == 'revendeur' else 'Direct' }}</span><br>
+      <small>{{ v.date_vente|datefr }} · {{ v.quantite }} × {{ v.prix_unitaire_ttc|euro }}</small></div>
+      <strong class="num">{{ (v.quantite * v.prix_unitaire_ttc)|euro }}</strong></li>
+    {% endfor %}
+  </ul>
+  {% else %}<p class="vide">Aucune vente pour ce lot.</p>{% endif %}
+</section>
+
+<details class="mt">
+  <summary>Autres actions</summary>
+  <div class="carte mt" style="display:flex;flex-wrap:wrap;gap:10px">
+    {% for k, label in STATUTS.items() if k != lot.statut %}
+    <form method="post" action="{{ url_for('lot_statut', lot_id=lot.id) }}" class="inline">
+      <input type="hidden" name="csrf" value="{{ csrf_token }}"><input type="hidden" name="statut" value="{{ k }}">
+      <button class="btn btn-ligne btn-petit">Statut : {{ label }}</button>
+    </form>
+    {% endfor %}
+    <form method="post" action="{{ url_for('lot_supprimer', lot_id=lot.id) }}" class="inline" onsubmit="return confirm('Supprimer définitivement le lot {{ lot.numero }} ?')">
+      <input type="hidden" name="csrf" value="{{ csrf_token }}">
+      <button class="btn btn-danger btn-petit">Supprimer le lot</button>
+    </form>
+  </div>
+</details>
+{% endblock %}

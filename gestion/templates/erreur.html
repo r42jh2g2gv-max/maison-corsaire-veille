@@ -1,0 +1,6 @@
+{% extends "base.html" %}
+{% block titre %}Erreur{% endblock %}
+{% block contenu %}
+<div class="carte"><h1>Oups</h1><p>{{ message }}</p>
+<a class="btn" href="{{ url_for('tableau_de_bord') }}">Retour au tableau de bord</a></div>
+{% endblock %}

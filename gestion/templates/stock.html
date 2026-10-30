@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+{% block titre %}Stock{% endblock %}
+{% block contenu %}
+<div class="titre-page">
+  <div><h1>Stock</h1><div class="sous-titre">Bouteilles finies et matières de conditionnement</div></div>
+  <div class="actions"><a class="btn btn-or" href="{{ url_for('ventes') }}#nouvelle">+ Vente</a></div>
+</div>
+
+<div class="grille-kpi">
+  <div class="kpi"><div class="etiquette">Bouteilles finies</div>
+    {% set ns = namespace(n=0, v=0) %}{% for l in lots %}{% set ns.n = ns.n + stock_lot(l) %}{% set ns.v = ns.v + stock_lot(l) * couts[l.id] %}{% endfor %}
+    <div class="valeur num">{{ ns.n }}</div>
+    <div class="detail">prêtes à vendre</div></div>
+  <div class="kpi"><div class="etiquette">Valeur du stock</div>
+    <div class="valeur num">{{ ns.v|euro }}</div>
+    <div class="detail">au coût de revient</div></div>
+  <div class="kpi"><div class="etiquette">À venir</div>
+    <div class="valeur num">{{ a_venir }}</div><div class="detail">bouteilles en macération</div></div>
+  <div class="kpi"><div class="etiquette">Capacité d'embouteillage</div>
+    <div class="valeur num">{{ capacite }}</div><div class="detail">bouteilles avec les matières en stock</div></div>
+</div>
+
+<section class="carte">
+  <h2>Bouteilles finies par lot</h2>
+  {% if lots %}
+  <div class="table-wrap">
+  <table class="empile">
+    <thead><tr><th>Lot</th><th>Produit</th><th>Embouteillé</th><th class="droite">Produites</th><th class="droite">Vendues</th><th class="droite">En stock</th><th class="droite">Coût / btl</th><th></th></tr></thead>
+    <tbody>
+      {% for l in lots %}
+      <tr>
+        <td class="titre-ligne" data-label="Lot"><a href="{{ url_for('lot_detail', lot_id=l.id) }}">{{ l.numero }}</a></td>
+        <td data-label="Produit">{{ l.recette_nom }}</td>
+        <td data-label="Embouteillé">{{ l.date_embouteillage|datefr }}</td>
+        <td class="droite num" data-label="Produites">{{ l.nb_bouteilles }}</td>
+        <td class="droite num" data-label="Vendues">{{ l.vendu }}</td>
+        <td class="droite num" data-label="En stock"><strong>{{ stock_lot(l) }}</strong></td>
+        <td class="droite num" data-label="Coût / btl">{{ couts[l.id]|euro }}</td>
+        <td data-label="">{% if stock_lot(l) > 0 %}<a class="btn btn-ligne btn-petit" href="{{ url_for('ventes', lot_id=l.id) }}#nouvelle">Vendre</a>{% else %}<span class="badge badge-epuise">Épuisé</span>{% endif %}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% else %}<p class="vide">Aucun lot embouteillé pour l'instant.</p>{% endif %}
+</section>
+
+<section class="carte mt" id="materiaux">
+  <div class="carte-tete"><h2>Matières de conditionnement</h2><small>Déduites automatiquement à l'embouteillage</small></div>
+  {% if materiaux %}
+  <div class="table-wrap">
+  <table class="empile">
+    <thead><tr><th>Matière</th><th>Type</th><th class="droite">Stock</th><th class="droite">Seuil</th><th class="droite">Coût unitaire</th><th>Réception / ajustement</th><th></th></tr></thead>
+    <tbody>
+      {% for m in materiaux %}
+      <tr class="{{ 'ligne-alerte' if m.stock <= m.seuil_alerte }}">
+        <td class="titre-ligne" data-label="Matière">{{ m.nom }}{% if not m.par_bouteille %} <small>(hors calcul)</small>{% endif %}</td>
+        <td data-label="Type">{{ TYPES_MATERIAUX[m.type] }}</td>
+        <td class="droite num" data-label="Stock"><strong>{{ m.stock }}</strong> {% if m.stock <= m.seuil_alerte %}<span class="badge badge-alerte">À commander</span>{% endif %}</td>
+        <td class="droite num" data-label="Seuil">{{ m.seuil_alerte }}</td>
+        <td class="droite num" data-label="Coût unitaire">{{ m.cout_unitaire|euro }}</td>
+        <td data-label="Ajuster">
+          <form method="post" action="{{ url_for('materiau_modifier', mat_id=m.id) }}" style="display:flex;gap:6px;justify-content:flex-end">
+            <input type="hidden" name="csrf" value="{{ csrf_token }}">
+            <input type="number" name="quantite" step="1" inputmode="numeric" placeholder="+100 / -3" style="max-width:110px" aria-label="Quantité reçue ou retirée" required>
+            <button class="btn btn-ligne btn-petit" name="action" value="reception">Valider</button>
+          </form>
+        </td>
+        <td data-label=""><details><summary>Modifier</summary>
+          <form method="post" action="{{ url_for('materiau_modifier', mat_id=m.id) }}" class="mt" style="min-width:240px">
+            <input type="hidden" name="csrf" value="{{ csrf_token }}">
+            {% with m=m %}{% include "_materiau_champs.html" %}{% endwith %}
+            <div class="form-actions">
+              <button class="btn btn-petit" name="action" value="maj">Enregistrer</button>
+              <button class="btn btn-danger btn-petit" name="action" value="supprimer" onclick="return confirm('Supprimer cette matière ?')">Supprimer</button>
+            </div>
+          </form>
+        </details></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% else %}<p class="vide">Aucune matière enregistrée.</p>{% endif %}
+
+  <details class="mt">
+    <summary>+ Ajouter une matière</summary>
+    <form method="post" action="{{ url_for('materiau_ajouter') }}" class="mt">
+      <input type="hidden" name="csrf" value="{{ csrf_token }}">
+      {% with m={'par_bouteille': 1, 'stock': 0, 'seuil_alerte': 20, 'cout_unitaire': 0, 'type': 'bouteille'} %}{% include "_materiau_champs.html" %}{% endwith %}
+      <div class="form-actions"><button class="btn" type="submit">Ajouter</button></div>
+    </form>
+  </details>
+</section>
+{% endblock %}

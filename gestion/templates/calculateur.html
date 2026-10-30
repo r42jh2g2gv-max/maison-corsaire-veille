@@ -1,0 +1,172 @@
+{% extends "base.html" %}
+{% block titre %}Calculateur de prix{% endblock %}
+{% block contenu %}
+<div class="titre-page">
+  <div><h1>Coût &amp; prix de vente</h1><div class="sous-titre">Coût de revient par bouteille et prix conseillés</div></div>
+</div>
+
+{% if not lots %}
+<div class="carte"><p class="vide mb0">Créez d'abord un lot pour calculer son coût. <a href="{{ url_for('lot_nouveau') }}">Nouveau lot</a></p></div>
+{% else %}
+<form method="get" class="carte" style="margin-bottom:16px">
+  <label for="lot_id">Lot</label>
+  <div style="display:flex;gap:8px">
+    <select id="lot_id" name="lot_id" onchange="this.form.submit()">
+      {% for l in lots %}<option value="{{ l.id }}" {{ 'selected' if lot and l.id == lot.id }}>{{ l.numero }} — {{ l.recette_nom }} ({{ STATUTS[l.statut]|lower }})</option>{% endfor %}
+    </select>
+    <noscript><button class="btn">Voir</button></noscript>
+  </div>
+</form>
+
+<div class="grille-2" id="calc">
+  <section class="carte">
+    <div class="carte-tete"><h2>1. Coût de revient</h2><a href="{{ url_for('lot_detail', lot_id=lot.id) }}#ingredients">Ingrédients du lot</a></div>
+    <p class="aide">Les valeurs viennent du lot et du stock de matières. Vous pouvez les modifier ici pour simuler, sans rien changer à vos données.</p>
+    <div class="champs">
+      <div><label for="ing_total">Coût total des ingrédients (€)</label>
+        <input id="ing_total" type="number" step="0.01" min="0" inputmode="decimal" value="{{ '%.2f'|format(cout.ingredients_total) }}"></div>
+      <div><label for="nb">Nombre de bouteilles</label>
+        <input id="nb" type="number" step="1" min="1" inputmode="numeric" value="{{ lot.nb_bouteilles or '' }}"></div>
+    </div>
+    <table class="decompte mt">
+      <tbody>
+        <tr><td>Ingrédients par bouteille</td><td class="num" id="ing_btl">—</td></tr>
+        {% for m in cout.materiaux %}
+        <tr><td><label for="mat{{ loop.index }}" style="font-weight:400;margin:0;color:inherit">{{ m.nom }}</label></td>
+          <td style="width:120px"><input id="mat{{ loop.index }}" class="mat" type="number" step="0.01" min="0" inputmode="decimal" value="{{ '%.2f'|format(m.cout_unitaire) }}" style="text-align:right"></td></tr>
+        {% endfor %}
+        <tr><td><label for="droits" style="font-weight:400;margin:0;color:inherit">Droits sur l'alcool <span class="aide">(accise + sécu.)</span></label></td>
+          <td><input id="droits" type="number" step="0.01" min="0" inputmode="decimal" value="{{ '%.2f'|format(cout.droits_bouteille) }}" style="text-align:right"></td></tr>
+        <tr class="total"><td>Coût de revient / bouteille</td><td class="num" id="cout_total">—</td></tr>
+      </tbody>
+    </table>
+    {% if not cout.droits_bouteille %}
+    <div class="encart encart-alerte mt">Les droits d'accise et la cotisation sécurité sociale sur les alcools ne sont pas renseignés. Indiquez les tarifs de l'année dans <a href="{{ url_for('parametres') }}#fiscalite">Paramètres</a> : ils comptent beaucoup dans le coût d'un spiritueux.</div>
+    {% endif %}
+  </section>
+
+  <section class="carte">
+    <h2>2. Marges souhaitées</h2>
+    <div class="champs">
+      <div><label for="marge_direct">Marge en vente directe (%)</label>
+        <input id="marge_direct" type="number" step="1" min="0" max="95" inputmode="numeric" value="{{ conf.marge_direct|float|round|int }}"></div>
+      <div><label for="marge_revendeur">Marge en vente revendeur (%)</label>
+        <input id="marge_revendeur" type="number" step="1" min="0" max="95" inputmode="numeric" value="{{ conf.marge_revendeur|float|round|int }}"></div>
+      <div><label for="coef">Coefficient du revendeur</label>
+        <input id="coef" type="number" step="0.1" min="1" inputmode="decimal" value="{{ conf.coef_revendeur }}">
+        <span class="aide">Prix en boutique = votre prix × coefficient (souvent 1,6 à 2)</span></div>
+      <div><label>TVA</label>
+        <div style="padding-top:10px">{% if tva %}{{ (tva * 100)|nombre(1) }} %{% else %}Franchise en base<br><span class="aide">TVA non applicable, art. 293 B du CGI</span>{% endif %}</div></div>
+    </div>
+    <p class="aide mt mb0">La marge est calculée sur le prix de vente HT : une marge de 60 % signifie que 60 % du prix HT vous reste après avoir payé la bouteille.</p>
+  </section>
+</div>
+
+<section class="carte mt">
+  <h2>3. Prix proposés</h2>
+  <div class="comparatif">
+    <div class="colonne-prix">
+      <h3><span class="badge badge-direct">Direct</span> Vente directe</h3>
+      <div class="ligne"><span>Prix HT</span><strong class="num" id="d_ht">—</strong></div>
+      <div class="ligne"><span>Prix TTC</span><strong class="num" id="d_ttc">—</strong></div>
+      <div class="ligne"><span>Prix rond conseillé</span><span class="prix-grand num" id="d_rond">—</span></div>
+      <div class="ligne"><span>Vous gagnez / bouteille</span><strong class="num" id="d_gain">—</strong></div>
+    </div>
+    <div class="colonne-prix">
+      <h3><span class="badge badge-revendeur">Revendeur</span> Cave, épicerie fine</h3>
+      <div class="ligne"><span>Prix de cession HT</span><span class="prix-grand num" id="r_ht">—</span></div>
+      <div class="ligne"><span>Prix de cession TTC</span><strong class="num" id="r_ttc">—</strong></div>
+      <div class="ligne"><span>Prix public en boutique (estimé)</span><strong class="num" id="r_public">—</strong></div>
+      <div class="ligne"><span>Vous gagnez / bouteille</span><strong class="num" id="r_gain">—</strong></div>
+    </div>
+  </div>
+  <div class="encart mt" id="conseil" hidden></div>
+
+  <form method="post" action="{{ url_for('calculateur_enregistrer') }}" class="mt">
+    <input type="hidden" name="csrf" value="{{ csrf_token }}">
+    <input type="hidden" name="lot_id" value="{{ lot.id }}">
+    <input type="hidden" name="marge_direct" id="f_md"><input type="hidden" name="marge_revendeur" id="f_mr"><input type="hidden" name="coef_revendeur" id="f_coef">
+    <h3>Enregistrer les prix du lot {{ lot.numero }}</h3>
+    <div class="champs">
+      <div><label for="f_pv">Prix de vente direct TTC (€)</label>
+        <input id="f_pv" type="number" step="0.01" min="0" name="prix_vente_ttc" inputmode="decimal" value="{{ '%.2f'|format(lot.prix_vente_ttc) if lot.prix_vente_ttc }}"></div>
+      <div><label for="f_pr">Prix revendeur HT (€)</label>
+        <input id="f_pr" type="number" step="0.01" min="0" name="prix_revendeur_ht" inputmode="decimal" value="{{ '%.2f'|format(lot.prix_revendeur_ht) if lot.prix_revendeur_ht }}"></div>
+    </div>
+    <div class="form-actions">
+      <button class="btn btn-ligne" type="button" id="reprendre">Reprendre les prix proposés</button>
+      <button class="btn btn-or" type="submit">Enregistrer</button>
+    </div>
+    <p class="aide mb0">Ces prix seront proposés automatiquement lorsque vous enregistrerez une vente de ce lot. Vos marges sont mémorisées pour les prochains calculs.</p>
+  </form>
+</section>
+{% endif %}
+{% endblock %}
+{% block scripts %}
+{% if lots %}
+<script>
+(function () {
+  var TVA = {{ tva }};
+  var $ = function (id) { return document.getElementById(id); };
+  var num = function (el) { var v = parseFloat(String(el.value).replace(',', '.')); return isNaN(v) ? 0 : v; };
+  var eur = function (v) { return isFinite(v) ? v.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' }) : '—'; };
+  var prixDepuisMarge = function (cout, m) { m = Math.min(Math.max(m, 0), 95) / 100; return cout / (1 - m); };
+  var propose = {};
+
+  function calcul() {
+    var nb = num($('nb'));
+    var ingBtl = nb > 0 ? num($('ing_total')) / nb : 0;
+    var mat = 0;
+    document.querySelectorAll('.mat').forEach(function (el) { mat += num(el); });
+    var cout = ingBtl + mat + num($('droits'));
+    $('ing_btl').textContent = nb > 0 ? eur(ingBtl) : '—';
+    $('cout_total').textContent = nb > 0 ? eur(cout) : '—';
+    if (!(nb > 0)) return;
+
+    var dHT = prixDepuisMarge(cout, num($('marge_direct')));
+    var dTTC = dHT * (1 + TVA);
+    var dRond = Math.ceil(dTTC);
+    var dGain = dRond / (1 + TVA) - cout;
+    $('d_ht').textContent = eur(dHT);
+    $('d_ttc').textContent = eur(dTTC);
+    $('d_rond').textContent = eur(dRond);
+    $('d_gain').textContent = eur(dGain);
+
+    var rHT = Math.ceil(prixDepuisMarge(cout, num($('marge_revendeur'))) * 2) / 2;
+    var rGain = rHT - cout;
+    var publicPx = rHT * (1 + TVA) * num($('coef'));
+    $('r_ht').textContent = eur(rHT);
+    $('r_ttc').textContent = eur(rHT * (1 + TVA));
+    $('r_public').textContent = eur(publicPx);
+    $('r_gain').textContent = eur(rGain);
+
+    var conseil = $('conseil'), ecart = (publicPx - dRond) / dRond * 100;
+    conseil.hidden = false;
+    if (Math.abs(ecart) <= 10) {
+      conseil.className = 'encart mt';
+      conseil.textContent = 'Cohérent : le prix en boutique (' + eur(publicPx) + ') est proche de votre prix direct (' + eur(dRond) + '). En revendeur, vous gagnez ' + eur(dGain - rGain) + ' de moins par bouteille, mais sans temps de vente.';
+    } else if (ecart < -10) {
+      conseil.className = 'encart encart-alerte mt';
+      conseil.textContent = 'Attention : en boutique, la bouteille serait vendue ' + eur(publicPx) + ', moins cher que chez vous (' + eur(dRond) + '). Baissez la marge directe ou augmentez la marge revendeur.';
+    } else {
+      conseil.className = 'encart encart-alerte mt';
+      conseil.textContent = 'Attention : en boutique, la bouteille serait vendue ' + eur(publicPx) + ', bien plus cher que chez vous (' + eur(dRond) + '). Les revendeurs risquent de refuser : réduisez l’écart.';
+    }
+    propose = { pv: dRond, pr: rHT };
+    $('f_md').value = num($('marge_direct'));
+    $('f_mr').value = num($('marge_revendeur'));
+    $('f_coef').value = num($('coef'));
+  }
+
+  document.querySelectorAll('#calc input, #marge_direct, #marge_revendeur, #coef').forEach(function (el) {
+    el.addEventListener('input', calcul);
+  });
+  $('reprendre').addEventListener('click', function () {
+    if (propose.pv) { $('f_pv').value = propose.pv.toFixed(2); $('f_pr').value = propose.pr.toFixed(2); }
+  });
+  calcul();
+  if (!$('f_pv').value && propose.pv) { $('f_pv').value = propose.pv.toFixed(2); $('f_pr').value = propose.pr.toFixed(2); }
+})();
+</script>
+{% endif %}
+{% endblock %}

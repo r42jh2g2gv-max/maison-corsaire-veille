@@ -1,0 +1,125 @@
+{% extends "base.html" %}
+{% block titre %}Ventes{% endblock %}
+{% block contenu %}
+<div class="titre-page">
+  <div><h1>Ventes</h1><div class="sous-titre">Chaque vente met le stock à jour</div></div>
+</div>
+
+<section class="carte" id="nouvelle" style="margin-bottom:16px;border-top:3px solid var(--or)">
+  <h2>Enregistrer une vente</h2>
+  {% if lots_dispo %}
+  <form method="post">
+    <input type="hidden" name="csrf" value="{{ csrf_token }}">
+    <div class="champs c3">
+      <div><label for="lot_id">Lot</label>
+        <select id="lot_id" name="lot_id" required>
+          {% set choisi = (form.lot_id|int) if form.lot_id else lot_preselect %}
+          {% for l in lots_dispo %}
+          <option value="{{ l.id }}" data-stock="{{ stock_lot(l) }}" data-prix="{{ l.prix_vente_ttc or '' }}" data-prix-rev="{{ l.prix_revendeur_ht or '' }}" {{ 'selected' if l.id == choisi }}>
+            {{ l.recette_nom }} — {{ l.numero }} ({{ stock_lot(l) }} en stock)</option>
+          {% endfor %}
+        </select></div>
+      <div><label for="client">Client</label>
+        <input id="client" type="text" name="client" list="clients" required value="{{ form.client or '' }}" placeholder="Nom, marché, boutique…" autocomplete="off">
+        <datalist id="clients">{% for c in clients %}<option value="{{ c }}">{% endfor %}</datalist></div>
+      <div><label for="date_vente">Date</label>
+        <input id="date_vente" type="date" name="date_vente" value="{{ form.date_vente or today }}" required></div>
+      <div><label for="canal">Canal</label>
+        <select id="canal" name="canal">
+          <option value="direct" {{ 'selected' if form.canal != 'revendeur' }}>Vente directe</option>
+          <option value="revendeur" {{ 'selected' if form.canal == 'revendeur' }}>Revendeur</option>
+        </select></div>
+      <div><label for="quantite">Quantité <span class="aide" id="stock_aide"></span></label>
+        <input id="quantite" type="number" name="quantite" min="1" step="1" inputmode="numeric" value="{{ form.quantite or 1 }}" required></div>
+      <div><label for="prix">Prix unitaire payé (€)</label>
+        <input id="prix" type="number" name="prix_unitaire_ttc" min="0" step="0.01" inputmode="decimal" value="{{ form.prix_unitaire_ttc or '' }}" required></div>
+      <div class="large" style="grid-column:1/-1"><label for="notes">Notes <span class="aide">(facultatif)</span></label>
+        <input id="notes" type="text" name="notes" value="{{ form.notes or '' }}"></div>
+    </div>
+    <div class="form-actions" style="align-items:center">
+      <button class="btn btn-or" type="submit">Enregistrer la vente</button>
+      <strong id="total_vente" class="num"></strong>
+    </div>
+  </form>
+  {% else %}
+  <p class="vide mb0">Aucune bouteille disponible à la vente. Passez un lot au statut « Embouteillé » pour pouvoir le vendre.</p>
+  {% endif %}
+</section>
+
+<section class="carte">
+  <div class="carte-tete">
+    <h2>Historique</h2>
+    <form method="get" style="display:flex;gap:8px;align-items:center">
+      <label for="mois" class="mb0" style="margin:0">Période</label>
+      <select id="mois" name="mois" onchange="this.form.submit()" style="width:auto">
+        <option value="tout">Toutes</option>
+        {% for m in mois_dispo %}<option value="{{ m }}" {{ 'selected' if m == mois }}>{{ mois_label(m)|capitalize }}</option>{% endfor %}
+      </select>
+    </form>
+  </div>
+  <div class="grille-kpi" style="margin-bottom:12px">
+    <div class="kpi"><div class="etiquette">Chiffre d'affaires</div><div class="valeur num">{{ total|euro }}</div></div>
+    <div class="kpi"><div class="etiquette">Bouteilles</div><div class="valeur num">{{ bouteilles }}</div></div>
+    <div class="kpi"><div class="etiquette">Ventes</div><div class="valeur num">{{ ventes|length }}</div></div>
+    <div class="kpi"><div class="etiquette">Marge moyenne</div><div class="valeur num">{{ (marge|nombre(0) ~ ' %') if marge is not none else '—' }}</div></div>
+  </div>
+  {% if ventes %}
+  <div class="table-wrap">
+  <table class="empile">
+    <thead><tr><th>Date</th><th>Client</th><th>Produit</th><th>Canal</th><th class="droite">Qté</th><th class="droite">Prix unit.</th><th class="droite">Total</th><th></th></tr></thead>
+    <tbody>
+      {% for v in ventes %}
+      <tr>
+        <td data-label="Date">{{ v.date_vente|datefr }}</td>
+        <td class="titre-ligne" data-label="Client">{{ v.client }}{% if v.notes %}<br><small>{{ v.notes }}</small>{% endif %}</td>
+        <td data-label="Produit"><a href="{{ url_for('lot_detail', lot_id=v.lot_id) }}">{{ v.recette_nom }}</a> <small>{{ v.numero }}</small></td>
+        <td data-label="Canal"><span class="badge badge-{{ v.canal }}">{{ 'Revendeur' if v.canal == 'revendeur' else 'Direct' }}</span></td>
+        <td class="droite num" data-label="Quantité">{{ v.quantite }}</td>
+        <td class="droite num" data-label="Prix unit.">{{ v.prix_unitaire_ttc|euro }}</td>
+        <td class="droite num" data-label="Total"><strong>{{ (v.quantite * v.prix_unitaire_ttc)|euro }}</strong></td>
+        <td data-label="">
+          <form method="post" action="{{ url_for('vente_supprimer', vente_id=v.id) }}" onsubmit="return confirm('Supprimer cette vente ? Les bouteilles seront remises en stock.')">
+            <input type="hidden" name="csrf" value="{{ csrf_token }}">
+            <input type="hidden" name="retour" value="{{ request.full_path }}">
+            <button class="btn-lien" type="submit">Supprimer</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% else %}<p class="vide">Aucune vente sur cette période.</p>{% endif %}
+</section>
+{% endblock %}
+{% block scripts %}
+<script>
+(function () {
+  var lot = document.getElementById('lot_id');
+  if (!lot) return;
+  var canal = document.getElementById('canal'), prix = document.getElementById('prix');
+  var qte = document.getElementById('quantite'), aide = document.getElementById('stock_aide');
+  var total = document.getElementById('total_vente');
+  var prixSaisi = !!prix.value;
+  function majPrix() {
+    var o = lot.options[lot.selectedIndex];
+    aide.textContent = '(max ' + o.dataset.stock + ')';
+    qte.max = o.dataset.stock;
+    if (!prixSaisi) {
+      var p = canal.value === 'revendeur' ? o.dataset.prixRev : o.dataset.prix;
+      prix.value = p ? parseFloat(p).toFixed(2) : '';
+    }
+    majTotal();
+  }
+  function majTotal() {
+    var t = (parseFloat(qte.value) || 0) * (parseFloat(String(prix.value).replace(',', '.')) || 0);
+    total.textContent = t ? 'Total : ' + t.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' }) : '';
+  }
+  lot.addEventListener('change', majPrix);
+  canal.addEventListener('change', majPrix);
+  prix.addEventListener('input', function () { prixSaisi = !!prix.value; majTotal(); });
+  qte.addEventListener('input', majTotal);
+  majPrix();
+})();
+</script>
+{% endblock %}

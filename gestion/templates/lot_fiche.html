@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Fiche de lot {{ lot.numero }} – {{ conf.producteur_nom }}</title>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600;700&family=Inter:wght@400;600&display=swap" rel="stylesheet">
+  <style>
+    @page { size: A4; margin: 14mm 14mm 16mm; }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: #e9e4d8; color: #1c2333; font: 10.5pt/1.45 "Inter", system-ui, sans-serif; }
+    .barre-outils { position: sticky; top: 0; background: #0f1d33; color: #fff; padding: 10px 16px; display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: center; z-index: 5; }
+    .barre-outils button, .barre-outils a { font: 600 14px "Inter", sans-serif; padding: 10px 16px; border-radius: 8px; border: 0; cursor: pointer; text-decoration: none; }
+    .barre-outils button { background: #c9a14a; color: #0f1d33; }
+    .barre-outils a { background: transparent; color: #e6c983; border: 1px solid #e6c983; }
+    .barre-outils label { display: flex; gap: 6px; align-items: center; font-size: 14px; }
+    .page { background: #fff; max-width: 210mm; margin: 16px auto; padding: 14mm; box-shadow: 0 4px 20px rgba(0,0,0,.15); }
+    header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #c9a14a; padding-bottom: 10px; margin-bottom: 14px; gap: 16px; }
+    h1, h2 { font-family: "Cormorant Garamond", Georgia, serif; color: #0f1d33; margin: 0; }
+    h1 { font-size: 22pt; }
+    h2 { font-size: 13.5pt; margin: 16px 0 6px; border-bottom: 1px solid #e3d9c6; padding-bottom: 3px; }
+    .producteur { font-size: 9.5pt; color: #444; }
+    .numero { text-align: right; }
+    .numero .n { font-family: "Cormorant Garamond", Georgia, serif; font-size: 24pt; font-weight: 700; color: #0f1d33; line-height: 1; }
+    .numero .t { font-size: 8.5pt; text-transform: uppercase; letter-spacing: .08em; color: #8a6a22; }
+    .grille { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 24px; }
+    .grille div { display: flex; justify-content: space-between; border-bottom: 1px dotted #ccc; padding: 3px 0; gap: 10px; }
+    .grille span:first-child { color: #555; }
+    .grille span:last-child { font-weight: 600; text-align: right; }
+    table { width: 100%; border-collapse: collapse; font-size: 9.5pt; }
+    th, td { border: 1px solid #d8cfbd; padding: 5px 7px; text-align: left; }
+    th { background: #f4eee2; font-weight: 600; }
+    td.d, th.d { text-align: right; }
+    .notes { white-space: pre-line; border: 1px solid #e3d9c6; padding: 8px; border-radius: 4px; min-height: 30px; }
+    .signatures { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-top: 24px; }
+    .signatures div { border-top: 1px solid #999; padding-top: 4px; font-size: 9pt; color: #555; height: 50px; }
+    footer { margin-top: 18px; font-size: 8pt; color: #777; text-align: center; }
+    body:not(.avec-couts) .cout { display: none; }
+    @media (max-width: 640px) { .page { padding: 16px; margin: 0; } .grille { grid-template-columns: 1fr; } header { flex-direction: column; } .numero { text-align: left; } }
+    @media print {
+      body { background: #fff; }
+      .barre-outils { display: none; }
+      .page { box-shadow: none; margin: 0; padding: 0; max-width: none; }
+      h2 { break-after: avoid; }
+      tr { break-inside: avoid; }
+    }
+  </style>
+</head>
+<body>
+  <div class="barre-outils">
+    <button type="button" onclick="window.print()">Imprimer / Enregistrer en PDF</button>
+    <label><input type="checkbox" onchange="document.body.classList.toggle('avec-couts', this.checked)"> Afficher les coûts</label>
+    <a href="{{ url_for('lot_detail', lot_id=lot.id) }}">← Retour au lot</a>
+  </div>
+
+  <div class="page">
+    <header>
+      <div>
+        <h1>{{ conf.producteur_nom }}</h1>
+        <div class="producteur">{{ conf.producteur_adresse }}{% if conf.siret %}<br>SIRET : {{ conf.siret }}{% endif %}</div>
+      </div>
+      <div class="numero"><div class="t">Fiche de traçabilité · Lot</div><div class="n">{{ lot.numero }}</div></div>
+    </header>
+
+    <h2>Identification du lot</h2>
+    <div class="grille">
+      <div><span>Produit</span><span>{{ lot.recette_nom }}</span></div>
+      <div><span>Statut</span><span>{{ STATUTS[lot.statut] }}</span></div>
+      <div><span>Mise en macération</span><span>{{ lot.date_maceration|datefr }}</span></div>
+      <div><span>Embouteillage</span><span>{{ lot.date_embouteillage|datefr }}</span></div>
+      <div><span>DLC / DDM</span><span>{{ lot.dlc|datefr }}</span></div>
+      <div><span>Degré d'alcool</span><span>{{ (lot.degre|nombre(1) ~ ' % vol.') if lot.degre is not none else '—' }}</span></div>
+      <div><span>Contenance</span><span>{{ lot.volume_cl }} cl</span></div>
+      <div><span>Bouteilles produites</span><span>{{ lot.nb_bouteilles }}</span></div>
+      <div><span>Volume total conditionné</span><span>{{ (lot.nb_bouteilles * lot.volume_cl / 100)|nombre(2) }} L</span></div>
+      <div><span>Bouteilles vendues / en stock</span><span>{{ lot.vendu }} / {{ stock }}</span></div>
+    </div>
+
+    <h2>Matières premières utilisées</h2>
+    {% if ingredients %}
+    <table>
+      <thead><tr><th>Catégorie</th><th>Ingrédient</th><th class="d">Quantité</th><th class="d cout">Coût</th></tr></thead>
+      <tbody>
+        {% for i in ingredients %}
+        <tr><td>{{ CATEGORIES[i.categorie] }}</td><td>{{ i.nom }}</td>
+          <td class="d">{{ (i.quantite|nombre(2))|replace(',00', '') if i.quantite is not none else '—' }} {{ i.unite or '' }}</td>
+          <td class="d cout">{{ i.cout|euro }}</td></tr>
+        {% endfor %}
+      </tbody>
+      <tfoot class="cout"><tr><td colspan="3"><strong>Coût de revient par bouteille</strong> (ingrédients, conditionnement{{ ', droits' if cout.droits_bouteille }})</td><td class="d"><strong>{{ cout.total|euro if cout.calculable else '—' }}</strong></td></tr></tfoot>
+    </table>
+    {% else %}<p>Aucun ingrédient enregistré.</p>{% endif %}
+
+    <h2>Distribution (traçabilité aval)</h2>
+    {% if ventes %}
+    <table>
+      <thead><tr><th>Date</th><th>Client</th><th>Canal</th><th class="d">Quantité</th></tr></thead>
+      <tbody>
+        {% for v in ventes %}<tr><td>{{ v.date_vente|datefr }}</td><td>{{ v.client }}</td><td>{{ 'Revendeur' if v.canal == 'revendeur' else 'Vente directe' }}</td><td class="d">{{ v.quantite }}</td></tr>{% endfor %}
+      </tbody>
+    </table>
+    {% else %}<p>Aucune bouteille de ce lot n'a encore été distribuée.</p>{% endif %}
+
+    <h2>Notes</h2>
+    <div class="notes">{{ lot.notes or '' }}</div>
+
+    <div class="signatures"><div>Date et visa du producteur</div><div>Observations / contrôle</div></div>
+    <footer>Document édité le {{ edition }} · {{ conf.producteur_nom }} · Lot {{ lot.numero }}</footer>
+  </div>
+</body>
+</html>
