@@ -1,6 +1,6 @@
 #!/bin/bash
 # Installation de Maison Corsaire sur PythonAnywhere, en une commande depuis une console Bash :
-#   git clone https://github.com/r42jh2g2gv-max/maison-corsaire-veille.git && bash maison-corsaire-veille/gestion/installer_pythonanywhere.sh
+#   git clone -b claude/app-gestion-maison-corsaire https://github.com/r42jh2g2gv-max/maison-corsaire-veille.git && bash maison-corsaire-veille/gestion/installer_pythonanywhere.sh
 # Mise à jour plus tard :
 #   bash ~/maison-corsaire-veille/gestion/installer_pythonanywhere.sh
 set -e
