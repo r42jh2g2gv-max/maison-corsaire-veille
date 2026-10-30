@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% from "_icones.html" import icone %}
+{% block titre %}Recettes{% endblock %}
+{% block contenu %}
+<div class="titre-page">
+  <div><div class="surtitre">Module 2 · Bibliothèque</div><h1>Recettes</h1><div class="filet"></div></div>
+  <div class="actions">
+    <a class="btn btn-or" href="{{ url_for('recette_nouvelle') }}">{{ icone('plus') }}Nouvelle recette</a>
+    <a class="btn btn-ligne" href="{{ url_for('export', nom='recettes') }}">{{ icone('tableur') }}Excel</a>
+  </div>
+</div>
+
+{% if recettes %}
+<div class="grille-cartes">
+  {% for r, d in recettes %}
+  {% set btl_cl = 50 %}
+  {% set cout_btl = d.cout_litre / rendement * btl_cl / 100 + materiaux %}
+  <article class="carte bois" id="recette-{{ r.id }}">
+    <div style="display:flex;justify-content:space-between;gap:10px;align-items:flex-start">
+      <h2 class="nom-carte" style="margin:0">{{ r.nom }}</h2>
+      <span class="badge badge-revendeur sans-point num">{{ r.duree_maceration_jours }} j</span>
+    </div>
+    <div class="meta" style="margin-top:6px">
+      {% if r.degre %}<span>{{ r.degre|nombre(1) }} % vol.</span>{% endif %}
+      <span>{{ d.cout_litre|euro }} / L</span>
+      <span>≈ {{ cout_btl|euro }} / btl 50 cl</span>
+      <span>{{ d.nb_lots }} lot(s)</span>
+    </div>
+    {% if not d.complet and d.ingredients %}<p class="aide mb0" style="margin-top:4px">Coût partiel : renseignez le prix de chaque ingrédient.</p>{% endif %}
+    <ul class="liste mt">
+      {% for i in d.ingredients %}
+      <li style="padding:7px 0"><span>{{ i.nom }} <small>· {{ CATEGORIES[i.categorie] }}</small></span>
+        <span class="num">{{ (i.quantite_par_litre|nombre(2))|replace(',00', '') if i.quantite_par_litre is not none else '—' }} {{ i.unite or '' }}</span></li>
+      {% endfor %}
+    </ul>
+    {% if r.notes_degustation %}<p class="mt mb0" style="font-style:italic;color:var(--texte-doux)">« {{ r.notes_degustation }} »</p>{% endif %}
+    <div class="form-actions">
+      <a class="btn btn-or" href="{{ url_for('lot_nouveau', recette_id=r.id) }}">{{ icone('lot') }}Lancer un lot</a>
+      <a class="btn btn-ligne btn-petit" href="{{ url_for('recette_fiche', recette_id=r.id) }}" target="_blank" aria-label="Fiche recette imprimable">{{ icone('imprimer') }}Fiche</a>
+      <a class="btn btn-ligne btn-petit" href="{{ url_for('recette_modifier', recette_id=r.id) }}" aria-label="Modifier">{{ icone('crayon') }}</a>
+      <form method="post" action="{{ url_for('recette_supprimer', recette_id=r.id) }}" class="inline" onsubmit="return confirm('Supprimer la recette {{ r.nom|replace("'", " ") }} ?')">
+        <input type="hidden" name="csrf" value="{{ csrf_token }}">
+        <button class="btn btn-danger btn-petit" aria-label="Supprimer">{{ icone('poubelle') }}</button>
+      </form>
+    </div>
+  </article>
+  {% endfor %}
+</div>
+<p class="aide mt">Coût par bouteille estimé avec un rendement de {{ (rendement * 100)|int }} % (fruits retirés) + {{ materiaux|euro }} de matières (bouteille, bouchon, étiquette…).</p>
+{% else %}
+<div class="carte"><p class="vide mb0">Aucune recette. <a href="{{ url_for('recette_nouvelle') }}">Créer la première</a></p></div>
+{% endif %}
+{% endblock %}

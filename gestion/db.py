@@ -1,6 +1,7 @@
-"""Base de données SQLite : schéma, connexion et données d'exemple."""
+"""Base de données SQLite : schéma, migrations et données d'exemple."""
+import secrets
 import sqlite3
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 
 from flask import current_app, g
 from werkzeug.security import generate_password_hash
@@ -22,7 +23,8 @@ CREATE TABLE IF NOT EXISTS recettes (
     nom TEXT NOT NULL,
     duree_maceration_jours INTEGER DEFAULT 60,
     degre REAL,
-    notes_degustation TEXT
+    notes_degustation TEXT,
+    instructions TEXT
 );
 
 CREATE TABLE IF NOT EXISTS recette_ingredients (
@@ -31,7 +33,9 @@ CREATE TABLE IF NOT EXISTS recette_ingredients (
     categorie TEXT NOT NULL,
     nom TEXT NOT NULL,
     quantite_par_litre REAL,
-    unite TEXT
+    unite TEXT,
+    -- prix d'achat par unité (€/L, €/kg, €/pièce...) pour estimer le coût
+    cout_unitaire REAL
 );
 
 CREATE TABLE IF NOT EXISTS lots (
@@ -76,8 +80,72 @@ CREATE TABLE IF NOT EXISTS materiaux (
     par_bouteille INTEGER NOT NULL DEFAULT 1
 );
 
+CREATE TABLE IF NOT EXISTS clients (
+    id INTEGER PRIMARY KEY,
+    nom TEXT NOT NULL,
+    type TEXT NOT NULL DEFAULT 'particulier',
+    email TEXT,
+    telephone TEXT,
+    adresse TEXT,
+    notes TEXT,
+    -- consentement à recevoir les nouveautés (RGPD)
+    accepte_infos INTEGER NOT NULL DEFAULT 0,
+    prix_revendeur_ht REAL,
+    created_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS evenements (
+    id INTEGER PRIMARY KEY,
+    nom TEXT NOT NULL,
+    type TEXT NOT NULL DEFAULT 'marche',
+    date_debut TEXT NOT NULL,
+    date_fin TEXT,
+    lieu TEXT,
+    cout_place REAL NOT NULL DEFAULT 0,
+    btl_prevues INTEGER NOT NULL DEFAULT 0,
+    date_limite_inscription TEXT,
+    inscrit INTEGER NOT NULL DEFAULT 0,
+    stock_pret INTEGER NOT NULL DEFAULT 0,
+    notes TEXT
+);
+
+CREATE TABLE IF NOT EXISTS bons (
+    id INTEGER PRIMARY KEY,
+    code TEXT UNIQUE NOT NULL,
+    client_id INTEGER REFERENCES clients(id) ON DELETE SET NULL,
+    beneficiaire TEXT,
+    montant REAL NOT NULL,
+    motif TEXT,
+    date_emission TEXT NOT NULL,
+    date_expiration TEXT,
+    ticket_id INTEGER REFERENCES tickets(id) ON DELETE SET NULL,
+    envoye_le TEXT
+);
+
+-- Un ticket = un encaissement (une ou plusieurs lignes de vente)
+CREATE TABLE IF NOT EXISTS tickets (
+    id INTEGER PRIMARY KEY,
+    numero TEXT UNIQUE NOT NULL,
+    date_vente TEXT NOT NULL,
+    client_id INTEGER REFERENCES clients(id) ON DELETE SET NULL,
+    client_nom TEXT NOT NULL,
+    canal TEXT NOT NULL DEFAULT 'direct',
+    mode_paiement TEXT NOT NULL DEFAULT 'especes',
+    evenement_id INTEGER REFERENCES evenements(id) ON DELETE SET NULL,
+    sous_total REAL NOT NULL DEFAULT 0,
+    remise REAL NOT NULL DEFAULT 0,
+    consigne REAL NOT NULL DEFAULT 0,
+    total REAL NOT NULL DEFAULT 0,
+    facture_numero TEXT UNIQUE,
+    facture_date TEXT,
+    client_adresse TEXT,
+    notes TEXT,
+    created_at TEXT NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS ventes (
     id INTEGER PRIMARY KEY,
+    ticket_id INTEGER REFERENCES tickets(id) ON DELETE CASCADE,
     date_vente TEXT NOT NULL,
     client TEXT NOT NULL,
     lot_id INTEGER NOT NULL REFERENCES lots(id) ON DELETE RESTRICT,
@@ -86,12 +154,42 @@ CREATE TABLE IF NOT EXISTS ventes (
     canal TEXT NOT NULL DEFAULT 'direct',
     notes TEXT
 );
+
+-- Bouteilles consignées : quantité > 0 = remise au client, < 0 = rapportée
+CREATE TABLE IF NOT EXISTS consignes (
+    id INTEGER PRIMARY KEY,
+    client_id INTEGER REFERENCES clients(id) ON DELETE SET NULL,
+    client_nom TEXT NOT NULL,
+    date_mouvement TEXT NOT NULL,
+    quantite INTEGER NOT NULL,
+    montant_unitaire REAL NOT NULL,
+    ticket_id INTEGER REFERENCES tickets(id) ON DELETE CASCADE,
+    notes TEXT
+);
+
+CREATE TABLE IF NOT EXISTS messages (
+    id INTEGER PRIMARY KEY,
+    date_envoi TEXT NOT NULL,
+    sujet TEXT NOT NULL,
+    corps TEXT NOT NULL,
+    nb_destinataires INTEGER NOT NULL DEFAULT 0,
+    mode TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS declarations (
+    periode TEXT PRIMARY KEY,
+    declare_le TEXT NOT NULL,
+    montant REAL
+);
 """
 
 DEFAULT_SETTINGS = {
     "producteur_nom": "Maison Corsaire",
     "producteur_adresse": "12 rue des Flibustiers, 17000 La Rochelle",
+    "producteur_email": "",
+    "producteur_telephone": "",
     "siret": "",
+    "iban": "",
     "tva_applicable": "0",
     "tva_taux": "20",
     "accise_hlap": "0",
@@ -99,7 +197,24 @@ DEFAULT_SETTINGS = {
     "marge_direct": "60",
     "marge_revendeur": "40",
     "coef_revendeur": "1.8",
+    "consigne_montant": "1",
+    "urssaf_taux": "12.3",
+    "cfp_taux": "0.1",
+    "urssaf_periodicite": "mensuelle",
+    "conditions_paiement": "Paiement à réception de facture.",
+    "smtp_host": "",
+    "smtp_port": "587",
+    "smtp_user": "",
+    "smtp_password": "",
+    "smtp_expediteur": "",
 }
+
+# Colonnes ajoutées après la première version : (table, colonne, définition)
+MIGRATIONS = [
+    ("recettes", "instructions", "TEXT"),
+    ("recette_ingredients", "cout_unitaire", "REAL"),
+    ("ventes", "ticket_id", "INTEGER REFERENCES tickets(id) ON DELETE CASCADE"),
+]
 
 
 def get_db():
@@ -116,21 +231,54 @@ def close_db(_exc=None):
         conn.close()
 
 
+def migrer(conn):
+    for table, colonne, definition in MIGRATIONS:
+        cols = [r[1] for r in conn.execute(f"PRAGMA table_info({table})")]
+        if colonne not in cols:
+            conn.execute(f"ALTER TABLE {table} ADD COLUMN {colonne} {definition}")
+    # Les ventes de la première version n'avaient pas de ticket : on en crée un par vente.
+    for v in conn.execute("SELECT * FROM ventes WHERE ticket_id IS NULL").fetchall():
+        row = dict(v)
+        total = row["quantite"] * row["prix_unitaire_ttc"]
+        cur = conn.execute(
+            """INSERT INTO tickets (numero, date_vente, client_nom, canal, mode_paiement,
+               sous_total, total, created_at) VALUES (?, ?, ?, ?, 'especes', ?, ?, ?)""",
+            (prochain_numero(conn, "tickets", "numero", "T", row["date_vente"][:4], 4),
+             row["date_vente"], row["client"], row["canal"], total, total,
+             datetime.now().isoformat(timespec="seconds")),
+        )
+        conn.execute("UPDATE ventes SET ticket_id = ? WHERE id = ?", (cur.lastrowid, row["id"]))
+
+
+def prochain_numero(conn, table, colonne, prefixe, annee, chiffres):
+    """Numérotation continue par année : T-2026-0001, F-2026-0001..."""
+    debut = f"{prefixe}-{annee}-"
+    row = conn.execute(
+        f"SELECT {colonne} FROM {table} WHERE {colonne} LIKE ? ORDER BY {colonne} DESC LIMIT 1",
+        (debut + "%",),
+    ).fetchone()
+    seq = int(row[0].rsplit("-", 1)[1]) + 1 if row else 1
+    return f"{debut}{seq:0{chiffres}d}"
+
+
+def code_bon():
+    alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
+    return "MC-" + "".join(secrets.choice(alphabet) for _ in range(4)) + "-" + \
+        "".join(secrets.choice(alphabet) for _ in range(4))
+
+
 def init_db(app):
     conn = sqlite3.connect(app.config["DATABASE"])
+    conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA foreign_keys = ON")
     conn.executescript(SCHEMA)
+    migrer(conn)
     for key, value in DEFAULT_SETTINGS.items():
-        conn.execute(
-            "INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)",
-            (key, value),
-        )
+        conn.execute("INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)", (key, value))
     if not conn.execute("SELECT 1 FROM users").fetchone():
         conn.execute(
             "INSERT INTO users (email, password_hash) VALUES (?, ?)",
-            (
-                app.config["ADMIN_EMAIL"],
-                generate_password_hash(app.config["ADMIN_PASSWORD"]),
-            ),
+            (app.config["ADMIN_EMAIL"], generate_password_hash(app.config["ADMIN_PASSWORD"])),
         )
         seed_demo(conn)
     conn.commit()
@@ -138,8 +286,9 @@ def init_db(app):
 
 
 def clear_data(conn):
-    """Supprime lots, ventes, recettes et matières (garde compte et réglages)."""
-    for table in ("ventes", "lot_ingredients", "lots",
+    """Supprime toutes les données métier (garde le compte et les réglages)."""
+    for table in ("consignes", "bons", "ventes", "tickets", "messages", "declarations",
+                  "evenements", "clients", "lot_ingredients", "lots",
                   "recette_ingredients", "recettes", "materiaux"):
         conn.execute(f"DELETE FROM {table}")
 
@@ -147,6 +296,7 @@ def clear_data(conn):
 def seed_demo(conn):
     """Données d'exemple, datées par rapport à aujourd'hui."""
     today = date.today()
+    now = datetime.now().isoformat(timespec="seconds")
 
     def d(days):
         return (today + timedelta(days=days)).isoformat()
@@ -154,40 +304,58 @@ def seed_demo(conn):
     recettes = [
         ("Ananas – Vanille de Madagascar", 60, 32,
          "Nez gourmand de vanille, bouche ronde d'ananas rôti, finale douce.",
-         [("rhum", "Rhum agricole blanc 50°", 0.7, "L"),
-          ("fruit", "Ananas Victoria", 0.35, "kg"),
-          ("epice", "Gousse de vanille", 1, "pièce"),
-          ("sucre", "Sucre de canne roux", 50, "g")]),
+         "1. Peler l'ananas, le couper en cubes de 2 cm et le rôtir 10 min à 200 °C.\n"
+         "2. Fendre les gousses de vanille et gratter les grains.\n"
+         "3. Mettre fruits, vanille et sucre dans la bonbonne, couvrir de rhum.\n"
+         "4. Remuer doucement une fois par semaine. Goûter à partir de J+45.\n"
+         "5. Filtrer, laisser reposer 48 h puis embouteiller.",
+         [("rhum", "Rhum agricole blanc 50°", 0.7, "L", 14.0),
+          ("fruit", "Ananas Victoria", 0.35, "kg", 6.5),
+          ("epice", "Gousse de vanille", 1, "pièce", 2.6),
+          ("sucre", "Sucre de canne roux", 50, "g", 0.004)]),
         ("Mangue – Passion", 75, 30,
          "Explosion tropicale, acidité vive de la passion, très fruité.",
-         [("rhum", "Rhum agricole blanc 50°", 0.7, "L"),
-          ("fruit", "Mangue", 0.3, "kg"),
-          ("fruit", "Fruit de la passion", 0.1, "kg"),
-          ("sucre", "Sirop de canne", 40, "ml")]),
+         "1. Couper la mangue en lamelles, évider les fruits de la passion.\n"
+         "2. Ajouter le sirop de canne puis le rhum.\n"
+         "3. Macérer à l'abri de la lumière, remuer chaque semaine.\n"
+         "4. Filtrer finement (pulpe de passion) avant l'embouteillage.",
+         [("rhum", "Rhum agricole blanc 50°", 0.7, "L", 14.0),
+          ("fruit", "Mangue", 0.3, "kg", 6.0),
+          ("fruit", "Fruit de la passion", 0.1, "kg", 12.0),
+          ("sucre", "Sirop de canne", 40, "ml", 0.008)]),
         ("Café – Cacao", 75, 33,
          "Notes torréfiées, cacao amer, bel équilibre avec le rhum ambré.",
-         [("rhum", "Rhum ambré 45°", 0.75, "L"),
-          ("epice", "Grains de café arabica", 40, "g"),
-          ("epice", "Fèves de cacao", 30, "g"),
-          ("sucre", "Sucre de canne roux", 40, "g")]),
+         "1. Concasser grossièrement les grains de café et les fèves de cacao.\n"
+         "2. Mélanger avec le sucre, couvrir de rhum ambré.\n"
+         "3. Goûter à J+30 : retirer le café si l'amertume domine.\n"
+         "4. Filtrer au papier avant embouteillage.",
+         [("rhum", "Rhum ambré 45°", 0.75, "L", 17.0),
+          ("epice", "Grains de café arabica", 40, "g", 0.03),
+          ("epice", "Fèves de cacao", 30, "g", 0.03),
+          ("sucre", "Sucre de canne roux", 40, "g", 0.004)]),
         ("Coco – Citron vert", 45, 30,
          "Frais et soyeux, coco toastée et zeste de citron vert.",
-         [("rhum", "Rhum agricole blanc 50°", 0.7, "L"),
-          ("fruit", "Noix de coco râpée toastée", 80, "g"),
-          ("fruit", "Citron vert (zestes)", 2, "pièce"),
-          ("sucre", "Sucre de canne roux", 40, "g")]),
+         "1. Toaster la noix de coco râpée à sec à la poêle.\n"
+         "2. Prélever les zestes de citron vert sans le blanc.\n"
+         "3. Macérer avec le sucre et le rhum, remuer chaque semaine.\n"
+         "4. Filtrer au tamis fin puis au papier.",
+         [("rhum", "Rhum agricole blanc 50°", 0.7, "L", 14.0),
+          ("fruit", "Noix de coco râpée toastée", 80, "g", 0.012),
+          ("fruit", "Citron vert (zestes)", 2, "pièce", 0.3),
+          ("sucre", "Sucre de canne roux", 40, "g", 0.004)]),
     ]
     recette_ids = []
-    for nom, duree, degre, notes, ingredients in recettes:
+    for nom, duree, degre, notes, instructions, ingredients in recettes:
         cur = conn.execute(
-            "INSERT INTO recettes (nom, duree_maceration_jours, degre, notes_degustation)"
-            " VALUES (?, ?, ?, ?)",
-            (nom, duree, degre, notes),
+            "INSERT INTO recettes (nom, duree_maceration_jours, degre, notes_degustation, instructions)"
+            " VALUES (?, ?, ?, ?, ?)",
+            (nom, duree, degre, notes, instructions),
         )
         recette_ids.append(cur.lastrowid)
         conn.executemany(
             "INSERT INTO recette_ingredients"
-            " (recette_id, categorie, nom, quantite_par_litre, unite) VALUES (?, ?, ?, ?, ?)",
+            " (recette_id, categorie, nom, quantite_par_litre, unite, cout_unitaire)"
+            " VALUES (?, ?, ?, ?, ?, ?)",
             [(cur.lastrowid, *ing) for ing in ingredients],
         )
 
@@ -218,12 +386,12 @@ def seed_demo(conn):
           ("epice", "Gousse de vanille", 12, "pièce", 32.4),
           ("sucre", "Sucre de canne roux", 0.6, "kg", 2.4)],
          "Goûté : prêt, à embouteiller cette semaine."),
-        (3, -25, None, 20, "maceration", None, None,
+        (3, -46, None, 20, "maceration", None, None,
          [("rhum", "Rhum agricole blanc 50°", 7.0, "L", 98.0),
           ("fruit", "Noix de coco râpée toastée", 0.8, "kg", 9.6),
           ("fruit", "Citron vert (zestes)", 20, "pièce", 6.0),
           ("sucre", "Sucre de canne roux", 0.4, "kg", 1.6)],
-         "Nouvelle recette, à goûter à J+30."),
+         "Nouvelle recette, à goûter."),
     ]
     lot_ids = []
     for i, (r, mac, emb, nb, statut, pv, pr, ingredients, notes) in enumerate(lots, 1):
@@ -257,30 +425,129 @@ def seed_demo(conn):
         ],
     )
 
-    # (lot index, jours, client, quantité, prix TTC, canal)
-    ventes = [
-        (0, -175, "Marché de Noël – stand", 6, 34.0, "direct"),
-        (0, -160, "Cave Le Galion", 10, 22.0, "revendeur"),
-        (0, -140, "Sophie M.", 2, 34.0, "direct"),
-        (0, -110, "Épicerie fine Bâbord", 6, 22.0, "revendeur"),
-        (1, -118, "Marché des producteurs", 5, 36.0, "direct"),
-        (1, -90, "Cave Le Galion", 6, 23.0, "revendeur"),
-        (1, -60, "Julien R.", 1, 36.0, "direct"),
-        (1, -21, "Comité d'entreprise Atlantique", 3, 33.0, "direct"),
-        (2, -70, "Épicerie fine Bâbord", 4, 24.0, "revendeur"),
-        (2, -40, "Vente en ligne", 2, 38.0, "direct"),
-        (2, -12, "Marché du port", 3, 38.0, "direct"),
-        (2, -3, "Claire D.", 1, 38.0, "direct"),
+    clients = [
+        ("Cave Le Galion", "revendeur", "contact@cave-legalion.fr", "05 46 41 00 00",
+         "4 quai Duperré, 17000 La Rochelle", "Commande toutes les 6 semaines environ.", 1, 22.0),
+        ("Épicerie fine Bâbord", "revendeur", "bonjour@epicerie-babord.fr", "05 46 22 11 11",
+         "18 rue du Port, 17300 Rochefort", "", 1, 22.0),
+        ("Sophie Martin", "particulier", "sophie.martin@exemple.fr", "06 12 34 56 78",
+         "", "Adore la Mangue – Passion.", 1, None),
+        ("Julien Robert", "particulier", "julien.robert@exemple.fr", "06 98 76 54 32",
+         "", "", 0, None),
+        ("Claire Dubois", "particulier", "claire.dubois@exemple.fr", "",
+         "", "Rencontrée au marché du port.", 1, None),
+        ("Comité d'entreprise Atlantique", "professionnel", "ce@atlantique-exemple.fr",
+         "05 46 00 00 00", "Zone industrielle, 17180 Périgny", "Coffrets de fin d'année.", 0, None),
     ]
-    conn.executemany(
-        "INSERT INTO ventes (date_vente, client, lot_id, quantite, prix_unitaire_ttc, canal)"
-        " VALUES (?, ?, ?, ?, ?, ?)",
-        [(d(days), client, lot_ids[li], q, p, canal)
-         for li, days, client, q, p, canal in ventes],
-    )
-    # Une vente datée du jour même, pour que le CA du mois ne soit jamais vide.
+    client_ids = []
+    for c in clients:
+        cur = conn.execute(
+            """INSERT INTO clients (nom, type, email, telephone, adresse, notes, accepte_infos,
+               prix_revendeur_ht, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            (*c, d(-260)),
+        )
+        client_ids.append(cur.lastrowid)
+
+    evenements = [
+        ("Marché de printemps", "marche", -175, None, "Place de Verdun, La Rochelle", 20, 20, None, 1, 1),
+        ("Marché des producteurs", "marche", -118, None, "Halles de Rochefort", 15, 15, None, 1, 1),
+        ("Marché du port", "marche", -12, None, "Vieux-Port, La Rochelle", 15, 12, None, 1, 1),
+        ("Marché de producteurs de Surgères", "marche", 9, None, "Place du Château, Surgères",
+         25, 30, 3, 0, 0),
+        ("Dégustation chez Cave Le Galion", "degustation", 18, None, "Cave Le Galion, La Rochelle",
+         0, 12, None, 1, 0),
+        ("Salon gourmand de La Rochelle", "salon", 38, 40, "Espace Encan, La Rochelle",
+         180, 60, 14, 0, 0),
+        ("Marché de Noël de Rochefort", "marche", 45, 47, "Place Colbert, Rochefort",
+         90, 50, 25, 0, 0),
+    ]
+    evt_ids = []
+    for nom, typ, deb, fin, lieu, place, btl, limite, inscrit, pret in evenements:
+        cur = conn.execute(
+            """INSERT INTO evenements (nom, type, date_debut, date_fin, lieu, cout_place,
+               btl_prevues, date_limite_inscription, inscrit, stock_pret)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            (nom, typ, d(deb), d(fin) if fin else None, lieu, place, btl,
+             d(limite) if limite is not None else None, inscrit, pret),
+        )
+        evt_ids.append(cur.lastrowid)
+
+    def ticket(jours, client_idx, nom, canal, paiement, lignes, evt=None, facture=False):
+        date_vente = d(jours)
+        sous_total = sum(q * p for _, q, p in lignes)
+        client_id = client_ids[client_idx] if client_idx is not None else None
+        adresse = clients[client_idx][4] if client_idx is not None else None
+        cur = conn.execute(
+            """INSERT INTO tickets (numero, date_vente, client_id, client_nom, canal, mode_paiement,
+               evenement_id, sous_total, total, client_adresse, created_at)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            (prochain_numero(conn, "tickets", "numero", "T", date_vente[:4], 4), date_vente,
+             client_id, nom, canal, paiement, evt_ids[evt] if evt is not None else None,
+             sous_total, sous_total, adresse, now),
+        )
+        tid = cur.lastrowid
+        for li, q, p in lignes:
+            conn.execute(
+                "INSERT INTO ventes (ticket_id, date_vente, client, lot_id, quantite,"
+                " prix_unitaire_ttc, canal) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                (tid, date_vente, nom, lot_ids[li], q, p, canal),
+            )
+        if facture:
+            conn.execute(
+                "UPDATE tickets SET facture_numero = ?, facture_date = ? WHERE id = ?",
+                (prochain_numero(conn, "tickets", "facture_numero", "F", date_vente[:4], 4),
+                 date_vente, tid),
+            )
+        return tid
+
+    ticket(-175, None, "Clients du marché", "direct", "especes", [(0, 6, 34.0)], evt=0)
+    ticket(-160, 0, "Cave Le Galion", "revendeur", "virement", [(0, 10, 22.0)], facture=True)
+    ticket(-140, 2, "Sophie Martin", "direct", "carte", [(0, 2, 34.0)])
+    ticket(-118, None, "Clients du marché", "direct", "especes", [(1, 5, 36.0)], evt=1)
+    ticket(-110, 1, "Épicerie fine Bâbord", "revendeur", "virement", [(0, 6, 22.0)], facture=True)
+    ticket(-90, 0, "Cave Le Galion", "revendeur", "virement", [(1, 6, 23.0)], facture=True)
+    ticket(-70, 1, "Épicerie fine Bâbord", "revendeur", "cheque", [(2, 4, 24.0)], facture=True)
+    ticket(-60, 3, "Julien Robert", "direct", "carte", [(1, 1, 36.0)])
+    ticket(-40, 4, "Claire Dubois", "direct", "virement", [(2, 2, 38.0)])
+    ticket(-21, 5, "Comité d'entreprise Atlantique", "direct", "virement",
+           [(1, 3, 33.0), (2, 1, 35.0)], facture=True)
+    ticket(-12, None, "Clients du marché", "direct", "especes", [(2, 3, 38.0)], evt=2)
+    t_sophie = ticket(-3, 2, "Sophie Martin", "direct", "carte", [(1, 2, 36.0)])
+    ticket(0, 4, "Claire Dubois", "direct", "carte", [(2, 1, 38.0)])
+
+    # Consigne : Sophie a pris 2 bouteilles consignées et en a rapporté 1.
+    consigne = 1.0
     conn.execute(
-        "INSERT INTO ventes (date_vente, client, lot_id, quantite, prix_unitaire_ttc, canal)"
-        " VALUES (?, ?, ?, ?, ?, ?)",
-        (today.isoformat(), "Vente à domicile", lot_ids[1], 2, 36.0, "direct"),
+        "UPDATE tickets SET consigne = ?, total = total + ? WHERE id = ?",
+        (2 * consigne, 2 * consigne, t_sophie),
     )
+    conn.executemany(
+        "INSERT INTO consignes (client_id, client_nom, date_mouvement, quantite, montant_unitaire,"
+        " ticket_id) VALUES (?, ?, ?, ?, ?, ?)",
+        [(client_ids[2], "Sophie Martin", d(-3), 2, consigne, t_sophie)],
+    )
+    conn.execute(
+        "INSERT INTO consignes (client_id, client_nom, date_mouvement, quantite, montant_unitaire,"
+        " notes) VALUES (?, ?, ?, ?, ?, ?)",
+        (client_ids[2], "Sophie Martin", d(-1), -1, consigne, "Bouteille rapportée propre"),
+    )
+
+    conn.executemany(
+        "INSERT INTO bons (code, client_id, beneficiaire, montant, motif, date_emission,"
+        " date_expiration) VALUES (?, ?, ?, ?, ?, ?, ?)",
+        [
+            (code_bon(), client_ids[2], "Sophie Martin", 10.0, "Fidélité : 5e bouteille",
+             d(-20), d(20)),
+            (code_bon(), client_ids[4], "Claire Dubois", 5.0, "Merci pour votre visite au marché",
+             d(-10), d(170)),
+        ],
+    )
+
+    # Déclaration URSSAF des mois déjà passés (sauf le dernier, pour le rappel)
+    y, m = today.year, today.month
+    for k in range(1, 8):
+        y, m = (y, m - 1) if m > 1 else (y - 1, 12)
+        if k == 1:
+            continue
+        conn.execute("INSERT OR IGNORE INTO declarations (periode, declare_le) VALUES (?, ?)",
+                     (f"urssaf:{y}-{m:02d}", d(-30 * k + 25)))

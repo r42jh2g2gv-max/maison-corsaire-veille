@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% from "_icones.html" import icone %}
+{% block titre %}Bons d'achat{% endblock %}
+{% block contenu %}
+<div class="titre-page">
+  <div><div class="surtitre">Fidélité</div><h1>Bons d'achat</h1><div class="filet"></div></div>
+</div>
+
+<div class="grille-2-1">
+  <section class="carte">
+    <h2>Tous les bons</h2>
+    {% if bons %}
+    <div class="table-wrap">
+    <table class="empile">
+      <thead><tr><th>Bénéficiaire</th><th>Montant</th><th>Code</th><th>Validité</th><th>Statut</th><th></th></tr></thead>
+      <tbody>
+        {% for b in bons %}{% set st = statut_bon(b) %}
+        <tr>
+          <td class="titre-ligne" data-label="Bénéficiaire">{% if b.client_id %}<a href="{{ url_for('client_detail', client_id=b.client_id) }}">{{ b.beneficiaire }}</a>{% else %}{{ b.beneficiaire or 'Au porteur' }}{% endif %}
+            {% if b.motif %}<br><small>{{ b.motif }}</small>{% endif %}</td>
+          <td class="num" data-label="Montant"><strong>{{ b.montant|euro }}</strong></td>
+          <td data-label="Code"><span class="code">{{ b.code }}</span></td>
+          <td data-label="Validité">{{ b.date_expiration|datefr if b.date_expiration else 'Sans limite' }}</td>
+          <td data-label="Statut"><span class="badge badge-{{ st }}">{{ {'actif': 'Valable', 'utilise': 'Utilisé', 'expire': 'Expiré'}[st] }}</span>
+            {% if b.ticket_numero %}<br><small>{{ b.ticket_numero }}</small>{% endif %}</td>
+          <td data-label="">
+            <div class="groupe-boutons" style="justify-content:flex-end">
+              <button type="button" class="btn btn-ligne btn-petit" onclick="partagerPdf('{{ url_for('bon_pdf_vue', bon_id=b.id) }}', 'Bon-achat-{{ b.code }}.pdf')" aria-label="Partager le bon">{{ icone('partager') }}</button>
+              <a class="btn btn-ligne btn-petit" href="{{ url_for('bon_pdf_vue', bon_id=b.id) }}" target="_blank" aria-label="Imprimer le bon">{{ icone('imprimer') }}</a>
+              {% if st != 'utilise' %}
+              <form method="post" action="{{ url_for('bon_supprimer', bon_id=b.id) }}" class="inline" onsubmit="return confirm('Annuler ce bon ?')">
+                <input type="hidden" name="csrf" value="{{ csrf_token }}">
+                <button class="btn btn-danger btn-petit" aria-label="Annuler le bon">{{ icone('poubelle') }}</button>
+              </form>
+              {% endif %}
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    </div>
+    {% else %}<p class="vide mb0">Aucun bon d'achat pour l'instant.</p>{% endif %}
+  </section>
+
+  <section class="carte bois" id="nouveau">
+    <h2>Créer un bon</h2>
+    <form method="post" action="{{ url_for('bon_creer') }}">
+      <input type="hidden" name="csrf" value="{{ csrf_token }}">
+      <div class="grille" style="gap:12px">
+        <div><label for="client_id">Client</label>
+          <select id="client_id" name="client_id">
+            <option value="">— Bon au porteur / autre personne —</option>
+            {% for c in clients %}<option value="{{ c.id }}" {{ 'selected' if c.id == client_preselect }}>{{ c.nom }}</option>{% endfor %}
+          </select></div>
+        <div><label for="beneficiaire">Ou nom du bénéficiaire</label><input id="beneficiaire" type="text" name="beneficiaire" placeholder="Pour un cadeau, un jeu-concours…"></div>
+        <div><label for="montant">Montant (€)</label><input id="montant" type="number" name="montant" min="1" step="0.5" inputmode="decimal" required value="10"></div>
+        <div><label for="date_expiration">Valable jusqu'au</label><input id="date_expiration" type="date" name="date_expiration" value="{{ expiration_defaut }}"></div>
+        <div><label for="motif">Motif</label><input id="motif" type="text" name="motif" placeholder="Joyeux anniversaire !"></div>
+      </div>
+      <div class="form-actions"><button class="btn btn-or">{{ icone('bon') }}Créer le bon</button></div>
+    </form>
+    <p class="aide mt mb0">Le bon s'utilise en une fois à la caisse avec son code. Il peut être imprimé ou partagé en PDF.</p>
+  </section>
+</div>
+{% endblock %}

@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% from "_icones.html" import icone %}
+{% block titre %}Annoncer une nouveauté{% endblock %}
+{% block contenu %}
+<div class="titre-page">
+  <div><div class="surtitre">Clients</div><h1>Annoncer une nouveauté</h1><div class="filet"></div></div>
+</div>
+
+{% if mailto %}
+<div class="carte encart-ok" style="margin-bottom:16px">
+  <p><strong>Message prêt.</strong> Touchez le bouton pour l'ouvrir dans votre messagerie : les destinataires sont en copie cachée (ils ne voient pas les adresses des autres).</p>
+  <a class="btn btn-or" href="{{ mailto }}">{{ icone('mail') }}Ouvrir dans ma messagerie</a>
+</div>
+{% endif %}
+
+<div class="grille-2-1">
+  <form method="post" class="carte">
+    <input type="hidden" name="csrf" value="{{ csrf_token }}">
+    <div class="grille" style="gap:14px">
+      <div><label for="sujet">Objet</label><input id="sujet" type="text" name="sujet" required value="{{ form.sujet or '' }}" placeholder="Nouveau : rhum arrangé Coco – Citron vert"></div>
+      <div><label for="corps">Message</label>
+        <textarea id="corps" name="corps" rows="8" required placeholder="Notre nouvelle cuvée est prête ! Retrouvez-nous samedi au marché du port…">{{ form.corps or '' }}</textarea>
+        <span class="aide">« Bonjour [nom] » est ajouté au début, puis votre signature, la mention de modération et le lien de désinscription.</span></div>
+    </div>
+
+    <h3 class="mt">Destinataires <span class="aide">({{ abonnes|length }} client(s) ayant accepté)</span></h3>
+    {% if abonnes %}
+    <label class="case" style="margin-bottom:8px"><input type="checkbox" id="tous" checked> <strong>Tout sélectionner</strong></label>
+    <div class="grille" style="gap:6px;max-height:280px;overflow:auto;padding:4px">
+      {% for c in abonnes %}
+      <label class="case"><input type="checkbox" name="destinataires" value="{{ c.id }}" class="dest"
+        {{ 'checked' if not form or (c.id|string) in form.getlist('destinataires') }}> <span>{{ c.nom }} <small>· {{ c.email }}</small></span></label>
+      {% endfor %}
+    </div>
+    {% else %}
+    <p class="vide">Aucun client n'a encore accepté de recevoir vos nouveautés. Cochez la case correspondante sur leur fiche.</p>
+    {% endif %}
+
+    <div class="form-actions">
+      {% if smtp_ok %}<button class="btn btn-or" name="mode" value="smtp" onclick="return confirm('Envoyer ce message maintenant ?')">{{ icone('mail') }}Envoyer depuis l'application</button>{% endif %}
+      <button class="btn {{ 'btn-ligne' if smtp_ok else 'btn-or' }}" name="mode" value="messagerie">{{ icone('message') }}Préparer dans ma messagerie</button>
+    </div>
+  </form>
+
+  <section class="carte">
+    <h2>Derniers envois</h2>
+    {% if historique %}
+    <ul class="liste">
+      {% for m in historique %}
+      <li><div><span class="principal">{{ m.sujet }}</span><br><small>{{ m.date_envoi[:10]|datefr }} · {{ m.nb_destinataires }} destinataire(s) · {{ 'envoyé' if m.mode == 'email' else 'préparé dans la messagerie' }}</small></div></li>
+      {% endfor %}
+    </ul>
+    {% else %}<p class="vide mb0">Aucun message envoyé.</p>{% endif %}
+    <p class="aide mt mb0">Astuce : pour joindre un bon d'achat à chacun, créez-les depuis la fiche du client puis utilisez « Envoyer ».</p>
+  </section>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+var tous = document.getElementById('tous');
+if (tous) tous.addEventListener('change', function () {
+  document.querySelectorAll('.dest').forEach(function (c) { c.checked = tous.checked; });
+});
+</script>
+{% endblock %}

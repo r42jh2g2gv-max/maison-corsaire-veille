@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% from "_icones.html" import icone %}
+{% block titre %}{{ 'Nouvelle recette' if nouveau else recette.nom }}{% endblock %}
+{% block contenu %}
+{% macro ligne(i) %}
+<div class="carte ligne-ing" style="padding:12px;background:var(--surface-2)">
+  <div class="champs c3">
+    <div><label>Catégorie</label><select name="ing_categorie">{% for k, v in CATEGORIES.items() %}<option value="{{ k }}" {{ 'selected' if i and i.categorie == k }}>{{ v }}</option>{% endfor %}</select></div>
+    <div><label>Ingrédient</label><input type="text" name="ing_nom" value="{{ i.nom if i else '' }}" placeholder="ex. Mangue"></div>
+    <div><label>Quantité pour 1 L</label><input type="number" name="ing_qte" step="any" min="0" inputmode="decimal" value="{{ i.quantite_par_litre if i and i.quantite_par_litre is not none else '' }}"></div>
+    <div><label>Unité</label><input type="text" name="ing_unite" list="unites" value="{{ i.unite if i else '' }}" placeholder="L, kg, g, pièce"></div>
+    <div><label>Prix par unité (€) <span class="aide">€/L, €/kg, €/g…</span></label><input type="number" name="ing_cout" step="any" min="0" inputmode="decimal" value="{{ i.cout_unitaire if i and i.cout_unitaire is not none else '' }}"></div>
+    <div style="display:flex;align-items:flex-end"><button type="button" class="btn btn-danger btn-petit retirer">{{ icone('poubelle') }}Retirer</button></div>
+  </div>
+</div>
+{% endmacro %}
+<div class="titre-page"><div><div class="surtitre">Recette</div><h1>{{ 'Nouvelle recette' if nouveau else recette.nom }}</h1><div class="filet"></div></div></div>
+<form method="post" class="grille">
+  <input type="hidden" name="csrf" value="{{ csrf_token }}">
+  <section class="carte">
+    <div class="champs c3">
+      <div><label for="nom">Nom</label><input id="nom" type="text" name="nom" value="{{ recette.nom or '' }}" required></div>
+      <div><label for="duree">Macération (jours)</label><input id="duree" type="number" name="duree_maceration_jours" min="0" inputmode="numeric" value="{{ recette.duree_maceration_jours or 60 }}"></div>
+      <div><label for="degre">Degré final estimé (% vol.)</label><input id="degre" type="number" name="degre" step="0.1" min="0" inputmode="decimal" value="{{ recette.degre if recette.degre is not none else '' }}"></div>
+      <div class="large" style="grid-column:1/-1"><label for="notes_degustation">Notes de dégustation</label><textarea id="notes_degustation" name="notes_degustation" rows="2">{{ recette.notes_degustation or '' }}</textarea></div>
+      <div class="large" style="grid-column:1/-1"><label for="instructions">Étapes de préparation</label><textarea id="instructions" name="instructions" rows="6" placeholder="1. Peler et couper les fruits…">{{ recette.instructions or '' }}</textarea></div>
+    </div>
+  </section>
+  <section class="carte">
+    <div class="carte-tete"><h2>Ingrédients pour 1 litre</h2><button type="button" class="btn btn-ligne btn-petit" id="ajouter">{{ icone('plus') }}Ajouter</button></div>
+    <div class="grille" id="ingredients" style="gap:10px">
+      {% for i in ingredients %}{{ ligne(i) }}{% endfor %}
+      {% if not ingredients %}{{ ligne(None) }}{{ ligne(None) }}{{ ligne(None) }}{% endif %}
+    </div>
+    <template id="modele">{{ ligne(None) }}</template>
+    <datalist id="unites"><option value="L"><option value="cl"><option value="ml"><option value="kg"><option value="g"><option value="pièce"></datalist>
+  </section>
+  <div class="form-actions" style="margin-top:0">
+    <button class="btn btn-or">{{ 'Créer la recette' if nouveau else 'Enregistrer' }}</button>
+    <a class="btn btn-ligne" href="{{ url_for('recettes') }}">Annuler</a>
+  </div>
+</form>
+{% endblock %}
+{% block scripts %}
+<script>
+(function () {
+  var liste = document.getElementById('ingredients');
+  document.getElementById('ajouter').addEventListener('click', function () {
+    liste.appendChild(document.getElementById('modele').content.cloneNode(true));
+  });
+  liste.addEventListener('click', function (e) {
+    var b = e.target.closest('.retirer');
+    if (b) b.closest('.ligne-ing').remove();
+  });
+})();
+</script>
+{% endblock %}

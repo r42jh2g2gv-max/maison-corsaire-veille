@@ -1,0 +1,15 @@
+<div class="champs c3">
+  <div class="large" style="grid-column:1/-1"><label for="e-nom">Nom</label><input id="e-nom" type="text" name="nom" value="{{ evenement.nom or '' }}" required placeholder="Marché de producteurs de…"></div>
+  <div><label for="e-type">Type</label><select id="e-type" name="type">{% for k, v in TYPES_EVENEMENTS.items() %}<option value="{{ k }}" {{ 'selected' if evenement.type == k }}>{{ v }}</option>{% endfor %}</select></div>
+  <div><label for="e-debut">Date</label><input id="e-debut" type="date" name="date_debut" value="{{ evenement.date_debut or '' }}" required></div>
+  <div><label for="e-fin">Jusqu'au <span class="aide">(si plusieurs jours)</span></label><input id="e-fin" type="date" name="date_fin" value="{{ evenement.date_fin or '' }}"></div>
+  <div><label for="e-lieu">Lieu</label><input id="e-lieu" type="text" name="lieu" value="{{ evenement.lieu or '' }}"></div>
+  <div><label for="e-place">Prix de la place (€)</label><input id="e-place" type="number" name="cout_place" step="0.01" min="0" inputmode="decimal" value="{{ evenement.cout_place if evenement.cout_place is not none else '' }}"></div>
+  <div><label for="e-btl">Bouteilles à emporter</label><input id="e-btl" type="number" name="btl_prevues" min="0" inputmode="numeric" value="{{ evenement.btl_prevues or '' }}"></div>
+  <div><label for="e-limite">Inscription avant le</label><input id="e-limite" type="date" name="date_limite_inscription" value="{{ evenement.date_limite_inscription or '' }}"></div>
+  <div style="display:flex;flex-direction:column;justify-content:flex-end;gap:8px">
+    <label class="case"><input type="checkbox" name="inscrit" value="1" {{ 'checked' if evenement.inscrit }}> Inscrit</label>
+    <label class="case"><input type="checkbox" name="stock_pret" value="1" {{ 'checked' if evenement.stock_pret }}> Stock préparé</label>
+  </div>
+  <div class="large" style="grid-column:1/-1"><label for="e-notes">Notes</label><textarea id="e-notes" name="notes" rows="2" placeholder="Contact organisateur, matériel à prévoir (tonnelle, nappe, verres de dégustation)…">{{ evenement.notes or '' }}</textarea></div>
+</div>

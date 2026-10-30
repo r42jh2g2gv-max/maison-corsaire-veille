@@ -1,7 +1,9 @@
 # Maison Corsaire — Gestion
 
-Application web pour gérer la production de rhum arrangé : registre des lots,
-coût de revient et prix, stock et ventes. Fonctionne sur téléphone et ordinateur.
+Application web de gestion pour une production artisanale de rhum arrangé :
+lots, recettes, caisse, clients, stock, agenda, chiffres et tableurs.
+Thème sombre bleu nuit, bois et or (thème clair « plein soleil » en option),
+pensée d'abord pour le téléphone.
 
 ## Démarrer
 
@@ -19,25 +21,42 @@ Ouvrez ensuite http://127.0.0.1:5000
 Changez-le dans *Paramètres → Mon compte*.
 
 Au premier lancement, la base `instance/corsaire.db` est créée avec des données
-d'exemple (5 lots, 4 recettes, matières, ventes). Pour démarrer votre vrai
-registre : *Paramètres → Données → Tout effacer et démarrer*.
+d'exemple. Pour démarrer votre vrai registre : *Paramètres → Données → Tout effacer et démarrer*.
 
-Pour l'utiliser depuis votre téléphone sur le même Wi-Fi : `HOST=0.0.0.0 python app.py`,
-puis ouvrez `http://<adresse-IP-de-l-ordinateur>:5000`.
+Sur le téléphone (même Wi-Fi) : `HOST=0.0.0.0 python app.py`, puis ouvrez
+`http://<adresse-IP-de-l-ordinateur>:5000`. Dans Safari, « Partager → Sur l'écran
+d'accueil » l'installe comme une application.
 
-## Modules
+## Pages
 
-| Module | Contenu |
+| Page | Contenu |
 | --- | --- |
-| Tableau de bord | CA du mois, bouteilles en stock, marge moyenne, prochains lots prêts, alertes de stock, CA sur 6 mois |
-| Registre des lots | Numéro automatique `MC-AAAA-NNN`, dates, DLC/DDM, statut, ingrédients avec quantités et coûts, fiche de traçabilité imprimable en PDF |
-| Calculateur | Coût de revient par bouteille (ingrédients + bouteille, bouchon, étiquette, emballage + droits), prix HT/TTC selon la marge, comparaison vente directe / revendeur |
-| Stock & ventes | Stock par lot, matières avec seuil d'alerte, enregistrement des ventes avec mise à jour automatique du stock |
+| Accueil | CA du mois, stock, marge, lots en cours, **À faire** (rappels), CA sur 6 mois |
+| Caisse | Encaissement au doigt : produits, quantités, client, bon d'achat, consigne, espèces/carte/virement/chèque, rendu de monnaie, rattachement à un marché |
+| Tickets & factures | Ticket PDF (80 mm) et facture PDF (A4, numérotation continue, mentions micro-entreprise), à imprimer, partager (Mail, SMS, WhatsApp) ou envoyer par email |
+| Lots | Registre de traçabilité, ingrédients et coûts, statuts, fiche lot imprimable |
+| Recettes | Bibliothèque (quantités pour 1 L, prix des ingrédients, étapes, dégustation), fiche imprimable recalculée pour N litres, bouton « Lancer un lot » |
+| Stock | Bouteilles par lot, matières avec seuils d'alerte (déduites à l'embouteillage) |
+| Clients | Fichier clients avec consentement RGPD, historique d'achats, bons d'achat, consignes, suppression |
+| Bons d'achat | Création, PDF, partage ou email, utilisation unique en caisse avec code |
+| Nouveautés | Message aux clients qui l'ont accepté (copie cachée ou envoi individuel) |
+| Agenda | Marchés et salons : inscription, stock à préparer, bilan (CA, coûts, place, bénéfice) |
+| Chiffres | CA URSSAF à déclarer par mois ou trimestre, cotisations estimées, volumes d'alcool pur (douanes) |
+| Tableurs | Excel : livre des recettes, ventes détaillées, lots, stock, clients, recettes, classeur complet |
+| Calculateur | Coût de revient par bouteille, prix direct et revendeur selon la marge |
 
-Règles automatiques :
-- passer un lot à **Embouteillé** déduit 1 unité de chaque matière « par bouteille » ; revenir en arrière ou corriger le nombre de bouteilles réajuste le stock ;
-- une vente est refusée si le stock du lot est insuffisant ; le lot passe à **Épuisé** quand tout est vendu ;
-- supprimer une vente remet les bouteilles en stock.
+## Rappels automatiques (« À faire »)
+
+Déclaration URSSAF à faire ou en retard · inscription à un marché avant la date limite ·
+stock à préparer avant un événement (et alerte si insuffisant) · lot prêt à embouteiller ou
+à goûter · matière sous le seuil · DLC proche · bon d'achat qui expire · revendeur sans
+commande depuis 45 jours.
+
+## Envoi d'emails (facultatif)
+
+Sans configuration, « Partager le PDF » ouvre la messagerie du téléphone avec le document
+joint. Pour envoyer directement depuis l'application, renseignez un serveur SMTP dans
+*Paramètres → Envoi d'emails* (Gmail : `smtp.gmail.com`, port 587, mot de passe d'application).
 
 ## Configuration (variables d'environnement)
 
@@ -48,4 +67,11 @@ Règles automatiques :
 | `SECRET_KEY` | Clé de session | générée dans `instance/secret_key` |
 | `ADMIN_EMAIL`, `ADMIN_PASSWORD` | Compte créé au premier lancement | compte de démonstration |
 
-Sauvegarde : copiez simplement le fichier `instance/corsaire.db`.
+Sauvegarde : copiez le fichier `instance/corsaire.db`, ou téléchargez le classeur Excel complet.
+Une base créée avec une version précédente est mise à jour automatiquement au démarrage.
+
+## Organisation du code
+
+`app.py` (démarrage) · `noyau.py` (application, outils, sécurité) · `db.py` (schéma,
+migrations, données d'exemple) · `calculs.py` · `rappels.py` · `pdfs.py` · `emails.py` ·
+`vues_*.py` (une page ou un groupe de pages par fichier) · `templates/` · `static/`.

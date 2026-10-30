@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block titre %}{{ 'Nouveau client' if nouveau else client.nom }}{% endblock %}
+{% block contenu %}
+<div class="titre-page"><div><div class="surtitre">Fiche client</div><h1>{{ 'Nouveau client' if nouveau else 'Modifier ' ~ client.nom }}</h1><div class="filet"></div></div></div>
+<form method="post" class="carte">
+  <input type="hidden" name="csrf" value="{{ csrf_token }}">
+  {% if request.args.retour %}<input type="hidden" name="retour" value="{{ request.args.retour }}">{% endif %}
+  <div class="champs">
+    <div><label for="nom">Nom ou raison sociale</label><input id="nom" type="text" name="nom" value="{{ client.nom or '' }}" required></div>
+    <div><label for="type">Type</label>
+      <select id="type" name="type">{% for k, v in TYPES_CLIENTS.items() %}<option value="{{ k }}" {{ 'selected' if client.type == k }}>{{ v }}</option>{% endfor %}</select></div>
+    <div><label for="email">Email</label><input id="email" type="email" name="email" value="{{ client.email or '' }}"></div>
+    <div><label for="telephone">Téléphone</label><input id="telephone" type="tel" name="telephone" value="{{ client.telephone or '' }}"></div>
+    <div class="large"><label for="adresse">Adresse <span class="aide">(utile pour les factures)</span></label><input id="adresse" type="text" name="adresse" value="{{ client.adresse or '' }}"></div>
+    <div id="bloc-prix"><label for="prix_revendeur_ht">Prix revendeur négocié (€ HT / bouteille)</label>
+      <input id="prix_revendeur_ht" type="number" step="0.01" min="0" name="prix_revendeur_ht" inputmode="decimal" value="{{ client.prix_revendeur_ht if client.prix_revendeur_ht is not none else '' }}">
+      <span class="aide">Laisser vide pour utiliser le prix revendeur du lot.</span></div>
+    <div class="large"><label for="notes">Notes</label><textarea id="notes" name="notes" placeholder="Goûts, habitudes de commande…">{{ client.notes or '' }}</textarea></div>
+    <div class="large"><label class="case"><input type="checkbox" name="accepte_infos" value="1" {{ 'checked' if client.accepte_infos }}>
+      <span>Le client accepte de recevoir les nouveautés et bons d'achat par email<br><span class="aide">Obligatoire (RGPD) avant tout envoi. Cochez uniquement si le client vous l'a dit ou écrit.</span></span></label></div>
+  </div>
+  <div class="form-actions">
+    <button class="btn btn-or">{{ 'Ajouter le client' if nouveau else 'Enregistrer' }}</button>
+    <a class="btn btn-ligne" href="{{ url_for('clients') if nouveau else url_for('client_detail', client_id=client.id) }}">Annuler</a>
+  </div>
+</form>
+{% endblock %}

@@ -1,0 +1,110 @@
+{% extends "base.html" %}
+{% from "_icones.html" import icone %}
+{% block titre %}Ticket {{ ticket.numero }}{% endblock %}
+{% block contenu %}
+{% set email_client = client.email if client and client.email else '' %}
+{% if nouveau %}
+<div class="carte encart-ok" style="margin-bottom:16px;display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between">
+  <div><strong style="font-size:1.15rem">Vente encaissée : {{ ticket.total|euro }}</strong><br>
+    <span class="doux">{{ MODES_PAIEMENT[ticket.mode_paiement] }} · stock mis à jour</span></div>
+  <a class="btn btn-or" href="{{ url_for('caisse') }}">{{ icone('caisse') }}Nouvelle vente</a>
+</div>
+{% endif %}
+
+<div class="titre-page">
+  <div>
+    <div class="surtitre">{{ 'Facture ' ~ ticket.facture_numero if ticket.facture_numero else 'Ticket de caisse' }}</div>
+    <h1>{{ ticket.numero }}</h1>
+    <div class="sous-titre">{{ ticket.date_vente|datefr }} · {% if client %}<a href="{{ url_for('client_detail', client_id=client.id) }}">{{ ticket.client_nom }}</a>{% else %}{{ ticket.client_nom }}{% endif %}
+      {% if evenement %} · {{ evenement.nom }}{% endif %}</div>
+  </div>
+</div>
+
+<div class="grille-2-1">
+  <section class="carte">
+    <h2>Détail</h2>
+    <div class="table-wrap">
+    <table class="empile">
+      <thead><tr><th>Produit</th><th>Lot</th><th class="droite">Qté</th><th class="droite">Prix unit.</th><th class="droite">Total</th></tr></thead>
+      <tbody>
+        {% for l in lignes %}
+        <tr>
+          <td class="titre-ligne" data-label="Produit">{{ l.recette_nom }} <small>{{ l.volume_cl }} cl</small></td>
+          <td data-label="Lot"><a class="code" href="{{ url_for('lot_detail', lot_id=l.lot_id) }}">{{ l.numero }}</a></td>
+          <td class="droite num" data-label="Quantité">{{ l.quantite }}</td>
+          <td class="droite num" data-label="Prix unit.">{{ l.prix_unitaire_ttc|euro }}</td>
+          <td class="droite num" data-label="Total">{{ (l.quantite * l.prix_unitaire_ttc)|euro }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    </div>
+    <div class="mt" style="max-width:360px;margin-left:auto">
+      <div class="ligne-detail"><span>Sous-total</span><span class="num">{{ ticket.sous_total|euro }}</span></div>
+      {% if ticket.remise %}<div class="ligne-detail"><span>Bon d'achat <span class="code">{{ bon }}</span></span><span class="num">− {{ ticket.remise|euro }}</span></div>{% endif %}
+      {% if ticket.consigne %}<div class="ligne-detail"><span>Consigne</span><span class="num">{{ ticket.consigne|euro }}</span></div>{% endif %}
+      <div class="total-caisse"><span>Total</span><strong>{{ ticket.total|euro }}</strong></div>
+      <div class="ligne-detail"><span>Réglé par</span><span>{{ MODES_PAIEMENT[ticket.mode_paiement] }}</span></div>
+      <div class="ligne-detail"><span>Canal</span><span>{{ 'Revendeur' if ticket.canal == 'revendeur' else 'Vente directe' }}</span></div>
+    </div>
+    {% if ticket.notes %}<p class="mt mb0 doux">Note : {{ ticket.notes }}</p>{% endif %}
+  </section>
+
+  <div class="grille">
+    <section class="carte">
+      <h2>Ticket</h2>
+      <div class="grille" style="gap:8px">
+        <a class="btn btn-ligne" href="{{ url_for('ticket_pdf_vue', ticket_id=ticket.id) }}" target="_blank">{{ icone('imprimer') }}Imprimer le ticket</a>
+        <button type="button" class="btn btn-ligne" onclick="partagerPdf('{{ url_for('ticket_pdf_vue', ticket_id=ticket.id) }}', 'Ticket-{{ ticket.numero }}.pdf', 'Votre ticket de caisse')">{{ icone('partager') }}Partager le PDF (Mail, SMS, WhatsApp…)</button>
+      </div>
+      {% if smtp_ok %}
+      <form method="post" action="{{ url_for('ticket_envoyer', ticket_id=ticket.id) }}" class="mt">
+        <input type="hidden" name="csrf" value="{{ csrf_token }}"><input type="hidden" name="document" value="ticket">
+        <label for="email-ticket">Envoyer par email</label>
+        <div style="display:flex;gap:8px"><input id="email-ticket" type="email" name="email" value="{{ email_client }}" placeholder="email du client" required>
+          <button class="btn">{{ icone('mail') }}Envoyer</button></div>
+      </form>
+      {% endif %}
+    </section>
+
+    <section class="carte">
+      <h2>Facture</h2>
+      {% if ticket.facture_numero %}
+        <p>Facture <strong class="code">{{ ticket.facture_numero }}</strong> du {{ ticket.facture_date|datefr }}.</p>
+        <div class="grille" style="gap:8px">
+          <a class="btn btn-ligne" href="{{ url_for('facture_pdf_vue', ticket_id=ticket.id) }}" target="_blank">{{ icone('facture') }}Ouvrir la facture</a>
+          <button type="button" class="btn btn-ligne" onclick="partagerPdf('{{ url_for('facture_pdf_vue', ticket_id=ticket.id) }}', 'Facture-{{ ticket.facture_numero }}.pdf', 'Votre facture')">{{ icone('partager') }}Partager le PDF</button>
+        </div>
+        {% if smtp_ok %}
+        <form method="post" action="{{ url_for('ticket_envoyer', ticket_id=ticket.id) }}" class="mt">
+          <input type="hidden" name="csrf" value="{{ csrf_token }}"><input type="hidden" name="document" value="facture">
+          <label for="email-facture">Envoyer par email</label>
+          <div style="display:flex;gap:8px"><input id="email-facture" type="email" name="email" value="{{ email_client }}" required>
+            <button class="btn">{{ icone('mail') }}Envoyer</button></div>
+        </form>
+        {% endif %}
+      {% else %}
+        <form method="post" action="{{ url_for('facture_creer', ticket_id=ticket.id) }}">
+          <input type="hidden" name="csrf" value="{{ csrf_token }}">
+          <div class="grille" style="gap:12px">
+            <div><label for="f-nom">Facturé à</label><input id="f-nom" type="text" name="client_nom" value="{{ ticket.client_nom if ticket.client_nom not in ('Client de passage', 'Clients du marché') else '' }}" required></div>
+            <div><label for="f-adresse">Adresse <span class="aide">(obligatoire pour un professionnel)</span></label>
+              <input id="f-adresse" type="text" name="client_adresse" value="{{ ticket.client_adresse or (client.adresse if client else '') or '' }}"></div>
+            {% if client and not client.adresse %}<label class="case"><input type="checkbox" name="memoriser" value="1" checked> Enregistrer cette adresse sur la fiche client</label>{% endif %}
+          </div>
+          <div class="form-actions"><button class="btn btn-or">{{ icone('facture') }}Établir la facture</button></div>
+          <p class="aide mb0">Numérotation continue (F-{{ today[:4] }}-…). Une facture émise ne peut plus être supprimée.</p>
+        </form>
+      {% endif %}
+      {% if not smtp_ok %}<p class="aide mt mb0">Pour envoyer directement par email depuis l'application, configurez l'envoi dans <a href="{{ url_for('parametres') }}#emails">Paramètres → Emails</a>. Sinon, « Partager le PDF » ouvre Mail, Messages ou WhatsApp sur le téléphone.</p>{% endif %}
+    </section>
+
+    {% if not ticket.facture_numero %}
+    <form method="post" action="{{ url_for('ticket_supprimer', ticket_id=ticket.id) }}" onsubmit="return confirm('Annuler cette vente ? Les bouteilles seront remises en stock.')">
+      <input type="hidden" name="csrf" value="{{ csrf_token }}">
+      <button class="btn btn-danger btn-plein">{{ icone('poubelle') }}Annuler cette vente</button>
+    </form>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

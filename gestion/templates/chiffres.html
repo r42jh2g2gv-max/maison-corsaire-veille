@@ -1,0 +1,110 @@
+{% extends "base.html" %}
+{% from "_icones.html" import icone %}
+{% block titre %}Chiffres & déclarations{% endblock %}
+{% block contenu %}
+<div class="titre-page">
+  <div><div class="surtitre">Comptabilité micro-entreprise</div><h1>Chiffres &amp; déclarations</h1><div class="filet"></div></div>
+</div>
+
+<nav class="filtres" aria-label="Sections">
+  <a href="#urssaf" class="actif">URSSAF</a><a href="#douanes">Douanes</a><a href="#tableurs">Tableurs</a>
+</nav>
+
+{% if choisie %}
+<section class="carte bois" id="urssaf">
+  <div class="surtitre">Déclaration de {{ choisie.libelle }}</div>
+  <div class="aide" style="text-transform:uppercase;letter-spacing:.12em;margin-top:10px">Chiffre d'affaires à déclarer</div>
+  <div class="prix-grand" style="font-size:clamp(2.2rem, 9vw, 3.2rem);margin:6px 0">{{ choisie.ca|euro }}</div>
+  <p class="doux">{{ choisie.tickets }} vente(s) · case « Vente de marchandises (BIC) » · hors consignes, bons d'achat déduits</p>
+  <div style="max-width:520px">
+    <div class="ligne-detail" style="color:var(--texte)"><span>Cotisations sociales ({{ taux|nombre(1) }} %)</span><span class="num">{{ choisie.cotisations|euro }}</span></div>
+    <div class="ligne-detail" style="color:var(--texte)"><span>Formation professionnelle ({{ cfp|nombre(2) }} %)</span><span class="num">{{ choisie.cfp|euro }}</span></div>
+    <div class="total-caisse" style="border-top:1px solid var(--bois-bord);margin-top:6px"><span>Total estimé à payer</span><strong style="font-size:1.6rem">{{ (choisie.cotisations + choisie.cfp)|euro }}</strong></div>
+    <p class="mb0">Date limite : <strong>{{ choisie.echeance|datefr }}</strong> ({{ choisie.echeance|jours }})</p>
+  </div>
+  <div class="form-actions">
+    <form method="post" action="{{ url_for('chiffres_declarer') }}" class="inline">
+      <input type="hidden" name="csrf" value="{{ csrf_token }}"><input type="hidden" name="periode" value="{{ choisie.cle }}"><input type="hidden" name="montant" value="{{ choisie.ca }}">
+      {% if choisie.declaration %}
+        <span class="badge badge-ok">Déclarée le {{ choisie.declaration.declare_le|datefr }}</span>
+        <input type="hidden" name="action" value="annuler"><button class="btn-lien" style="color:var(--texte-doux)">annuler</button>
+      {% else %}
+        <button class="btn btn-or">{{ icone('check') }}Marquer comme déclarée</button>
+      {% endif %}
+    </form>
+    <a class="btn btn-ligne" href="https://www.autoentrepreneur.urssaf.fr" target="_blank" rel="noopener">autoentrepreneur.urssaf.fr ↗</a>
+  </div>
+  <p class="aide mt mb0">Estimation indicative : vérifiez les taux en vigueur ({{ 'mensuelle' if periodicite == 'mensuelle' else 'trimestrielle' }}, modifiable dans <a href="{{ url_for('parametres') }}#fiscalite">Paramètres</a>).</p>
+</section>
+
+<section class="carte mt">
+  <h2>Périodes précédentes</h2>
+  <div class="table-wrap">
+  <table class="empile">
+    <thead><tr><th>Période</th><th class="droite">CA</th><th class="droite">Cotisations</th><th>Échéance</th><th>État</th></tr></thead>
+    <tbody>
+      {% for p in periodes %}
+      <tr>
+        <td class="titre-ligne" data-label="Période"><a href="{{ url_for('chiffres', periode=p.cle) }}#urssaf">{{ p.libelle|capitalize }}</a></td>
+        <td class="droite num" data-label="CA">{{ p.ca|euro }}</td>
+        <td class="droite num" data-label="Cotisations">{{ (p.cotisations + p.cfp)|euro }}</td>
+        <td data-label="Échéance">{{ p.echeance|datefr }}</td>
+        <td data-label="État">{% if p.declaration %}<span class="badge badge-ok">Déclarée</span>{% elif p.echeance < today %}<span class="badge badge-retard">{{ 'En retard' if p.ca else 'Néant' }}</span>{% else %}<span class="badge badge-urgent">À déclarer</span>{% endif %}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+</section>
+{% endif %}
+
+<section class="carte mt" id="douanes">
+  <h2>Douanes : volumes d'alcool</h2>
+  <p class="doux">Entrées (bouteilles embouteillées) et sorties (bouteilles vendues) par mois, en litres d'alcool pur (L AP), pour tenir votre comptabilité matières. Stock actuel : <strong>{{ stock_lap|nombre(3) }} L AP</strong>.</p>
+  <div class="table-wrap">
+  <table class="empile">
+    <thead><tr><th>Mois</th><th class="droite">Embouteillé (btl)</th><th class="droite">Entrées L AP</th><th class="droite">Vendu (btl)</th><th class="droite">Volume vendu (L)</th><th class="droite">Sorties L AP</th></tr></thead>
+    <tbody>
+      {% for d in douanes %}
+      <tr>
+        <td class="titre-ligne" data-label="Mois">{{ d.mois|capitalize }}</td>
+        <td class="droite num" data-label="Embouteillé">{{ d.entrees.btl }}</td>
+        <td class="droite num" data-label="Entrées L AP">{{ d.entrees.lap|nombre(3) }}</td>
+        <td class="droite num" data-label="Vendu">{{ d.sorties.btl }}</td>
+        <td class="droite num" data-label="Volume vendu">{{ d.sorties.litres|nombre(2) }}</td>
+        <td class="droite num" data-label="Sorties L AP"><strong>{{ d.sorties.lap|nombre(3) }}</strong></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  <p class="aide mt mb0">Les obligations déclaratives dépendent de votre statut auprès des douanes : rapprochez-vous de votre bureau de douane pour connaître les échéances qui s'appliquent à vous.</p>
+</section>
+
+<section class="carte mt" id="tableurs">
+  <h2>Tableurs téléchargeables</h2>
+  <p class="doux">Fichiers Excel (.xlsx), lisibles aussi dans Numbers, Google Sheets ou LibreOffice. Choisissez une période pour les ventes.</p>
+  <form method="get" id="periode-export" class="champs" style="margin-bottom:16px">
+    <div><label for="debut">Du</label><input id="debut" type="date" name="debut" value="{{ debut_annee }}"></div>
+    <div><label for="fin">Au</label><input id="fin" type="date" name="fin" value="{{ today }}"></div>
+  </form>
+  <div class="grille-cartes c3">
+    {% for nom, label in EXPORTS.items() %}
+    <a class="carte carte-lien export" style="display:flex;gap:12px;align-items:center;background:var(--surface-2)" href="{{ url_for('export', nom=nom) }}">
+      <span class="texte-or" style="width:28px;flex:none">{{ icone('tableur') }}</span>
+      <span><strong>{{ label }}</strong><br><small>{% if nom == 'livre-recettes' %}Obligatoire en micro-entreprise{% elif nom == 'ventes' %}Ligne par ligne, avec marges{% elif nom == 'lots' %}Traçabilité + ingrédients{% elif nom == 'stock' %}Bouteilles et matières{% elif nom == 'clients' %}Coordonnées, achats, bons{% elif nom == 'recettes' %}Ingrédients pour 1 L{% else %}Tout, en un fichier (sauvegarde){% endif %}</small></span>
+    </a>
+    {% endfor %}
+  </div>
+</section>
+{% endblock %}
+{% block scripts %}
+<script>
+document.querySelectorAll('a.export').forEach(function (a) {
+  a.addEventListener('click', function () {
+    var base = a.getAttribute('href').split('?')[0];
+    a.href = base + '?debut=' + document.getElementById('debut').value + '&fin=' + document.getElementById('fin').value;
+  });
+});
+</script>
+{% endblock %}

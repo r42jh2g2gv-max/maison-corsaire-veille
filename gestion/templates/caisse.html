@@ -1,0 +1,270 @@
+{% extends "base.html" %}
+{% from "_icones.html" import icone %}
+{% block titre %}Caisse{% endblock %}
+{% block contenu %}
+<div class="titre-page">
+  <div><div class="surtitre">Mode marché</div><h1>Caisse</h1><div class="filet"></div></div>
+  <div class="actions"><a class="btn btn-ligne btn-petit" href="{{ url_for('ventes') }}">{{ icone('ventes') }}Historique</a></div>
+</div>
+
+<form method="post" id="form-caisse" class="caisse" autocomplete="off">
+  <input type="hidden" name="csrf" value="{{ csrf_token }}">
+  <input type="hidden" name="panier" id="panier">
+  <input type="hidden" name="client_id" id="client_id" value="{{ form.client_id or client_preselect or '' }}">
+
+  <div class="grille">
+    <div class="carte" style="display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end">
+      <div style="flex:1 1 220px;min-width:0">
+        <label for="evenement_id">Événement</label>
+        <select id="evenement_id" name="evenement_id">
+          <option value="">Vente hors événement</option>
+          {% for e in evenements %}
+          <option value="{{ e.id }}" {{ 'selected' if (form.evenement_id or evt_du_jour)|string == e.id|string }}>{{ e.nom }} — {{ e.date_debut|datecourte }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div>
+        <label>Canal</label>
+        <div class="segment" role="radiogroup" aria-label="Canal de vente">
+          <label><input type="radio" name="canal" value="direct" {{ 'checked' if form.canal != 'revendeur' }}><span>Direct</span></label>
+          <label><input type="radio" name="canal" value="revendeur" {{ 'checked' if form.canal == 'revendeur' }}><span>Revendeur</span></label>
+        </div>
+      </div>
+    </div>
+
+    {% if produits %}
+    <div class="produits" id="produits">
+      {% for p in produits %}
+      <button type="button" class="produit" data-id="{{ p.id }}">
+        <span class="pastille" aria-hidden="true"></span>
+        <span class="texte-or" style="width:24px">{{ icone('lot') }}</span>
+        <span class="nom-produit">{{ p.nom }}</span>
+        <span class="lot-produit"><span class="code">{{ p.numero }}</span> · <span class="dispo">{{ p.stock }}</span> dispo.</span>
+        <span class="prix-produit"></span>
+      </button>
+      {% endfor %}
+    </div>
+    <p class="aide mb0">Touchez un produit pour l'ajouter. Touchez à nouveau pour une bouteille de plus.</p>
+    {% else %}
+    <div class="carte"><p class="vide mb0">Aucune bouteille en stock. Passez un lot au statut « Embouteillé » pour pouvoir vendre.</p></div>
+    {% endif %}
+  </div>
+
+  <section class="carte panier-carte" id="panier-carte">
+    <div class="carte-tete"><h2>Panier</h2><button type="button" class="btn-lien" id="vider" style="color:var(--texte-doux)">Vider</button></div>
+
+    <label for="client_nom">Client <span class="aide">(facultatif)</span></label>
+    <input id="client_nom" type="search" name="client_nom" list="liste-clients" placeholder="Client de passage" value="{{ form.client_nom or '' }}">
+    <datalist id="liste-clients">{% for c in clients %}<option value="{{ c.nom }}">{% endfor %}</datalist>
+    <div class="aide" id="info-client" style="margin-top:6px"></div>
+
+    <div id="lignes" class="mt"></div>
+    <p class="vide" id="panier-vide">Panier vide.</p>
+
+    <details class="mt" id="options-plus">
+      <summary>Bon d'achat · consigne · date</summary>
+      <div class="grille mt">
+        <div>
+          <label for="bon_code">Code bon d'achat</label>
+          <div style="display:flex;gap:8px">
+            <input id="bon_code" type="text" name="bon_code" value="{{ form.bon_code or '' }}" placeholder="MC-XXXX-XXXX" style="text-transform:uppercase">
+            <button type="button" class="btn btn-petit" id="verifier-bon">Vérifier</button>
+          </div>
+          <div class="aide" id="info-bon" style="margin-top:6px"></div>
+        </div>
+        <div class="champs">
+          <div><label for="consigne_btl">Bouteilles consignées <span class="aide">(+{{ consigne_montant|euro }})</span></label>
+            <input id="consigne_btl" type="number" name="consigne_btl" min="0" step="1" inputmode="numeric" value="{{ form.consigne_btl or 0 }}"></div>
+          <div><label for="consigne_retour">Bouteilles rapportées <span class="aide">(−{{ consigne_montant|euro }})</span></label>
+            <input id="consigne_retour" type="number" name="consigne_retour" min="0" step="1" inputmode="numeric" value="{{ form.consigne_retour or 0 }}"></div>
+        </div>
+        <div class="champs">
+          <div><label for="date_vente">Date</label><input id="date_vente" type="date" name="date_vente" value="{{ form.date_vente or today }}"></div>
+          <div><label for="notes">Note</label><input id="notes" type="text" name="notes" value="{{ form.notes or '' }}"></div>
+        </div>
+      </div>
+    </details>
+
+    <div class="mt">
+      <div class="ligne-detail"><span>Sous-total</span><span class="num" id="d-sous-total">0,00 €</span></div>
+      <div class="ligne-detail" id="l-remise" hidden><span>Bon d'achat</span><span class="num" id="d-remise"></span></div>
+      <div class="ligne-detail" id="l-consigne" hidden><span>Consigne</span><span class="num" id="d-consigne"></span></div>
+      <div class="total-caisse"><span>Total</span><strong id="d-total">0,00 €</strong></div>
+    </div>
+
+    <div class="paiements" role="radiogroup" aria-label="Mode de paiement">
+      {% for k, v in MODES_PAIEMENT.items() %}
+      <label><input type="radio" name="mode_paiement" value="{{ k }}" {{ 'checked' if (form.mode_paiement or 'especes') == k }}><span>{{ v }}</span></label>
+      {% endfor %}
+    </div>
+    <div id="rendu" class="mt" hidden>
+      <label for="recu">Montant reçu en espèces</label>
+      <div style="display:flex;gap:10px;align-items:center">
+        <input id="recu" type="number" min="0" step="0.01" inputmode="decimal" style="max-width:140px">
+        <strong id="a-rendre" class="num"></strong>
+      </div>
+    </div>
+    <button class="btn btn-or btn-plein mt" type="submit" id="encaisser" disabled style="min-height:56px;font-size:1.1rem">Encaisser</button>
+  </section>
+</form>
+{% endblock %}
+{% block scripts %}
+<script>
+(function () {
+  var PRODUITS = {{ produits|tojson }};
+  var CLIENTS = {{ clients|tojson }};
+  var CONSIGNE = {{ consigne_montant|tojson }};
+  var parId = {}; PRODUITS.forEach(function (p) { parId[p.id] = p; });
+  var panier = [];  // {id, quantite, prix, manuel}
+  var remise = 0;
+  var $ = function (id) { return document.getElementById(id); };
+  var eur = function (v) { return (v || 0).toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' }); };
+  var canal = function () { return document.querySelector('input[name=canal]:checked').value; };
+  var client = function () {
+    var id = parseInt($('client_id').value, 10);
+    return CLIENTS.find(function (c) { return c.id === id; });
+  };
+
+  function prixDefaut(p) {
+    if (canal() === 'revendeur') {
+      var c = client();
+      return (c && c.prix_rev) || p.prix_rev || p.prix;
+    }
+    return p.prix;
+  }
+
+  function majTuiles() {
+    document.querySelectorAll('.produit').forEach(function (b) {
+      var p = parId[b.dataset.id];
+      var ligne = panier.find(function (l) { return l.id === p.id; });
+      b.querySelector('.prix-produit').textContent = prixDefaut(p) ? eur(prixDefaut(p)) : 'Prix à saisir';
+      b.classList.toggle('choisi', !!ligne);
+      b.querySelector('.pastille').textContent = ligne ? ligne.quantite : '';
+      b.querySelector('.dispo').textContent = p.stock - (ligne ? ligne.quantite : 0);
+      b.disabled = ligne && ligne.quantite >= p.stock;
+    });
+  }
+
+  function rendre() {
+    var conteneur = $('lignes');
+    conteneur.innerHTML = '';
+    panier.forEach(function (l, i) {
+      var p = parId[l.id];
+      var div = document.createElement('div');
+      div.className = 'ligne-panier';
+      div.innerHTML =
+        '<div><div class="nom"></div><small class="code"></small></div>' +
+        '<strong class="num total-ligne"></strong>' +
+        '<div class="qte"><button type="button" aria-label="Retirer une bouteille">−</button><span></span><button type="button" aria-label="Ajouter une bouteille">+</button></div>' +
+        '<label class="prix-ligne" style="margin:0;font-weight:500">à <input type="number" min="0" step="0.01" inputmode="decimal" aria-label="Prix unitaire"> €</label>';
+      div.querySelector('.nom').textContent = p.nom;
+      div.querySelector('.code').textContent = p.numero;
+      div.querySelector('.qte span').textContent = l.quantite;
+      div.querySelector('.total-ligne').textContent = eur(l.quantite * l.prix);
+      var input = div.querySelector('input');
+      input.value = l.prix ? l.prix.toFixed(2) : '';
+      input.addEventListener('input', function () {
+        l.prix = parseFloat(input.value.replace(',', '.')) || 0; l.manuel = true;
+        div.querySelector('.total-ligne').textContent = eur(l.quantite * l.prix);
+        totaux(); majTuiles();
+      });
+      var boutons = div.querySelectorAll('.qte button');
+      boutons[0].addEventListener('click', function () { l.quantite--; if (l.quantite <= 0) panier.splice(i, 1); maj(); });
+      boutons[1].addEventListener('click', function () { if (l.quantite < p.stock) { l.quantite++; maj(); } });
+      conteneur.appendChild(div);
+    });
+    $('panier-vide').hidden = panier.length > 0;
+  }
+
+  function totaux() {
+    var st = panier.reduce(function (s, l) { return s + l.quantite * l.prix; }, 0);
+    var r = Math.min(remise, st);
+    var cons = ((parseInt($('consigne_btl').value, 10) || 0) - (parseInt($('consigne_retour').value, 10) || 0)) * CONSIGNE;
+    var total = st - r + cons;
+    $('d-sous-total').textContent = eur(st);
+    $('l-remise').hidden = !r; $('d-remise').textContent = '− ' + eur(r);
+    $('l-consigne').hidden = !cons; $('d-consigne').textContent = eur(cons);
+    $('d-total').textContent = eur(total);
+    var manquePrix = panier.some(function (l) { return !(l.prix >= 0) || l.prix === 0 && !l.manuel; });
+    $('encaisser').disabled = !panier.length || manquePrix;
+    $('encaisser').textContent = panier.length ? 'Encaisser ' + eur(total) : 'Encaisser';
+    var recu = parseFloat(($('recu').value || '').replace(',', '.'));
+    $('a-rendre').textContent = recu ? 'À rendre : ' + eur(recu - total) : '';
+  }
+
+  function maj() { rendre(); totaux(); majTuiles(); }
+
+  function repricer() {
+    panier.forEach(function (l) { if (!l.manuel) l.prix = prixDefaut(parId[l.id]); });
+    maj();
+  }
+
+  function ajouter(id) {
+    var p = parId[id];
+    var l = panier.find(function (x) { return x.id === p.id; });
+    if (l) { if (l.quantite < p.stock) l.quantite++; }
+    else panier.push({ id: p.id, quantite: 1, prix: prixDefaut(p), manuel: false });
+    maj();
+  }
+
+  document.querySelectorAll('.produit').forEach(function (b) {
+    b.addEventListener('click', function () { ajouter(parseInt(b.dataset.id, 10)); });
+  });
+  document.querySelectorAll('input[name=canal]').forEach(function (r) { r.addEventListener('change', repricer); });
+  $('vider').addEventListener('click', function () { panier = []; maj(); });
+  ['consigne_btl', 'consigne_retour', 'recu'].forEach(function (id) { $(id).addEventListener('input', totaux); });
+
+  function majClient() {
+    var nom = $('client_nom').value.trim().toLowerCase();
+    var c = CLIENTS.find(function (x) { return x.nom.toLowerCase() === nom; });
+    $('client_id').value = c ? c.id : '';
+    var info = $('info-client');
+    if (c) {
+      info.textContent = (c.type === 'revendeur' ? 'Revendeur' : c.type === 'professionnel' ? 'Professionnel' : 'Client fidèle')
+        + (c.consignes > 0 ? ' · ' + c.consignes + ' bouteille(s) consignée(s) chez lui' : '');
+      if (c.type === 'revendeur') document.querySelector('input[name=canal][value=revendeur]').checked = true;
+    } else {
+      info.textContent = nom ? 'Nouveau nom : la vente sera enregistrée sans fiche client.' : '';
+    }
+    repricer();
+  }
+  $('client_nom').addEventListener('change', majClient);
+  $('client_nom').addEventListener('input', function () { if (!$('client_nom').value) majClient(); });
+
+  function majPaiement() {
+    $('rendu').hidden = document.querySelector('input[name=mode_paiement]:checked').value !== 'especes' || !panier.length;
+  }
+  document.querySelectorAll('input[name=mode_paiement]').forEach(function (r) { r.addEventListener('change', majPaiement); });
+
+  $('verifier-bon').addEventListener('click', function () {
+    var code = $('bon_code').value.trim();
+    if (!code) return;
+    fetch('{{ url_for("api_bon") }}?code=' + encodeURIComponent(code) + '&client_id=' + ($('client_id').value || ''), { credentials: 'same-origin' })
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        remise = d.ok ? d.montant : 0;
+        $('info-bon').textContent = d.message;
+        $('info-bon').style.color = d.ok ? 'var(--vert)' : 'var(--rouge)';
+        totaux();
+      });
+  });
+  $('bon_code').addEventListener('input', function () { remise = 0; $('info-bon').textContent = ''; totaux(); });
+  $('bon_code').addEventListener('change', function () { $('verifier-bon').click(); });
+
+  $('form-caisse').addEventListener('submit', function (e) {
+    if (!panier.length) { e.preventDefault(); return; }
+    $('panier').value = JSON.stringify(panier.map(function (l) { return { lot_id: l.id, quantite: l.quantite, prix: l.prix }; }));
+    $('encaisser').disabled = true; $('encaisser').textContent = 'Enregistrement…';
+  });
+  document.addEventListener('click', majPaiement);
+
+  // Pré-sélections (depuis une fiche lot ou client)
+  var c0 = client();
+  if (c0) { $('client_nom').value = c0.nom; majClient(); }
+  var lot0 = {{ lot_preselect|tojson }};
+  if (lot0 && parId[lot0]) ajouter(lot0);
+  if ($('bon_code').value || $('consigne_btl').value !== '0' || $('consigne_retour').value !== '0') $('options-plus').open = true;
+  maj(); majPaiement();
+})();
+</script>
+{% endblock %}

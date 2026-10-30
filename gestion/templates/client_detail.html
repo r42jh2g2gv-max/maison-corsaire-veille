@@ -1,0 +1,118 @@
+{% extends "base.html" %}
+{% from "_icones.html" import icone %}
+{% block titre %}{{ client.nom }}{% endblock %}
+{% block contenu %}
+<div class="titre-page">
+  <div><div class="surtitre">{{ TYPES_CLIENTS[client.type] }}</div><h1>{{ client.nom }}</h1><div class="filet"></div></div>
+  <div class="actions">
+    <a class="btn btn-or" href="{{ url_for('caisse', client_id=client.id) }}">{{ icone('caisse') }}Encaisser</a>
+    <a class="btn btn-ligne" href="{{ url_for('client_modifier', client_id=client.id) }}">{{ icone('crayon') }}Modifier</a>
+  </div>
+</div>
+
+<div class="grille-kpi">
+  <div class="kpi bois"><div class="etiquette">Total dépensé</div><div class="valeur">{{ client.depense|euro }}</div></div>
+  <div class="kpi"><div class="etiquette">Bouteilles</div><div class="valeur">{{ client.bouteilles }}</div></div>
+  <div class="kpi"><div class="etiquette">Dernier achat</div><div class="valeur">{{ client.dernier_achat|datecourte if client.dernier_achat else '—' }}</div><div class="detail">{{ client.dernier_achat|jours }}</div></div>
+  <div class="kpi"><div class="etiquette">Consignes</div><div class="valeur">{{ client.consignes }}</div><div class="detail">bouteille(s) à rapporter</div></div>
+</div>
+
+<div class="grille-2-1">
+  <div class="grille">
+    <section class="carte">
+      <h2>Coordonnées</h2>
+      <div class="coordonnees">
+        {% if client.email %}<span>{{ icone('mail') }}<a href="mailto:{{ client.email }}">{{ client.email }}</a></span>{% endif %}
+        {% if client.telephone %}<span>{{ icone('tel') }}<a href="tel:{{ client.telephone|replace(' ', '') }}">{{ client.telephone }}</a></span>{% endif %}
+        {% if client.adresse %}<span>{{ icone('lieu') }}{{ client.adresse }}</span>{% endif %}
+      </div>
+      <p class="mb0">{% if client.accepte_infos %}<span class="badge badge-ok">Accepte les nouveautés</span>{% else %}<span class="badge badge-neutre">N'a pas accepté les envois</span>{% endif %}
+        {% if client.prix_revendeur_ht %} <span class="badge badge-revendeur">{{ client.prix_revendeur_ht|euro }} HT / btl</span>{% endif %}</p>
+      {% if client.notes %}<p class="mt mb0 pre">{{ client.notes }}</p>{% endif %}
+    </section>
+
+    <section class="carte">
+      <h2>Achats</h2>
+      {% if tickets %}
+      <ul class="liste">
+        {% for t in tickets %}
+        <li><div><a class="principal" href="{{ url_for('ticket_detail', ticket_id=t.id) }}">{{ t.date_vente|datefr }}</a>
+          {% if t.facture_numero %}<span class="code">{{ t.facture_numero }}</span>{% endif %}<br>
+          <small>{{ t.btl or 0 }} × {{ t.produits }}</small></div>
+          <strong class="num">{{ t.total|euro }}</strong></li>
+        {% endfor %}
+      </ul>
+      {% else %}<p class="vide mb0">Aucun achat pour l'instant.</p>{% endif %}
+    </section>
+  </div>
+
+  <div class="grille">
+    <section class="carte" id="bons">
+      <h2>Bons d'achat</h2>
+      {% if bons %}
+      <ul class="liste">
+        {% for b in bons %}{% set st = statut_bon(b) %}
+        <li style="flex-wrap:wrap">
+          <div><strong class="num">{{ b.montant|euro }}</strong> <span class="badge badge-{{ st }}">{{ {'actif': 'Valable', 'utilise': 'Utilisé', 'expire': 'Expiré'}[st] }}</span><br>
+            <small class="code">{{ b.code }}</small><small> · jusqu'au {{ b.date_expiration|datefr }}</small></div>
+          <div class="groupe-boutons">
+            <button type="button" class="btn btn-ligne btn-petit" onclick="partagerPdf('{{ url_for('bon_pdf_vue', bon_id=b.id) }}', 'Bon-achat-{{ b.code }}.pdf', 'Un bon d\'achat Maison Corsaire pour vous !')">{{ icone('partager') }}Partager</button>
+            {% if smtp_ok and client.email and st == 'actif' %}
+            <form method="post" action="{{ url_for('bon_envoyer', bon_id=b.id) }}" class="inline">
+              <input type="hidden" name="csrf" value="{{ csrf_token }}"><input type="hidden" name="email" value="{{ client.email }}">
+              <input type="hidden" name="retour" value="{{ url_for('client_detail', client_id=client.id) }}#bons">
+              <button class="btn btn-ligne btn-petit">{{ icone('mail') }}{{ 'Renvoyer' if b.envoye_le else 'Envoyer' }}</button>
+            </form>
+            {% endif %}
+          </div>
+        </li>
+        {% endfor %}
+      </ul>
+      {% endif %}
+      <details class="mt" {{ 'open' if not bons }}>
+        <summary>+ Offrir un bon d'achat</summary>
+        <form method="post" action="{{ url_for('bon_creer') }}" class="mt">
+          <input type="hidden" name="csrf" value="{{ csrf_token }}">
+          <input type="hidden" name="client_id" value="{{ client.id }}">
+          <input type="hidden" name="retour" value="{{ url_for('client_detail', client_id=client.id) }}#bons">
+          <div class="champs">
+            <div><label for="montant">Montant (€)</label><input id="montant" type="number" name="montant" min="1" step="0.5" inputmode="decimal" required value="5"></div>
+            <div><label for="date_expiration">Valable jusqu'au</label><input id="date_expiration" type="date" name="date_expiration" value="{{ expiration_defaut }}"></div>
+            <div class="large"><label for="motif">Motif <span class="aide">(imprimé sur le bon)</span></label><input id="motif" type="text" name="motif" placeholder="Merci pour votre fidélité !"></div>
+          </div>
+          <div class="form-actions"><button class="btn">{{ icone('bon') }}Créer le bon</button></div>
+        </form>
+      </details>
+    </section>
+
+    <section class="carte" id="consignes">
+      <h2>Consigne des bouteilles</h2>
+      <p>Solde : <strong>{{ client.consignes }}</strong> bouteille(s) chez le client · {{ (client.consignes * consigne_montant)|euro }} de consigne.</p>
+      {% if consignes %}
+      <ul class="liste">
+        {% for k in consignes[:6] %}
+        <li><div>{{ k.date_mouvement|datefr }}{% if k.notes %} <small>· {{ k.notes }}</small>{% endif %}</div>
+          <span class="badge {{ 'badge-ok' if k.quantite < 0 else 'badge-urgent' }}">{{ 'Rapportée' if k.quantite < 0 else 'Consignée' }} × {{ k.quantite|abs }}</span></li>
+        {% endfor %}
+      </ul>
+      {% endif %}
+      <form method="post" action="{{ url_for('client_consigne', client_id=client.id) }}" class="mt">
+        <input type="hidden" name="csrf" value="{{ csrf_token }}">
+        <div class="champs">
+          <div><label for="quantite">Bouteilles</label><input id="quantite" type="number" name="quantite" min="1" step="1" value="1" inputmode="numeric"></div>
+          <div><label for="sens">Mouvement</label>
+            <select id="sens" name="sens"><option value="retour">Rapportées (rendre la consigne)</option><option value="sortie">Remises au client</option></select></div>
+          <div class="large"><label class="case"><input type="checkbox" name="remettre_en_stock" value="1"> Remettre les bouteilles rapportées dans le stock de bouteilles vides (après lavage)</label></div>
+        </div>
+        <div class="form-actions"><button class="btn">{{ icone('consigne') }}Enregistrer</button></div>
+      </form>
+    </section>
+
+    <form method="post" action="{{ url_for('client_supprimer', client_id=client.id) }}"
+          onsubmit="return confirm('Supprimer définitivement {{ client.nom|replace("'", " ") }} ? Ses tickets et factures resteront dans la comptabilité.')">
+      <input type="hidden" name="csrf" value="{{ csrf_token }}">
+      <button class="btn btn-danger btn-plein">{{ icone('poubelle') }}Supprimer ce client</button>
+    </form>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% from "_icones.html" import icone %}
+{% block titre %}Clients{% endblock %}
+{% block contenu %}
+<div class="titre-page">
+  <div><div class="surtitre">Fichier clients</div><h1>Clients</h1><div class="filet"></div></div>
+  <div class="actions">
+    <a class="btn btn-or" href="{{ url_for('client_nouveau') }}">{{ icone('plus') }}Nouveau client</a>
+    <a class="btn btn-ligne" href="{{ url_for('clients_message') }}">{{ icone('message') }}Annoncer une nouveauté</a>
+    <a class="btn btn-ligne" href="{{ url_for('bons') }}">{{ icone('bon') }}Bons d'achat</a>
+  </div>
+</div>
+
+<nav class="filtres" aria-label="Filtrer par type">
+  <a href="{{ url_for('clients', q=q or None) }}" class="{{ 'actif' if not type_ }}">Tous<span class="compte">{{ compte.values()|sum }}</span></a>
+  {% for k, label in TYPES_CLIENTS.items() %}
+    <a href="{{ url_for('clients', type=k, q=q or None) }}" class="{{ 'actif' if type_ == k }}">{{ label }}s<span class="compte">{{ compte[k] }}</span></a>
+  {% endfor %}
+</nav>
+<form method="get" class="recherche">{{ icone('recherche') }}
+  {% if type_ %}<input type="hidden" name="type" value="{{ type_ }}">{% endif %}
+  <input type="search" name="q" value="{{ q }}" placeholder="Rechercher un nom, un email, un téléphone…" aria-label="Rechercher un client">
+</form>
+<p class="aide">{{ abonnes }} client(s) ont accepté de recevoir vos nouveautés.</p>
+
+{% if clients %}
+<div class="grille-cartes c3">
+  {% for c in clients %}
+  <article class="carte {{ 'bois' if c.type == 'revendeur' }}">
+    <div style="display:flex;justify-content:space-between;gap:10px;align-items:flex-start">
+      <div style="min-width:0">
+        <a class="nom-carte" style="display:block;text-decoration:none" href="{{ url_for('client_detail', client_id=c.id) }}">{{ c.nom }}</a>
+        <div class="surtitre" style="margin:0">{{ TYPES_CLIENTS[c.type] }}{% if c.prix_revendeur_ht %} · {{ c.prix_revendeur_ht|euro }} / btl{% endif %}</div>
+      </div>
+      <div class="actions-carte">
+        <a class="bouton-icone" style="color:var(--texte)" href="{{ url_for('client_modifier', client_id=c.id) }}" aria-label="Modifier {{ c.nom }}">{{ icone('crayon') }}</a>
+      </div>
+    </div>
+    <div class="coordonnees">
+      {% if c.email %}<span>{{ icone('mail') }}<a href="mailto:{{ c.email }}">{{ c.email }}</a></span>{% endif %}
+      {% if c.telephone %}<span>{{ icone('tel') }}<a href="tel:{{ c.telephone|replace(' ', '') }}">{{ c.telephone }}</a></span>{% endif %}
+      {% if c.notes %}<span style="font-style:italic">{{ c.notes }}</span>{% endif %}
+    </div>
+    <div style="display:flex;flex-wrap:wrap;gap:6px">
+      {% if c.accepte_infos %}<span class="badge badge-ok">Nouveautés</span>{% endif %}
+      {% if c.consignes > 0 %}<span class="badge badge-urgent">{{ c.consignes }} btl consignée{{ 's' if c.consignes > 1 }}</span>{% endif %}
+      {% if c.bons_actifs %}<span class="badge badge-actif">{{ c.bons_actifs }} bon{{ 's' if c.bons_actifs > 1 }} d'achat</span>{% endif %}
+    </div>
+    <div class="stats-3">
+      <div><strong>{{ c.bouteilles }}</strong><span>bouteilles</span></div>
+      <div><strong class="or">{{ c.depense|euro }}</strong><span>dépensés</span></div>
+      <div><strong>{{ c.dernier_achat|datecourte if c.dernier_achat else '—' }}</strong><span>dernier achat</span></div>
+    </div>
+  </article>
+  {% endfor %}
+</div>
+{% else %}<div class="carte"><p class="vide mb0">Aucun client trouvé.</p></div>{% endif %}
+{% endblock %}

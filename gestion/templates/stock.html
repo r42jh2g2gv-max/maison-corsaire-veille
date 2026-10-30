@@ -1,13 +1,15 @@
 {% extends "base.html" %}
+{% from "_icones.html" import icone %}
 {% block titre %}Stock{% endblock %}
 {% block contenu %}
 <div class="titre-page">
-  <div><h1>Stock</h1><div class="sous-titre">Bouteilles finies et matières de conditionnement</div></div>
-  <div class="actions"><a class="btn btn-or" href="{{ url_for('ventes') }}#nouvelle">+ Vente</a></div>
+  <div><div class="surtitre">Bouteilles finies &amp; matières</div><h1>Stock</h1><div class="filet"></div></div>
+  <div class="actions"><a class="btn btn-or" href="{{ url_for('caisse') }}">{{ icone('caisse') }}Encaisser</a>
+    <a class="btn btn-ligne" href="{{ url_for('export', nom='stock') }}">{{ icone('tableur') }}Excel</a></div>
 </div>
 
 <div class="grille-kpi">
-  <div class="kpi"><div class="etiquette">Bouteilles finies</div>
+  <div class="kpi bois"><div class="etiquette">Bouteilles finies</div>
     {% set ns = namespace(n=0, v=0) %}{% for l in lots %}{% set ns.n = ns.n + stock_lot(l) %}{% set ns.v = ns.v + stock_lot(l) * couts[l.id] %}{% endfor %}
     <div class="valeur num">{{ ns.n }}</div>
     <div class="detail">prêtes à vendre</div></div>
@@ -36,7 +38,7 @@
         <td class="droite num" data-label="Vendues">{{ l.vendu }}</td>
         <td class="droite num" data-label="En stock"><strong>{{ stock_lot(l) }}</strong></td>
         <td class="droite num" data-label="Coût / btl">{{ couts[l.id]|euro }}</td>
-        <td data-label="">{% if stock_lot(l) > 0 %}<a class="btn btn-ligne btn-petit" href="{{ url_for('ventes', lot_id=l.id) }}#nouvelle">Vendre</a>{% else %}<span class="badge badge-epuise">Épuisé</span>{% endif %}</td>
+        <td data-label="">{% if stock_lot(l) > 0 %}<a class="btn btn-ligne btn-petit" href="{{ url_for('caisse', lot_id=l.id) }}">Vendre</a>{% else %}<span class="badge badge-epuise">Épuisé</span>{% endif %}</td>
       </tr>
       {% endfor %}
     </tbody>

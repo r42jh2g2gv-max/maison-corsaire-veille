@@ -1,38 +1,70 @@
 {% from "_icones.html" import logo, icone %}
 <!doctype html>
-<html lang="fr">
+<html lang="fr" data-theme="{{ theme }}">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#0f1d33">
+  <meta name="theme-color" content="#0a1322">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Corsaire">
   <title>{% block titre %}{% endblock %} · Maison Corsaire</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
   <link rel="icon" href="{{ url_for('static', filename='ancre.svg') }}" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="{{ url_for('static', filename='ancre.svg') }}">
   {% block tete %}{% endblock %}
 </head>
 <body>
 {% set page = request.endpoint or '' %}
-{% set liens = [
-  ('tableau_de_bord', 'Tableau de bord', 'Accueil', 'accueil', ['tableau_de_bord']),
-  ('lots', 'Lots', 'Lots', 'lots', ['lots', 'lot_nouveau', 'lot_detail', 'lot_modifier']),
-  ('ventes', 'Ventes', 'Ventes', 'ventes', ['ventes']),
-  ('stock', 'Stock', 'Stock', 'stock', ['stock']),
-  ('calculateur', 'Calculateur de prix', 'Prix', 'prix', ['calculateur']),
+{% set principaux = [
+  ('tableau_de_bord', 'Accueil', 'accueil', ['tableau_de_bord']),
+  ('caisse', 'Caisse', 'caisse', ['caisse', 'ticket_detail']),
+  ('lots', 'Lots', 'lots', ['lots', 'lot_nouveau', 'lot_detail', 'lot_modifier']),
+  ('recettes', 'Recettes', 'recettes', ['recettes', 'recette_nouvelle', 'recette_modifier']),
+  ('stock', 'Stock', 'stock', ['stock']),
+  ('ventes', 'Ventes', 'ventes', ['ventes']),
+  ('clients', 'Clients', 'clients', ['clients', 'client_nouveau', 'client_detail', 'client_modifier']),
+  ('agenda', 'Agenda', 'agenda', ['agenda', 'evenement_modifier']),
+  ('chiffres', 'Chiffres', 'chiffres', ['chiffres']),
 ] %}
+{% set secondaires = [
+  ('calculateur', 'Calculateur de prix', 'prix', ['calculateur']),
+  ('bons', "Bons d'achat", 'bon', ['bons']),
+  ('clients_message', 'Annoncer une nouveauté', 'message', ['clients_message']),
+  ('parametres', 'Paramètres', 'parametres', ['parametres']),
+] %}
+{% set bas = ['tableau_de_bord', 'caisse', 'lots', 'clients', 'agenda'] %}
 <header class="entete">
   <div class="interieur">
-    <a class="logo" href="{{ url_for('tableau_de_bord') }}">{{ logo() }}<span>Maison Corsaire</span></a>
+    <a class="logo" href="{{ url_for('tableau_de_bord') }}">
+      <span class="medaillon">{{ logo() }}</span>
+      <span class="nom"><strong>Maison Corsaire</strong><span>Rhum arrangé artisanal</span></span>
+    </a>
     <nav class="nav-haut" aria-label="Navigation principale">
-      {% for ep, label, court, ic, eps in liens %}
+      {% for ep, label, ic, eps in principaux %}
         <a href="{{ url_for(ep) }}" class="{{ 'actif' if page in eps }}">{{ label }}</a>
       {% endfor %}
     </nav>
-    <div class="compte">
-      <a href="{{ url_for('parametres') }}" class="{{ 'actif' if page == 'parametres' }}" title="Paramètres">Paramètres</a>
-      <a href="{{ url_for('deconnexion') }}" title="Se déconnecter">Quitter</a>
+    <div class="actions-entete">
+      <details class="menu-plus">
+        <summary class="bouton-icone" aria-label="Toutes les pages">{{ icone('menu') }}</summary>
+        <div class="panneau">
+          {% for ep, label, ic, eps in principaux + secondaires %}
+            <a href="{{ url_for(ep) }}" class="{{ 'actif' if page in eps }}">{{ icone(ic) }}{{ label }}</a>
+            {% if loop.index == principaux|length %}<hr>{% endif %}
+          {% endfor %}
+          <hr>
+          {% if theme == 'clair' %}
+            <a href="{{ url_for('theme', nom='sombre', next=request.full_path) }}">{{ icone('lune') }}Thème sombre</a>
+          {% else %}
+            <a href="{{ url_for('theme', nom='clair', next=request.full_path) }}">{{ icone('soleil') }}Thème clair (plein soleil)</a>
+          {% endif %}
+          <a href="{{ url_for('deconnexion') }}">{{ icone('sortie') }}Se déconnecter</a>
+        </div>
+      </details>
     </div>
   </div>
 </header>
@@ -49,10 +81,35 @@
 </main>
 
 <nav class="nav-bas" aria-label="Navigation">
-  {% for ep, label, court, ic, eps in liens %}
-    <a href="{{ url_for(ep) }}" class="{{ 'actif' if page in eps }}">{{ icone(ic) }}<span>{{ court }}</span></a>
+  {% for ep, label, ic, eps in principaux if ep in bas %}
+    <a href="{{ url_for(ep) }}" class="{{ 'actif' if page in eps }}">{{ icone(ic) }}<span>{{ label }}</span></a>
   {% endfor %}
 </nav>
+<script>
+  // Ferme le menu quand on touche ailleurs
+  document.addEventListener('click', function (e) {
+    document.querySelectorAll('details.menu-plus[open]').forEach(function (d) {
+      if (!d.contains(e.target)) d.removeAttribute('open');
+    });
+  });
+  window.CSRF = '{{ csrf_token }}';
+  // Partage d'un PDF (Mail, Messages, WhatsApp…) sur téléphone, sinon téléchargement
+  window.partagerPdf = async function (url, nom, texte) {
+    try {
+      const rep = await fetch(url, { credentials: 'same-origin' });
+      const blob = await rep.blob();
+      const fichier = new File([blob], nom, { type: 'application/pdf' });
+      if (navigator.canShare && navigator.canShare({ files: [fichier] })) {
+        await navigator.share({ files: [fichier], title: nom, text: texte || '' });
+        return;
+      }
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob); a.download = nom; a.click();
+    } catch (err) {
+      if (err && err.name !== 'AbortError') window.open(url, '_blank');
+    }
+  };
+</script>
 {% block scripts %}{% endblock %}
 </body>
 </html>

@@ -1,9 +1,13 @@
 {% extends "base.html" %}
+{% from "_icones.html" import icone %}
 {% block titre %}Registre des lots{% endblock %}
 {% block contenu %}
 <div class="titre-page">
-  <div><h1>Registre des lots</h1><div class="sous-titre">Traçabilité de chaque production</div></div>
-  <div class="actions"><a class="btn btn-or" href="{{ url_for('lot_nouveau') }}">+ Nouveau lot</a></div>
+  <div><div class="surtitre">Module 1 · Traçabilité</div><h1>Registre des lots</h1><div class="filet"></div></div>
+  <div class="actions">
+    <a class="btn btn-or" href="{{ url_for('lot_nouveau') }}">{{ icone('plus') }}Nouveau lot</a>
+    <a class="btn btn-ligne" href="{{ url_for('export', nom='lots') }}">{{ icone('tableur') }}Excel</a>
+  </div>
 </div>
 
 <nav class="filtres" aria-label="Filtrer par statut">
@@ -12,21 +16,22 @@
     <a href="{{ url_for('lots', statut=k) }}" class="{{ 'actif' if statut == k }}">{{ label }}<span class="compte">{{ compte[k] }}</span></a>
   {% endfor %}
 </nav>
+<div class="recherche">{{ icone('recherche') }}<input type="search" id="filtre-lots" placeholder="Rechercher un lot ou une recette…" aria-label="Rechercher un lot"></div>
 
 {% if lots %}
-<div class="grille-lots">
+<div class="grille-cartes c3" id="liste-lots">
   {% for l in lots %}
-  <a class="carte lot-carte" href="{{ url_for('lot_detail', lot_id=l.id) }}">
-    <div class="carte-tete" style="margin-bottom:4px">
-      <span class="numero">{{ l.numero }}</span>
+  <a class="carte carte-lien" href="{{ url_for('lot_detail', lot_id=l.id) }}" data-texte="{{ (l.numero ~ ' ' ~ l.recette_nom)|lower }}">
+    <div style="display:flex;justify-content:space-between;gap:10px;align-items:flex-start;flex-wrap:wrap">
+      <span class="code">{{ l.numero }}</span>
       <span class="badge badge-{{ l.statut }}">{{ STATUTS[l.statut] }}</span>
     </div>
-    <div>{{ l.recette_nom }}</div>
+    <div class="nom-carte">{{ l.recette_nom }}</div>
     <div class="meta">
-      <span>Macération : {{ l.date_maceration|datefr }}</span>
-      {% if l.date_embouteillage %}<span>Embouteillé : {{ l.date_embouteillage|datefr }}</span>{% endif %}
+      <span>Macération {{ l.date_maceration|datefr }}</span>
+      {% if l.date_embouteillage %}<span>Embouteillé {{ l.date_embouteillage|datefr }}</span>{% endif %}
       <span>{{ l.nb_bouteilles }} × {{ l.volume_cl }} cl</span>
-      {% if l.statut in ('embouteille', 'epuise') %}<span>Stock : <strong>{{ stock_lot(l) }}</strong></span>{% endif %}
+      {% if l.statut in ('embouteille', 'epuise') %}<span>Stock <strong class="texte-or">{{ stock_lot(l) }}</strong></span>{% endif %}
     </div>
   </a>
   {% endfor %}
@@ -34,4 +39,12 @@
 {% else %}
 <div class="carte"><p class="vide mb0">Aucun lot{% if statut %} avec ce statut{% endif %}.</p></div>
 {% endif %}
+{% endblock %}
+{% block scripts %}
+<script>
+document.getElementById('filtre-lots').addEventListener('input', function () {
+  var q = this.value.trim().toLowerCase();
+  document.querySelectorAll('#liste-lots > a').forEach(function (a) { a.hidden = q && a.dataset.texte.indexOf(q) < 0; });
+});
+</script>
 {% endblock %}

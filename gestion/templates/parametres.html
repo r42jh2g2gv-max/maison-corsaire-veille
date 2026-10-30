@@ -1,34 +1,74 @@
 {% extends "base.html" %}
+{% from "_icones.html" import icone %}
 {% block titre %}Paramètres{% endblock %}
 {% block contenu %}
-<div class="titre-page"><h1>Paramètres</h1></div>
+<div class="titre-page"><div><div class="surtitre">Réglages</div><h1>Paramètres</h1><div class="filet"></div></div></div>
 
 <form method="post" class="grille">
   <input type="hidden" name="csrf" value="{{ csrf_token }}">
-  <section class="carte">
+  <section class="carte" id="producteur">
     <h2>Producteur</h2>
-    <p class="aide">Ces informations apparaissent sur les fiches de lot (et bientôt sur les étiquettes).</p>
+    <p class="aide">Ces informations figurent sur les tickets, factures, bons d'achat et fiches de lot.</p>
     <div class="champs">
       <div><label for="producteur_nom">Nom commercial</label><input id="producteur_nom" type="text" name="producteur_nom" value="{{ conf.producteur_nom }}"></div>
       <div><label for="siret">SIRET</label><input id="siret" type="text" name="siret" value="{{ conf.siret }}" inputmode="numeric"></div>
       <div class="large"><label for="producteur_adresse">Adresse</label><input id="producteur_adresse" type="text" name="producteur_adresse" value="{{ conf.producteur_adresse }}"></div>
+      <div><label for="producteur_email">Email</label><input id="producteur_email" type="email" name="producteur_email" value="{{ conf.producteur_email }}"></div>
+      <div><label for="producteur_telephone">Téléphone</label><input id="producteur_telephone" type="tel" name="producteur_telephone" value="{{ conf.producteur_telephone }}"></div>
+      <div><label for="iban">IBAN <span class="aide">(affiché sur les factures)</span></label><input id="iban" type="text" name="iban" value="{{ conf.iban }}"></div>
+      <div><label for="conditions_paiement">Conditions de paiement</label><input id="conditions_paiement" type="text" name="conditions_paiement" value="{{ conf.conditions_paiement }}"></div>
     </div>
   </section>
 
   <section class="carte" id="fiscalite">
-    <h2>TVA et droits sur l'alcool</h2>
+    <h2>TVA, droits et URSSAF</h2>
     <div class="champs">
-      <div class="large"><label class="case"><input type="checkbox" name="tva_applicable" value="1" {{ 'checked' if conf.tva_applicable == '1' }}> Je facture la TVA</label>
-        <span class="aide">Décochez si vous êtes en franchise en base (cas courant en micro-entreprise : « TVA non applicable, art. 293 B du CGI »).</span></div>
+      <div class="large"><label class="case"><input type="checkbox" name="tva_applicable" value="1" {{ 'checked' if conf.tva_applicable == '1' }}> <span>Je facture la TVA<br><span class="aide">Décochez si vous êtes en franchise en base (cas courant en micro-entreprise : « TVA non applicable, art. 293 B du CGI »).</span></span></label></div>
       <div><label for="tva_taux">Taux de TVA (%)</label><input id="tva_taux" type="number" step="0.1" min="0" name="tva_taux" value="{{ conf.tva_taux }}" inputmode="decimal"></div>
-      <div></div>
+      <div><label for="consigne_montant">Consigne par bouteille (€)</label><input id="consigne_montant" type="number" step="0.05" min="0" name="consigne_montant" value="{{ conf.consigne_montant }}" inputmode="decimal"></div>
       <div><label for="accise_hlap">Droit d'accise (€ / hl d'alcool pur)</label><input id="accise_hlap" type="number" step="0.01" min="0" name="accise_hlap" value="{{ conf.accise_hlap }}" inputmode="decimal"></div>
       <div><label for="secu_hlap">Cotisation sécurité sociale (€ / hl d'alcool pur)</label><input id="secu_hlap" type="number" step="0.01" min="0" name="secu_hlap" value="{{ conf.secu_hlap }}" inputmode="decimal"></div>
+      <div><label for="urssaf_taux">Cotisations URSSAF (% du CA)</label><input id="urssaf_taux" type="number" step="0.1" min="0" name="urssaf_taux" value="{{ conf.urssaf_taux }}" inputmode="decimal"></div>
+      <div><label for="cfp_taux">Formation professionnelle CFP (% du CA)</label><input id="cfp_taux" type="number" step="0.01" min="0" name="cfp_taux" value="{{ conf.cfp_taux }}" inputmode="decimal"></div>
+      <div><label for="urssaf_periodicite">Déclaration URSSAF</label>
+        <select id="urssaf_periodicite" name="urssaf_periodicite">
+          <option value="mensuelle" {{ 'selected' if conf.urssaf_periodicite != 'trimestrielle' }}>Mensuelle</option>
+          <option value="trimestrielle" {{ 'selected' if conf.urssaf_periodicite == 'trimestrielle' }}>Trimestrielle</option>
+        </select></div>
     </div>
-    <p class="aide mt mb0">Reportez les tarifs en vigueur publiés par les douanes pour les « autres produits intermédiaires et alcools » de l'année. Ils sont ajoutés au coût de chaque bouteille selon son volume et son degré. Laissez 0 s'ils sont déjà inclus dans le prix d'achat de votre rhum.</p>
+    <p class="aide mt mb0">Vérifiez chaque année les taux sur autoentrepreneur.urssaf.fr (vente de marchandises, BIC) et les tarifs des droits sur douane.gouv.fr. Les droits sont ajoutés au coût de chaque bouteille selon son volume et son degré ; laissez 0 s'ils sont déjà compris dans le prix d'achat de votre rhum.</p>
   </section>
-  <div><button class="btn btn-or" type="submit">Enregistrer les paramètres</button></div>
+
+  <section class="carte" id="emails">
+    <h2>Envoi d'emails <span class="badge {{ 'badge-ok' if smtp_ok else 'badge-neutre' }}">{{ 'Configuré' if smtp_ok else 'Non configuré' }}</span></h2>
+    <p class="aide">Facultatif. Sans réglage, utilisez « Partager le PDF » : le téléphone ouvre Mail, Messages ou WhatsApp avec le document joint.
+      Avec Gmail : serveur <code>smtp.gmail.com</code>, port 587, et un « mot de passe d'application » (Compte Google → Sécurité).</p>
+    <div class="champs">
+      <div><label for="smtp_host">Serveur SMTP</label><input id="smtp_host" type="text" name="smtp_host" value="{{ conf.smtp_host }}" placeholder="smtp.gmail.com"></div>
+      <div><label for="smtp_port">Port</label><input id="smtp_port" type="number" name="smtp_port" value="{{ conf.smtp_port|float|int }}" inputmode="numeric"></div>
+      <div><label for="smtp_user">Identifiant</label><input id="smtp_user" type="text" name="smtp_user" value="{{ conf.smtp_user }}" autocomplete="off"></div>
+      <div><label for="smtp_password">Mot de passe <span class="aide">{{ '(enregistré — laisser vide pour le garder)' if conf.smtp_password else '' }}</span></label>
+        <input id="smtp_password" type="password" name="smtp_password" autocomplete="new-password"></div>
+      <div><label for="smtp_expediteur">Adresse d'expédition</label><input id="smtp_expediteur" type="email" name="smtp_expediteur" value="{{ conf.smtp_expediteur }}" placeholder="contact@maisoncorsaire.fr"></div>
+      {% if conf.smtp_password %}<div><label class="case" style="margin-top:34px"><input type="checkbox" name="smtp_effacer" value="1"> Effacer le mot de passe enregistré</label></div>{% endif %}
+    </div>
+  </section>
+  <div class="form-actions" style="margin-top:0"><button class="btn btn-or" type="submit">Enregistrer les paramètres</button></div>
 </form>
+{% if smtp_ok %}
+<form method="post" action="{{ url_for('parametres_test_email') }}" class="mt">
+  <input type="hidden" name="csrf" value="{{ csrf_token }}">
+  <button class="btn btn-ligne">{{ icone('mail') }}Envoyer un email de test</button>
+</form>
+{% endif %}
+
+<section class="carte mt">
+  <h2>Apparence</h2>
+  <div class="groupe-boutons">
+    <a class="btn {{ 'btn-or' if theme != 'clair' else 'btn-ligne' }}" href="{{ url_for('theme', nom='sombre', next=url_for('parametres')) }}">{{ icone('lune') }}Sombre</a>
+    <a class="btn {{ 'btn-or' if theme == 'clair' else 'btn-ligne' }}" href="{{ url_for('theme', nom='clair', next=url_for('parametres')) }}">{{ icone('soleil') }}Clair (plein soleil)</a>
+  </div>
+</section>
 
 <section class="carte mt" id="compte">
   <h2>Mon compte</h2>
@@ -45,8 +85,9 @@
 
 <section class="carte mt" id="donnees">
   <h2>Données</h2>
-  <p>Lorsque vous avez fini de tester, effacez les données d'exemple pour démarrer votre registre réel. Votre compte et vos paramètres sont conservés.</p>
-  <form method="post" action="{{ url_for('parametres_donnees') }}">
+  <p>Téléchargez une sauvegarde complète au format Excel, ou effacez les données d'exemple pour démarrer votre vrai registre (le compte et les paramètres sont conservés).</p>
+  <a class="btn btn-ligne" href="{{ url_for('export', nom='complet') }}">{{ icone('tableur') }}Classeur complet (.xlsx)</a>
+  <form method="post" action="{{ url_for('parametres_donnees') }}" class="mt">
     <input type="hidden" name="csrf" value="{{ csrf_token }}">
     <div class="champs">
       <div><label for="confirmation">Tapez CONFIRMER</label><input id="confirmation" type="text" name="confirmation" autocomplete="off"></div>

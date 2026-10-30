@@ -1,0 +1,24 @@
+{% from "_icones.html" import icone %}
+{% macro liste_rappels(rappels) %}
+<ul class="rappels">
+  {% for r in rappels %}
+  <li>
+    <a class="rappel rappel-{{ r.niveau }}" href="{{ r.lien }}">
+      <span class="ico">{{ icone(r.icone) }}</span>
+      <span class="corps">
+        <span class="titre">{{ r.titre }}</span>
+        {% if r.detail %}<span class="detail" style="display:block">{{ r.detail }}</span>{% endif %}
+      </span>
+      {% if r.echeance or r.niveau == 'retard' %}
+      <span class="quand">
+        {% if r.echeance %}
+          {% if r.niveau == 'retard' %}<span class="badge badge-retard">En retard · {{ r.echeance|datefr }}</span>
+          {% else %}<span class="badge badge-{{ 'urgent' if r.niveau == 'urgent' else 'info' }}">{{ r.echeance|jours|capitalize }} · {{ r.echeance|datefr }}</span>{% endif %}
+        {% endif %}
+      </span>
+      {% endif %}
+    </a>
+  </li>
+  {% endfor %}
+</ul>
+{% endmacro %}

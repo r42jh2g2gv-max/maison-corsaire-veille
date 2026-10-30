@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Fiche recette – {{ recette.nom }}</title>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Inter:wght@400;600&display=swap" rel="stylesheet">
+  <style>
+    @page { size: A4; margin: 14mm; }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: #0a1322; color: #1c2333; font: 11pt/1.5 "Inter", system-ui, sans-serif; }
+    .barre-outils { position: sticky; top: 0; background: #0a1322; color: #fff; padding: 10px 16px; display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: center; z-index: 5; border-bottom: 1px solid #e0b45a; }
+    .barre-outils button, .barre-outils a { font: 600 14px "Inter", sans-serif; padding: 10px 16px; border-radius: 10px; border: 0; cursor: pointer; text-decoration: none; }
+    .barre-outils button { background: #e0b45a; color: #1a1206; }
+    .barre-outils a { color: #f0cf86; border: 1px solid #f0cf86; }
+    .barre-outils form { display: flex; gap: 6px; align-items: center; }
+    .barre-outils input { width: 80px; padding: 9px; border-radius: 8px; border: 0; font-size: 15px; }
+    .page { background: #fffdf8; max-width: 210mm; margin: 16px auto; padding: 14mm; border-radius: 4px; }
+    h1, h2 { font-family: "Playfair Display", Georgia, serif; color: #0f1d33; margin: 0; font-variant-numeric: lining-nums; }
+    h1 { font-size: 26pt; }
+    h2 { font-size: 14pt; margin: 18px 0 8px; border-bottom: 1px solid #e3d9c6; padding-bottom: 4px; }
+    .entete { display: flex; justify-content: space-between; gap: 16px; border-bottom: 2px solid #b8902f; padding-bottom: 10px; }
+    .marque { font-size: 9pt; letter-spacing: .2em; text-transform: uppercase; color: #8a6a22; }
+    .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+    .chips span { border: 1px solid #d8cfbd; border-radius: 999px; padding: 3px 12px; font-size: 9.5pt; }
+    table { width: 100%; border-collapse: collapse; font-size: 10pt; }
+    th, td { border-bottom: 1px solid #e3d9c6; padding: 7px 6px; text-align: left; }
+    th { font-size: 8.5pt; text-transform: uppercase; letter-spacing: .08em; color: #5b6170; }
+    td.d, th.d { text-align: right; font-variant-numeric: tabular-nums; }
+    .etapes { white-space: pre-line; }
+    .notes { font-style: italic; color: #444; border-left: 3px solid #b8902f; padding-left: 12px; }
+    .cases { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 24px; font-size: 10pt; }
+    .cases div { border-bottom: 1px solid #999; padding: 14px 0 2px; color: #555; }
+    footer { margin-top: 18px; font-size: 8pt; color: #777; text-align: center; }
+    @media (max-width: 640px) { .page { padding: 18px; margin: 0; } .entete { flex-direction: column; } .cases { grid-template-columns: 1fr; } }
+    @media print { body { background: #fff; } .barre-outils { display: none; } .page { margin: 0; padding: 0; max-width: none; } }
+  </style>
+</head>
+<body>
+  <div class="barre-outils">
+    <button type="button" onclick="window.print()">Imprimer / Enregistrer en PDF</button>
+    <form method="get"><label for="litres">Pour</label><input id="litres" type="number" name="litres" min="0.5" step="0.5" value="{{ litres|round(1) }}"><span>L</span><button type="submit">Recalculer</button></form>
+    <a href="{{ url_for('recettes') }}#recette-{{ recette.id }}">← Recettes</a>
+  </div>
+  <div class="page">
+    <div class="entete">
+      <div><div class="marque">{{ conf.producteur_nom }} · Fiche recette</div><h1>{{ recette.nom }}</h1></div>
+      <div style="text-align:right"><div class="marque">Pour</div><div style="font-family:'Playfair Display',serif;font-size:22pt;color:#0f1d33">{{ litres|nombre(1) }} L</div>
+        <small>≈ {{ (litres * rendement * 100 / 50)|int }} bouteilles de 50 cl</small></div>
+    </div>
+    <div class="chips">
+      <span>Macération : {{ recette.duree_maceration_jours }} jours</span>
+      {% if recette.degre %}<span>Degré estimé : {{ recette.degre|nombre(1) }} % vol.</span>{% endif %}
+      {% if d.cout_litre %}<span>Coût ingrédients : {{ (d.cout_litre * litres)|euro }} ({{ d.cout_litre|euro }} / L)</span>{% endif %}
+    </div>
+
+    <h2>Ingrédients</h2>
+    <table>
+      <thead><tr><th>Catégorie</th><th>Ingrédient</th><th class="d">Pour 1 L</th><th class="d">Pour {{ litres|nombre(1) }} L</th><th class="d">Coût</th></tr></thead>
+      <tbody>
+      {% for i in d.ingredients %}
+        <tr><td>{{ CATEGORIES[i.categorie] }}</td><td>{{ i.nom }}</td>
+          <td class="d">{{ (i.quantite_par_litre|nombre(2))|replace(',00', '') if i.quantite_par_litre is not none else '—' }} {{ i.unite or '' }}</td>
+          <td class="d"><strong>{{ ((i.quantite_par_litre or 0) * litres)|nombre(2)|replace(',00', '') }} {{ i.unite or '' }}</strong></td>
+          <td class="d">{{ ((i.quantite_par_litre or 0) * litres * (i.cout_unitaire or 0))|euro if i.cout_unitaire else '—' }}</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+
+    {% if recette.instructions %}<h2>Préparation</h2><div class="etapes">{{ recette.instructions }}</div>{% endif %}
+    {% if recette.notes_degustation %}<h2>Notes de dégustation</h2><p class="notes">{{ recette.notes_degustation }}</p>{% endif %}
+
+    <h2>Suivi de fabrication</h2>
+    <div class="cases">
+      <div>N° de lot :</div><div>Date de mise en macération :</div>
+      <div>Dégustation J+30 :</div><div>Date d'embouteillage :</div>
+      <div>Bouteilles obtenues :</div><div>Observations :</div>
+    </div>
+    <footer>{{ conf.producteur_nom }} · {{ conf.producteur_adresse }}</footer>
+  </div>
+</body>
+</html>

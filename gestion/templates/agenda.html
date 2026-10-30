@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+{% from "_icones.html" import icone %}
+{% from "_rappels.html" import liste_rappels %}
+{% block titre %}Agenda{% endblock %}
+{% block contenu %}
+<div class="titre-page">
+  <div><div class="surtitre">Marchés · salons · dégustations</div><h1>Agenda</h1><div class="filet"></div></div>
+  <div class="actions"><a class="btn btn-or" href="#nouveau" onclick="document.getElementById('nouveau').open = true">{{ icone('plus') }}Événement</a></div>
+</div>
+
+{% if rappels %}
+<section class="carte" style="margin-bottom:16px">
+  <h2 style="display:flex;align-items:center;gap:10px"><span class="texte-or" style="display:inline-flex;width:24px">{{ icone('cloche') }}</span>Préparatifs à anticiper <span class="badge badge-revendeur sans-point">{{ rappels|length }}</span></h2>
+  {{ liste_rappels(rappels) }}
+</section>
+{% endif %}
+
+<h2>À venir</h2>
+{% if a_venir %}
+<div class="grille" style="gap:12px">
+  {% for e in a_venir %}
+  <article class="carte evenement" id="evt-{{ e.id }}">
+    <div class="pave-date bois"><strong>{{ e.date_debut[8:10] }}</strong><span>{{ e.date_debut|moisabrege }}</span></div>
+    <div class="corps">
+      <div class="surtitre" style="margin:0">{{ TYPES_EVENEMENTS[e.type] }} · {{ e.date_debut|jours }}</div>
+      <h3 style="margin:2px 0 4px">{{ e.nom }}</h3>
+      <div class="meta">
+        {% if e.lieu %}<span style="display:inline-flex;gap:4px;align-items:center;min-width:0"><span style="width:16px;display:inline-flex">{{ icone('lieu') }}</span>{{ e.lieu }}</span>{% endif %}
+        {% if e.date_fin %}<span>jusqu'au {{ e.date_fin|datefr }}</span>{% endif %}
+        {% if e.cout_place %}<span>Place : {{ e.cout_place|euro }}</span>{% endif %}
+        {% if e.btl_prevues %}<span>{{ e.btl_prevues }} btl prévues</span>{% endif %}
+        {% if e.date_limite_inscription and not e.inscrit %}<span class="texte-or">Inscription avant le {{ e.date_limite_inscription|datefr }}</span>{% endif %}
+      </div>
+      {% if e.notes %}<p class="mb0 doux" style="margin-top:6px">{{ e.notes }}</p>{% endif %}
+      <div class="toggles">
+        {% for champ, label in [('inscrit', 'Inscrit'), ('stock_pret', 'Stock prêt')] %}
+        <form method="post" action="{{ url_for('evenement_basculer', evt_id=e.id) }}" class="inline">
+          <input type="hidden" name="csrf" value="{{ csrf_token }}"><input type="hidden" name="champ" value="{{ champ }}">
+          <button class="btn btn-petit {{ 'btn-or' if e[champ] else 'btn-ligne' }}" aria-pressed="{{ 'true' if e[champ] else 'false' }}">{{ icone('check' if e[champ] else 'rond') }}{{ label }}</button>
+        </form>
+        {% endfor %}
+        <a class="btn btn-ligne btn-petit" href="{{ url_for('evenement_modifier', evt_id=e.id) }}" aria-label="Modifier">{{ icone('crayon') }}</a>
+        <form method="post" action="{{ url_for('evenement_supprimer', evt_id=e.id) }}" class="inline" onsubmit="return confirm('Supprimer cet événement ?')">
+          <input type="hidden" name="csrf" value="{{ csrf_token }}">
+          <button class="btn btn-danger btn-petit" aria-label="Supprimer">{{ icone('poubelle') }}</button>
+        </form>
+      </div>
+    </div>
+  </article>
+  {% endfor %}
+</div>
+{% else %}<div class="carte"><p class="vide mb0">Aucun événement à venir.</p></div>{% endif %}
+
+<details class="carte mt" id="nouveau">
+  <summary>+ Ajouter un événement</summary>
+  <form method="post" action="{{ url_for('evenement_nouveau') }}" class="mt">
+    <input type="hidden" name="csrf" value="{{ csrf_token }}">
+    {% include "_evenement_champs.html" %}
+    <div class="form-actions"><button class="btn btn-or">Ajouter à l'agenda</button></div>
+  </form>
+</details>
+
+<h2 class="mt" style="margin-top:28px">Bilan des événements passés</h2>
+<section class="carte">
+  {% if bilans %}
+  <div class="table-wrap">
+  <table class="empile">
+    <thead><tr><th>Événement</th><th class="droite">Btl</th><th class="droite">CA</th><th class="droite">Coût btl</th><th class="droite">Place</th><th class="droite">Bénéfice</th></tr></thead>
+    <tbody>
+      {% for b in bilans %}
+      <tr>
+        <td class="titre-ligne" data-label="Événement">{{ b.e.nom }}<br><small>{{ b.e.date_debut|datefr }}</small></td>
+        <td class="droite num" data-label="Bouteilles">{{ b.btl }}</td>
+        <td class="droite num" data-label="CA">{{ b.ca|euro }}</td>
+        <td class="droite num" data-label="Coût des bouteilles">{{ b.cout|euro }}</td>
+        <td class="droite num" data-label="Place">{{ b.e.cout_place|euro }}</td>
+        <td class="droite num {{ 'positif' if b.benefice >= 0 else 'negatif' }}" data-label="Bénéfice">{{ b.benefice|euro }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  <p class="aide mt mb0">Les ventes sont rattachées à un événement depuis la caisse (sélection « Événement »).</p>
+  {% else %}<p class="vide mb0">Aucun événement passé.</p>{% endif %}
+</section>
+{% endblock %}

@@ -1,22 +1,24 @@
 {% extends "base.html" %}
+{% from "_icones.html" import icone %}
 {% block titre %}Lot {{ lot.numero }}{% endblock %}
 {% block contenu %}
 {% set suivant = {'maceration': 'pret', 'pret': 'embouteille'} %}
 <div class="titre-page">
   <div>
-    <h1>{{ lot.numero }} <span class="badge badge-{{ lot.statut }}" style="vertical-align:middle">{{ STATUTS[lot.statut] }}</span></h1>
-    <div class="sous-titre">{{ lot.recette_nom }}</div>
+    <div class="surtitre">Lot <span class="code">{{ lot.numero }}</span></div>
+    <h1>{{ lot.recette_nom }}</h1>
+    <div class="sous-titre"><span class="badge badge-{{ lot.statut }}">{{ STATUTS[lot.statut] }}</span></div>
   </div>
   <div class="actions">
-    {% if stock > 0 %}<a class="btn btn-or" href="{{ url_for('ventes', lot_id=lot.id) }}#nouvelle">Vendre</a>{% endif %}
-    <a class="btn btn-ligne" href="{{ url_for('lot_fiche', lot_id=lot.id) }}" target="_blank">Fiche PDF</a>
+    {% if stock > 0 %}<a class="btn btn-or" href="{{ url_for('caisse', lot_id=lot.id) }}">{{ icone('caisse') }}Vendre</a>{% endif %}
+    <a class="btn btn-ligne" href="{{ url_for('lot_fiche', lot_id=lot.id) }}" target="_blank">{{ icone('imprimer') }}Fiche PDF</a>
     <a class="btn btn-ligne" href="{{ url_for('calculateur', lot_id=lot.id) }}">Prix</a>
     <a class="btn btn-ligne" href="{{ url_for('lot_modifier', lot_id=lot.id) }}">Modifier</a>
   </div>
 </div>
 
 {% if lot.statut in suivant %}
-<form method="post" action="{{ url_for('lot_statut', lot_id=lot.id) }}" class="carte" style="display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px;margin-bottom:16px;border-left:4px solid var(--or)">
+<form method="post" action="{{ url_for('lot_statut', lot_id=lot.id) }}" class="carte" style="display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px;margin-bottom:16px;border-color:var(--or)">
   <input type="hidden" name="csrf" value="{{ csrf_token }}">
   <input type="hidden" name="statut" value="{{ suivant[lot.statut] }}">
   <div>
@@ -116,7 +118,7 @@
   {% if ventes %}
   <ul class="liste">
     {% for v in ventes %}
-    <li><div><span class="principal">{{ v.client }}</span> <span class="badge badge-{{ v.canal }}">{{ 'Revendeur' if v.canal == 'revendeur' else 'Direct' }}</span><br>
+    <li><div><a class="principal" href="{{ url_for('ticket_detail', ticket_id=v.ticket_id) }}">{{ v.client }}</a> <span class="badge badge-{{ v.canal }}">{{ 'Revendeur' if v.canal == 'revendeur' else 'Direct' }}</span><br>
       <small>{{ v.date_vente|datefr }} · {{ v.quantite }} × {{ v.prix_unitaire_ttc|euro }}</small></div>
       <strong class="num">{{ (v.quantite * v.prix_unitaire_ttc)|euro }}</strong></li>
     {% endfor %}
