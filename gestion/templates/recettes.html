@@ -14,7 +14,7 @@
 <div class="grille-cartes">
   {% for r, d in recettes %}
   {% set btl_cl = 50 %}
-  {% set cout_btl = d.cout_litre / rendement * btl_cl / 100 + materiaux %}
+  {% set rdt = rendement(r) %}{% set cout_btl = d.cout_litre / rdt * btl_cl / 100 + materiaux %}
   <article class="carte bois" id="recette-{{ r.id }}">
     <div style="display:flex;justify-content:space-between;gap:10px;align-items:flex-start">
       <h2 class="nom-carte" style="margin:0">{{ r.nom }}</h2>
@@ -24,6 +24,7 @@
       {% if r.degre %}<span>{{ r.degre|nombre(1) }} % vol.</span>{% endif %}
       <span>{{ d.cout_litre|euro }} / L</span>
       <span>≈ {{ cout_btl|euro }} / btl 50 cl</span>
+      <span>perte {{ (100 - rdt * 100)|round|int }} %</span>
       <span>{{ d.nb_lots }} lot(s)</span>
     </div>
     {% if not d.complet and d.ingredients %}<p class="aide mb0" style="margin-top:4px">Coût partiel : renseignez le prix de chaque ingrédient.</p>{% endif %}
@@ -47,7 +48,7 @@
   </article>
   {% endfor %}
 </div>
-<p class="aide mt">Coût par bouteille estimé avec un rendement de {{ (rendement * 100)|int }} % (fruits retirés) + {{ materiaux|euro }} de matières (bouteille, bouchon, étiquette…).</p>
+<p class="aide mt">Coût par bouteille estimé en tenant compte de la perte à la macération de chaque recette (fruits retirés, filtration) + {{ materiaux|euro }} de matières (bouteille, bouchon, étiquette…).</p>
 {% else %}
 <div class="carte"><p class="vide mb0">Aucune recette. <a href="{{ url_for('recette_nouvelle') }}">Créer la première</a></p></div>
 {% endif %}

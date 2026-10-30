@@ -35,11 +35,14 @@ def statistiques():
             "nom": nom, "recette_id": cle if isinstance(cle, int) else None, "lots": 0,
             "produites": 0, "stock": 0, "en_cours": 0, "vendues": 0, "ca": 0.0, "cout": 0.0,
             "direct": 0, "revendeur": 0, "par_mois": {k: 0 for k in mois}, "clients": {},
-            "cout_production": 0.0})
+            "cout_production": 0.0, "macere": 0.0, "obtenu": 0.0})
 
     for l in lots_avec_stock():
         f = fiche(l["recette_id"] or l["recette_nom"], l["recette_nom"])
         f["lots"] += 1
+        if l["volume_macere_l"] and l["volume_obtenu_l"] is not None:
+            f["macere"] += l["volume_macere_l"]
+            f["obtenu"] += l["volume_obtenu_l"]
         if l["statut"] in STATUTS_EMBOUTEILLES:
             f["produites"] += l["nb_bouteilles"]
             f["stock"] += stock_lot(l)
@@ -71,6 +74,7 @@ def statistiques():
         f["part"] = f["ca"] / ca_total * 100
         f["taux_ecoulement"] = (f["produites"] - f["stock"]) / f["produites"] * 100 \
             if f["produites"] else None
+        f["perte"] = (1 - f["obtenu"] / f["macere"]) * 100 if f["macere"] else None
         f["serie"] = [f["par_mois"][k] for k in mois]
         f["top_clients"] = sorted(f["clients"].items(), key=lambda x: -x[1])[:3]
         # Rythme de vente des 6 derniers mois, pour estimer l'autonomie du stock

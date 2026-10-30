@@ -72,6 +72,8 @@
       <div><span>Degré d'alcool</span><span>{{ (lot.degre|nombre(1) ~ ' % vol.') if lot.degre is not none else '—' }}</span></div>
       <div><span>Contenance</span><span>{{ lot.volume_cl }} cl</span></div>
       <div><span>Bouteilles produites</span><span>{{ lot.nb_bouteilles }}</span></div>
+      <div><span>Volume mis en macération</span><span>{{ (lot.volume_macere_l|nombre(2) ~ ' L') if lot.volume_macere_l else '—' }}</span></div>
+      <div><span>Volume obtenu / perte</span><span>{% if lot.volume_obtenu_l is not none %}{{ lot.volume_obtenu_l|nombre(2) }} L{% if lot.volume_macere_l %} · {{ ((1 - lot.volume_obtenu_l / lot.volume_macere_l) * 100)|round|int }} %{% endif %}{% else %}—{% endif %}</span></div>
       <div><span>Volume total conditionné</span><span>{{ (lot.nb_bouteilles * lot.volume_cl / 100)|nombre(2) }} L</span></div>
       <div><span>Bouteilles vendues / en stock</span><span>{{ lot.vendu }} / {{ stock }}</span></div>
     </div>

@@ -273,6 +273,10 @@ MIGRATIONS = [
     ("recettes", "etiquette_mentions", "TEXT"),
     ("tickets", "uuid", "TEXT"),
     ("matieres_premieres", "nom_etiquette", "TEXT"),
+    ("recettes", "perte_pct", "REAL"),
+    ("lots", "volume_macere_l", "REAL"),
+    ("lots", "perte_pct", "REAL"),
+    ("lots", "volume_obtenu_l", "REAL"),
 ]
 
 
@@ -593,6 +597,12 @@ def seed_demo(conn):
         (client_ids[2], "Sophie Martin", d(-1), -1, consigne, "Bouteille rapportée propre"),
     )
     seed_matieres(conn, d)
+    conn.execute("UPDATE recettes SET perte_pct = 15")
+    for numero, macere, obtenu in [(1, 14, 12.1), (2, 13, 11.1), (3, 11.8, 10.2), (4, 14, None),
+                                   (5, 12, None)]:
+        conn.execute(
+            "UPDATE lots SET volume_macere_l = ?, perte_pct = 15, volume_obtenu_l = ?"
+            " WHERE numero = ?", (macere, obtenu, f"MC-{today.year}-{numero:03d}"))
 
     conn.executemany(
         "INSERT INTO bons (code, client_id, beneficiaire, montant, motif, date_emission,"

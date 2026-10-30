@@ -99,3 +99,20 @@ def convertir(quantite, de, vers):
     if not a or not b or a[0] != b[0]:
         return None
     return quantite * a[1] / b[1]
+
+
+PERTE_DEFAUT = 15.0  # % du volume mis en macération perdu (fruits retirés, filtration, dépôt)
+
+
+def bouteilles_estimees(litres, perte_pct, contenance_cl):
+    """Nombre de bouteilles pleines obtenues après la perte de macération."""
+    if not litres or not contenance_cl:
+        return 0
+    perte = PERTE_DEFAUT if perte_pct is None else min(max(perte_pct, 0), 95)
+    return int(litres * (1 - perte / 100) * 100 // contenance_cl)
+
+
+def perte_reelle(litres_macere, litres_obtenus):
+    if not litres_macere or litres_obtenus is None:
+        return None
+    return max((1 - litres_obtenus / litres_macere) * 100, 0)

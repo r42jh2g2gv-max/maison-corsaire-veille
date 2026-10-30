@@ -46,7 +46,7 @@
     <div class="entete">
       <div><div class="marque">{{ conf.producteur_nom }} · Fiche recette</div><h1>{{ recette.nom }}</h1></div>
       <div style="text-align:right"><div class="marque">Pour</div><div style="font-family:'Playfair Display',serif;font-size:22pt;color:#0f1d33">{{ litres|nombre(1) }} L</div>
-        <small>≈ {{ (litres * rendement * 100 / 50)|int }} bouteilles de 50 cl</small></div>
+        <small>≈ {{ (litres * rendement * 100 / 50)|int }} bouteilles de 50 cl (perte {{ (100 - rendement * 100)|round|int }} %)</small></div>
     </div>
     <div class="chips">
       <span>Macération : {{ recette.duree_maceration_jours }} jours</span>

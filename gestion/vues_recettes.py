@@ -1,7 +1,7 @@
 """Module 2 — bibliothèque de recettes."""
 from flask import flash, redirect, render_template, request, url_for
 
-from calculs import CATEGORIES_INGREDIENTS, convertir, to_float
+from calculs import CATEGORIES_INGREDIENTS, PERTE_DEFAUT, convertir, to_float
 from noyau import app, get_db, get_or_404, settings, to_int
 
 
@@ -44,8 +44,10 @@ def _matieres(conn):
     return conn.execute("SELECT nom FROM matieres_premieres ORDER BY nom").fetchall()
 
 
-# Environ 85 % du volume mis en macération finit en bouteille (fruits retirés).
-RENDEMENT = 0.85
+def rendement(recette):
+    """Part du volume mis en macération qui finit en bouteille."""
+    perte = recette["perte_pct"] if recette["perte_pct"] is not None else PERTE_DEFAUT
+    return 1 - perte / 100
 
 
 @app.route("/recettes")
@@ -55,7 +57,7 @@ def recettes():
     return render_template(
         "recettes.html",
         recettes=[(r, details_recette(conn, r)) for r in rows],
-        materiaux=cout_materiaux_bouteille(conn), rendement=RENDEMENT,
+        materiaux=cout_materiaux_bouteille(conn), rendement=rendement,
     )
 
 
@@ -86,6 +88,7 @@ def lire_recette(form):
         "degre": to_float(form.get("degre"), None),
         "notes_degustation": form.get("notes_degustation", "").strip(),
         "instructions": form.get("instructions", "").strip(),
+        "perte_pct": min(max(to_float(form.get("perte_pct"), PERTE_DEFAUT), 0), 95),
     }
 
 
@@ -99,13 +102,14 @@ def recette_nouvelle():
         else:
             cur = conn.execute(
                 """INSERT INTO recettes (nom, duree_maceration_jours, degre, notes_degustation,
-                   instructions) VALUES (:nom, :duree_maceration_jours, :degre,
-                   :notes_degustation, :instructions)""", data)
+                   instructions, perte_pct) VALUES (:nom, :duree_maceration_jours, :degre,
+                   :notes_degustation, :instructions, :perte_pct)""", data)
             enregistrer_ingredients(conn, cur.lastrowid, request.form)
             conn.commit()
             flash(f"Recette « {data['nom']} » créée.", "succes")
             return redirect(url_for("recettes") + f"#recette-{cur.lastrowid}")
-    return render_template("recette_form.html", recette={"duree_maceration_jours": 60},
+    return render_template("recette_form.html",
+                           recette={"duree_maceration_jours": 60, "perte_pct": PERTE_DEFAUT},
                            ingredients=[], nouveau=True, matieres=_matieres(conn))
 
 
@@ -121,7 +125,8 @@ def recette_modifier(recette_id):
             conn.execute(
                 """UPDATE recettes SET nom = :nom, duree_maceration_jours = :duree_maceration_jours,
                    degre = :degre, notes_degustation = :notes_degustation,
-                   instructions = :instructions WHERE id = :id""", {**data, "id": recette_id})
+                   instructions = :instructions, perte_pct = :perte_pct WHERE id = :id""",
+                {**data, "id": recette_id})
             enregistrer_ingredients(conn, recette_id, request.form)
             conn.commit()
             flash("Recette mise à jour.", "succes")
@@ -150,5 +155,5 @@ def recette_fiche(recette_id):
     return render_template(
         "recette_fiche.html", recette=recette, d=details_recette(conn, recette),
         litres=litres, conf=settings(), materiaux=cout_materiaux_bouteille(conn),
-        rendement=RENDEMENT,
+        rendement=rendement(recette),
     )

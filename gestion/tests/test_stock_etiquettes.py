@@ -107,3 +107,19 @@ assert db.execute('select denomination from recettes where id=?',(rid,)).fetchon
 c.post('/etiquettes/reglages', data={'csrf':csrf(),'largeur':'60','hauteur':'90','tri':'Verre à recycler'})
 r = c.get(f'/etiquettes/recette/{rid}.pdf?copies=30'); assert r.data[:4] == b'%PDF'
 print('OK')
+# Perte à la macération : nombre de bouteilles et perte réelle à l'embouteillage
+r = c.post('/lots/nouveau', data={'csrf':csrf(),'recette_id':'1','recette_nom':'','date_maceration':'2026-10-30','litres':'12','perte_pct':'20','volume_cl':'70','nb_bouteilles':'13','statut':'pret'})
+lid = int(r.headers['Location'].split('/')[-1])
+l = db.execute('select * from lots where id=?',(lid,)).fetchone()
+assert l['volume_macere_l'] == 12 and l['perte_pct'] == 20 and l['volume_cl'] == 70
+r = c.post(f'/lots/{lid}/statut', data={'csrf':csrf(),'statut':'embouteille','volume_obtenu_l':'9.5','nb_bouteilles':''}, follow_redirects=True)
+l = db.execute('select * from lots where id=?',(lid,)).fetchone()
+assert l['volume_obtenu_l'] == 9.5 and l['nb_bouteilles'] == 13 and l['statut'] == 'embouteille', dict(l)  # 950 cl / 70 cl
+assert 'Perte réelle à la macération : 21 %' in r.get_data(as_text=True)
+# Modification : contenance changée -> nombre enregistré
+c.post(f'/lots/{lid}/modifier', data={'csrf':csrf(),'recette_id':'1','recette_nom':'Ananas','statut':'embouteille','litres':'12','perte_pct':'20','volume_obtenu_l':'9.5','volume_cl':'50','nb_bouteilles':'19','date_maceration':'2026-10-30'})
+l = db.execute('select * from lots where id=?',(lid,)).fetchone()
+assert l['volume_cl'] == 50 and l['nb_bouteilles'] == 19, dict(l)
+assert 'Perte moyenne' in c.get('/statistiques').get_data(as_text=True)
+assert 'perte' in c.get('/recettes').get_data(as_text=True)
+print('perte OK')

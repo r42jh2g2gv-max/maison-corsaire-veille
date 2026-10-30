@@ -140,6 +140,20 @@ def parametres_compte():
     return retour
 
 
+def version_appli():
+    """Version installée (dernier commit), pour vérifier qu'une mise à jour a bien pris effet."""
+    try:
+        res = subprocess.run(["git", "-C", str(BASE), "log", "-1", "--format=%h · %cd",
+                              "--date=format:%d/%m/%Y %H:%M"], capture_output=True, text=True,
+                             timeout=5)
+        return res.stdout.strip() or "inconnue"
+    except (OSError, subprocess.TimeoutExpired):
+        return "inconnue"
+
+
+app.jinja_env.globals["version_appli"] = version_appli
+
+
 def chemin_installeur():
     """Script d'installation présent seulement sur une installation PythonAnywhere."""
     chemin = BASE / "installer_pythonanywhere.sh"

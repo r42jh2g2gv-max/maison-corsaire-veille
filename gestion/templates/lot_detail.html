@@ -27,7 +27,14 @@
       <strong>En macération depuis {{ jours_maceration }} jour{{ 's' if jours_maceration and jours_maceration > 1 }}</strong>
       {% if duree %}<br><small>Durée prévue par la recette : {{ duree }} jours{% if jours_maceration is not none and jours_maceration >= duree %} — <strong>c'est le moment de goûter !</strong>{% endif %}</small>{% endif %}
     {% else %}
-      <strong>Prêt à embouteiller</strong><br><small>{{ lot.nb_bouteilles }} bouteilles · les matières seront déduites du stock</small>
+      <strong>Prêt à embouteiller</strong><br><small>Mesurez le volume obtenu après filtration : le nombre de bouteilles et la perte réelle sont calculés. Les matières (bouteilles, bouchons…) sont déduites du stock.</small>
+      <div class="champs" style="margin-top:12px">
+        <div><label for="emb-obtenu">Volume obtenu (L){% if lot.volume_macere_l %} <span class="aide">sur {{ lot.volume_macere_l|nombre(1) }} L mis en macération</span>{% endif %}</label>
+          <input id="emb-obtenu" type="number" name="volume_obtenu_l" min="0" step="0.1" inputmode="decimal" value="{{ lot.volume_obtenu_l if lot.volume_obtenu_l is not none else '' }}" data-macere="{{ lot.volume_macere_l or '' }}" data-cl="{{ lot.volume_cl }}"></div>
+        <div><label for="emb-nb">Bouteilles remplies de {{ lot.volume_cl }} cl</label>
+          <input id="emb-nb" type="number" name="nb_bouteilles" min="1" step="1" inputmode="numeric" value="{{ lot.nb_bouteilles }}">
+          <span class="aide" id="emb-calcul"></span></div>
+      </div>
     {% endif %}
   </div>
   <button class="btn" type="submit">Passer à « {{ STATUTS[suivant[lot.statut]] }} »</button>
@@ -43,6 +50,9 @@
       <dt>Embouteillage</dt><dd>{{ lot.date_embouteillage|datefr }}</dd>
       <dt>DLC / DDM</dt><dd>{{ lot.dlc|datefr }}</dd>
       <dt>Production</dt><dd>{{ lot.nb_bouteilles }} bouteilles × {{ lot.volume_cl }} cl</dd>
+      {% if lot.volume_macere_l %}<dt>Mis en macération</dt><dd>{{ lot.volume_macere_l|nombre(1) }} L</dd>{% endif %}
+      {% if lot.volume_obtenu_l is not none %}<dt>Obtenu</dt><dd>{{ lot.volume_obtenu_l|nombre(1) }} L{% if perte is not none %} · perte réelle {{ perte|nombre(0) }} %{% endif %}</dd>
+      {% elif lot.volume_macere_l %}<dt>Perte prévue</dt><dd>{{ (lot.perte_pct if lot.perte_pct is not none else 15)|nombre(0) }} %</dd>{% endif %}
       <dt>Degré</dt><dd>{{ (lot.degre|nombre(1) ~ ' % vol.') if lot.degre is not none else '—' }}</dd>
       {% if lot.statut in ('embouteille', 'epuise') %}
       <dt>Vendues</dt><dd>{{ lot.vendu }}</dd>
@@ -151,6 +161,19 @@
 {% endblock %}
 {% block scripts %}
 <script>
+(function () {
+  var o = document.getElementById('emb-obtenu');
+  if (o) {
+    var nb = document.getElementById('emb-nb'), info = document.getElementById('emb-calcul');
+    o.addEventListener('input', function () {
+      var l = parseFloat(o.value.replace(',', '.')), cl = parseFloat(o.dataset.cl), m = parseFloat(o.dataset.macere);
+      if (!(l > 0)) { info.textContent = ''; return; }
+      nb.value = Math.floor(l * 100 / cl + 1e-9);
+      info.textContent = l.toLocaleString('fr-FR') + ' L ÷ ' + cl + ' cl = ' + nb.value + ' bouteilles'
+        + (m > 0 ? ' · perte ' + Math.max(Math.round((1 - l / m) * 100), 0) + ' %' : '');
+    });
+  }
+})();
 (function () {
   var sel = document.getElementById('mp_id');
   if (!sel) return;

@@ -17,7 +17,7 @@
       <select id="recette_id" name="recette_id">
         <option value="">— Recette libre —</option>
         {% for r in recettes %}
-          <option value="{{ r.id }}" data-nom="{{ r.nom }}" data-degre="{{ r.degre or '' }}"
+          <option value="{{ r.id }}" data-nom="{{ r.nom }}" data-degre="{{ r.degre or '' }}" data-perte="{{ r.perte_pct if r.perte_pct is not none else 15 }}"
             {{ 'selected' if lot.recette_id == r.id }}>{{ r.nom }}</option>
         {% endfor %}
       </select>
@@ -46,19 +46,31 @@
       <input id="dlc" type="date" name="dlc" value="{{ lot.dlc or '' }}">
     </div>
 
-    {% if nouveau %}
+    <div class="large" style="grid-column:1/-1"><h3 style="margin:6px 0 0">Volumes et bouteilles</h3></div>
     <div>
-      <label for="litres">Volume mis en macération (L) <span class="aide">pré-remplit les ingrédients</span></label>
-      <input id="litres" type="number" name="litres" min="0" step="0.1" inputmode="decimal" value="{{ request.form.litres or '' }}" placeholder="ex. 12">
+      <label for="litres">Volume mis en macération (L)</label>
+      <input id="litres" type="number" name="litres" min="0" step="0.1" inputmode="decimal" value="{{ request.form.litres or (lot.volume_macere_l if lot.volume_macere_l is not none else '') }}" placeholder="ex. 12">
+      {% if nouveau %}<span class="aide">Pré-remplit aussi les ingrédients de la recette.</span>{% endif %}
+    </div>
+    <div>
+      <label for="perte_pct">Perte à la macération (%)</label>
+      <input id="perte_pct" type="number" name="perte_pct" min="0" max="95" step="1" inputmode="numeric" value="{{ lot.perte_pct if lot.perte_pct is not none else 15 }}">
+      <span class="aide">Fruits retirés, filtration, dépôt.</span>
+    </div>
+    <div>
+      <label for="volume_cl">Contenance d'une bouteille (cl)</label>
+      <input id="volume_cl" type="number" name="volume_cl" min="1" step="1" inputmode="numeric" value="{{ lot.volume_cl or 50 }}">
+    </div>
+    {% if not nouveau %}
+    <div>
+      <label for="volume_obtenu_l">Volume obtenu après filtration (L) <span class="aide">à l'embouteillage</span></label>
+      <input id="volume_obtenu_l" type="number" name="volume_obtenu_l" min="0" step="0.1" inputmode="decimal" value="{{ lot.volume_obtenu_l if lot.volume_obtenu_l is not none else '' }}">
     </div>
     {% endif %}
     <div>
-      <label for="nb_bouteilles">Bouteilles produites <span class="aide">(ou prévues)</span></label>
+      <label for="nb_bouteilles">Bouteilles <span class="aide" id="nb-aide">(calculé, modifiable)</span></label>
       <input id="nb_bouteilles" type="number" name="nb_bouteilles" min="0" step="1" inputmode="numeric" value="{{ lot.nb_bouteilles or 0 }}">
-    </div>
-    <div>
-      <label for="volume_cl">Contenance (cl)</label>
-      <input id="volume_cl" type="number" name="volume_cl" min="1" step="1" inputmode="numeric" value="{{ lot.volume_cl or 50 }}">
+      <span class="aide" id="calcul-btl"></span>
     </div>
     <div>
       <label for="degre">Degré d'alcool (% vol.)</label>
@@ -91,14 +103,43 @@
     if (opt.dataset.nom) nom.value = opt.dataset.nom;
     if (opt.dataset.degre) degre.value = opt.dataset.degre;
   });
-  if (litres) litres.addEventListener('input', function () {
-    var l = parseFloat(litres.value.replace(',', '.')), v = parseFloat(vol.value);
-    // ~85 % du volume mis en macération se retrouve en bouteille (fruits retirés)
-    if (l > 0 && v > 0 && (!nb.value || nb.value === '0' || nb.dataset.auto)) {
-      nb.value = Math.floor(l * 0.85 * 100 / v);
-      nb.dataset.auto = '1';
+  var perte = document.getElementById('perte_pct');
+  var obtenu = document.getElementById('volume_obtenu_l');
+  var calcul = document.getElementById('calcul-btl');
+  var num = function (el) { return el ? parseFloat(String(el.value).replace(',', '.')) : NaN; };
+  // Nombre de bouteilles : volume obtenu si connu, sinon volume mis en macération moins la perte
+  function recalculer(force) {
+    var v = num(vol), o = num(obtenu), l = num(litres), p = num(perte);
+    if (!(v > 0)) return;
+    var litresNets, texte;
+    if (o > 0) {
+      litresNets = o;
+      texte = o.toLocaleString('fr-FR') + ' L obtenus';
+      if (l > 0) texte += ' (perte réelle ' + Math.max(Math.round((1 - o / l) * 100), 0) + ' %)';
+    } else if (l > 0) {
+      p = isNaN(p) ? 15 : p;
+      litresNets = l * (1 - p / 100);
+      texte = l.toLocaleString('fr-FR') + ' L − ' + p + ' % = ' + litresNets.toLocaleString('fr-FR', { maximumFractionDigits: 2 }) + ' L';
+    } else { calcul.textContent = ''; return; }
+    var n = Math.floor(litresNets * 100 / v + 1e-9);
+    if (force || nb.dataset.auto || !nb.value || nb.value === '0') { nb.value = n; nb.dataset.auto = '1'; }
+    calcul.textContent = texte + ' ÷ ' + v + ' cl = ' + n + ' bouteilles';
+    if (String(n) !== nb.value) {  // nombre saisi à la main : on propose d'appliquer le calcul
+      var b = document.createElement('button');
+      b.type = 'button'; b.className = 'btn-lien'; b.style.color = 'var(--lien)';
+      b.textContent = 'Utiliser ' + n;
+      b.addEventListener('click', function () { recalculer(true); });
+      calcul.appendChild(document.createTextNode(' · ')); calcul.appendChild(b);
     }
+    return n;
+  }
+  [litres, perte, vol, obtenu].forEach(function (el) { if (el) el.addEventListener('input', function () { recalculer(false); }); });
+  sel.addEventListener('change', function () {
+    var opt = sel.options[sel.selectedIndex];
+    if (opt.dataset.perte && perte) { perte.value = opt.dataset.perte; recalculer(false); }
   });
+  // Lot existant : si le nombre enregistré correspond au calcul, il suivra les changements
+  if (nb.value && String(recalculer(false)) === nb.value) nb.dataset.auto = '1';
   nb.addEventListener('input', function () { delete nb.dataset.auto; });
 })();
 </script>

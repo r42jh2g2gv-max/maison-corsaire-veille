@@ -3,8 +3,9 @@ from datetime import date, datetime
 
 from flask import abort, flash, redirect, render_template, request, url_for
 
-from calculs import (CATEGORIES_INGREDIENTS, STATUTS, STATUTS_EMBOUTEILLES,
-                     TYPES_MATERIAUX, cout_revient, taux_tva, to_float)
+from calculs import (CATEGORIES_INGREDIENTS, PERTE_DEFAUT, STATUTS, STATUTS_EMBOUTEILLES,
+                     TYPES_MATERIAUX, bouteilles_estimees, cout_revient, perte_reelle,
+                     taux_tva, to_float)
 from vues_matieres import (cout_depuis_stock, matieres_avec_stock, synchroniser_utilisation,
                            trouver_mp)
 from noyau import (app, couts_par_lot, get_db, get_lot, lots_avec_stock, maj_statut_epuise,
@@ -65,6 +66,9 @@ def lire_formulaire_lot(form):
         "degre": to_float(form.get("degre"), None),
         "statut": form.get("statut") if form.get("statut") in STATUTS else "maceration",
         "notes": form.get("notes", "").strip(),
+        "volume_macere_l": to_float(form.get("litres"), None),
+        "perte_pct": to_float(form.get("perte_pct"), None),
+        "volume_obtenu_l": to_float(form.get("volume_obtenu_l"), None),
     }
 
 
@@ -84,9 +88,11 @@ def lot_nouveau():
         numero = numero_lot(conn)
         cur = conn.execute(
             """INSERT INTO lots (numero, recette_id, recette_nom, date_maceration,
-               date_embouteillage, dlc, nb_bouteilles, volume_cl, degre, statut, notes, created_at)
+               date_embouteillage, dlc, nb_bouteilles, volume_cl, degre, statut, notes, created_at,
+               volume_macere_l, perte_pct, volume_obtenu_l)
                VALUES (:numero, :recette_id, :recette_nom, :date_maceration, :date_embouteillage,
-               :dlc, :nb_bouteilles, :volume_cl, :degre, :statut, :notes, :created_at)""",
+               :dlc, :nb_bouteilles, :volume_cl, :degre, :statut, :notes, :created_at,
+               :volume_macere_l, :perte_pct, :volume_obtenu_l)""",
             {**data, "numero": numero, "created_at": datetime.now().isoformat(timespec="seconds")},
         )
         lot_id = cur.lastrowid
@@ -116,12 +122,13 @@ def lot_nouveau():
         return redirect(url_for("lot_detail", lot_id=lot_id))
 
     lot = {"date_maceration": today(), "volume_cl": 50, "statut": "maceration",
-           "nb_bouteilles": 0}
+           "nb_bouteilles": 0, "perte_pct": PERTE_DEFAUT}
     recette_id = to_int(request.args.get("recette_id"))
     if recette_id:
         r = conn.execute("SELECT * FROM recettes WHERE id = ?", (recette_id,)).fetchone()
         if r:
-            lot.update(recette_id=r["id"], recette_nom=r["nom"], degre=r["degre"])
+            lot.update(recette_id=r["id"], recette_nom=r["nom"], degre=r["degre"],
+                       perte_pct=r["perte_pct"] if r["perte_pct"] is not None else PERTE_DEFAUT)
     return render_template("lot_form.html", lot=lot, recettes=recettes,
                            numero=numero_lot(conn), nouveau=True)
 
@@ -154,6 +161,7 @@ def lot_detail(lot_id):
         ingredients=ingredients, ventes=ventes,
         cout=cout_revient(conn, lot, conf), stock=stock_lot(lot),
         duree=duree, jours_maceration=jours_maceration,
+        perte=perte_reelle(lot["volume_macere_l"], lot["volume_obtenu_l"]),
     )
 
 
@@ -177,7 +185,9 @@ def lot_modifier(lot_id):
             """UPDATE lots SET recette_id = :recette_id, recette_nom = :recette_nom,
                date_maceration = :date_maceration, date_embouteillage = :date_embouteillage,
                dlc = :dlc, nb_bouteilles = :nb_bouteilles, volume_cl = :volume_cl,
-               degre = :degre, statut = :statut, notes = :notes WHERE id = :id""",
+               degre = :degre, statut = :statut, notes = :notes,
+               volume_macere_l = :volume_macere_l, perte_pct = :perte_pct,
+               volume_obtenu_l = :volume_obtenu_l WHERE id = :id""",
             {**data, "id": lot_id},
         )
         conn.execute(
@@ -215,6 +225,19 @@ def lot_statut(lot_id):
     statut = request.form.get("statut")
     if statut not in STATUTS:
         abort(400)
+    if statut == "embouteille" and request.form.get("volume_obtenu_l"):
+        obtenu = to_float(request.form.get("volume_obtenu_l"), None)
+        nb = to_int(request.form.get("nb_bouteilles")) or bouteilles_estimees(obtenu, 0, lot["volume_cl"])
+        if nb < lot["vendu"]:
+            flash(f"{lot['vendu']} bouteilles déjà vendues : le nombre ne peut pas être inférieur.",
+                  "erreur")
+            return redirect(url_for("lot_detail", lot_id=lot_id))
+        conn.execute("UPDATE lots SET volume_obtenu_l = ?, nb_bouteilles = ? WHERE id = ?",
+                     (obtenu, nb, lot_id))
+        lot = get_lot(lot_id)
+        perte = perte_reelle(lot["volume_macere_l"], obtenu)
+        if perte is not None:
+            flash(f"Perte réelle à la macération : {perte:.0f} %.", "info")
     if statut in STATUTS_EMBOUTEILLES and lot["nb_bouteilles"] <= 0:
         flash("Renseignez d'abord le nombre de bouteilles produites.", "erreur")
         return redirect(url_for("lot_modifier", lot_id=lot_id))

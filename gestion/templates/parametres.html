@@ -126,6 +126,7 @@
 <section class="carte mt" id="mise-a-jour">
   <h2>Mise à jour de l'application</h2>
   <p>Installe la dernière version publiée (nouvelles fonctions, corrections). Vos données sont conservées.</p>
+  <p class="aide">Version installée : <strong>{{ version_appli() }}</strong></p>
   <form method="post" action="{{ url_for('parametres_mise_a_jour') }}" onsubmit="this.querySelector('button').disabled = true; this.querySelector('button').textContent = 'Mise à jour en cours (1 à 2 minutes)…';">
     <input type="hidden" name="csrf" value="{{ csrf_token }}">
     <button class="btn btn-or">{{ icone('telecharger') }}Mettre à jour l'application</button>
@@ -148,4 +149,5 @@
     </div>
   </form>
 </section>
+<p class="aide mt" style="text-align:center">Maison Corsaire · version {{ version_appli() }}</p>
 {% endblock %}

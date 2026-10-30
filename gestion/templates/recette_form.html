@@ -21,6 +21,8 @@
     <div class="champs c3">
       <div><label for="nom">Nom</label><input id="nom" type="text" name="nom" value="{{ recette.nom or '' }}" required></div>
       <div><label for="duree">Macération (jours)</label><input id="duree" type="number" name="duree_maceration_jours" min="0" inputmode="numeric" value="{{ recette.duree_maceration_jours or 60 }}"></div>
+      <div><label for="perte_pct">Perte à la macération (%)</label><input id="perte_pct" type="number" name="perte_pct" min="0" max="95" step="1" inputmode="numeric" value="{{ recette.perte_pct if recette.perte_pct is not none else 15 }}">
+        <span class="aide">Part du volume perdue (fruits retirés, filtration). Proposée pour chaque nouveau lot.</span></div>
       <div><label for="degre">Degré final estimé (% vol.)</label><input id="degre" type="number" name="degre" step="0.1" min="0" inputmode="decimal" value="{{ recette.degre if recette.degre is not none else '' }}"></div>
       <div class="large" style="grid-column:1/-1"><label for="notes_degustation">Notes de dégustation</label><textarea id="notes_degustation" name="notes_degustation" rows="2">{{ recette.notes_degustation or '' }}</textarea></div>
       <div class="large" style="grid-column:1/-1"><label for="instructions">Étapes de préparation</label><textarea id="instructions" name="instructions" rows="6" placeholder="1. Peler et couper les fruits…">{{ recette.instructions or '' }}</textarea></div>
