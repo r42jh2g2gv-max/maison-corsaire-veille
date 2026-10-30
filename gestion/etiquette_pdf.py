@@ -1,11 +1,13 @@
 """Module 5 — étiquette arrière (contre-étiquette) en PDF."""
 from io import BytesIO
+from pathlib import Path
 from xml.sax.saxutils import escape
 
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import ParagraphStyle
 from reportlab.lib.units import mm
+from reportlab.lib.utils import ImageReader
 from reportlab.pdfgen import canvas
 from reportlab.platypus import Paragraph
 
@@ -34,8 +36,27 @@ def _avec_allergenes_en_gras(texte, allergenes):
     return html
 
 
+# Logo officiel fourni par le producteur ; le dessin vectoriel ci-dessous sert de secours.
+LOGO_OFFICIEL = Path(__file__).parent / "static" / "etiquette" / "pictogramme-femme-enceinte.png"
+_logo = None
+
+
 def picto_femme_enceinte(c, x, y, d):
-    """Pictogramme « femme enceinte » (cercle barré), coin inférieur gauche en (x, y)."""
+    """Pictogramme « femme enceinte », carré de côté d, coin inférieur gauche en (x, y)."""
+    global _logo
+    if LOGO_OFFICIEL.exists():
+        if _logo is None:
+            _logo = ImageReader(str(LOGO_OFFICIEL))
+        largeur, hauteur = _logo.getSize()
+        echelle = d / max(largeur, hauteur)
+        l, h = largeur * echelle, hauteur * echelle
+        c.drawImage(_logo, x + (d - l) / 2, y + (d - h) / 2, l, h, mask="auto")
+        return
+    picto_dessine(c, x, y, d)
+
+
+def picto_dessine(c, x, y, d):
+    """Version dessinée du pictogramme (si le fichier officiel est absent)."""
     def p(u, v):
         return x + u * d, y + v * d
 
