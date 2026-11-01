@@ -22,7 +22,10 @@ def produit_public(recette_id):
     marches = conn.execute(
         "SELECT * FROM evenements WHERE COALESCE(date_fin, date_debut) >= ? AND type != 'autre'"
         " ORDER BY date_debut LIMIT 4", (date.today().isoformat(),)).fetchall()
+    from vues_avis import avis_publies, resume_avis
     return render_template("produit_public.html", r=recette, e=e, lot=lot, marches=marches,
+                           note=resume_avis(conn, recette_id, publies=True),
+                           avis=avis_publies(conn, recette_id),
                            conf=settings(), TYPES_EVENEMENTS=TYPES_EVENEMENTS)
 
 

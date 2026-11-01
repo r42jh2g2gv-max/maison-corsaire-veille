@@ -302,6 +302,20 @@ CREATE TABLE IF NOT EXISTS clotures (
     notes TEXT
 );
 
+CREATE TABLE IF NOT EXISTS avis (
+    id INTEGER PRIMARY KEY,
+    recette_id INTEGER REFERENCES recettes(id) ON DELETE SET NULL,
+    lot_numero TEXT,
+    note INTEGER,
+    commentaire TEXT,
+    conseil TEXT,
+    prenom TEXT,
+    email TEXT,
+    lu INTEGER NOT NULL DEFAULT 0,
+    publie INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS declarations (
     periode TEXT PRIMARY KEY,
     declare_le TEXT NOT NULL,
@@ -453,7 +467,7 @@ def init_db(app):
 
 def clear_data(conn):
     """Supprime toutes les données métier (garde le compte et les réglages)."""
-    for table in ("clotures", "depots", "avoirs", "degustations", "coffret_elements", "coffrets", "sorties", "consignes", "bons", "ventes", "tickets", "messages", "declarations",
+    for table in ("avis", "clotures", "depots", "avoirs", "degustations", "coffret_elements", "coffrets", "sorties", "consignes", "bons", "ventes", "tickets", "messages", "declarations",
                   "evenements", "clients", "mouvements_mp", "achat_lignes", "achats",
                   "lot_ingredients", "lots", "recette_ingredients", "recettes",
                   "matieres_premieres", "materiaux"):
@@ -716,6 +730,14 @@ def seed_demo(conn):
         "INSERT INTO depots (client_id, lot_id, date_mouvement, type, quantite, prix_unitaire_ht)"
         " VALUES (?, ?, ?, 'depot', ?, ?)",
         [(client_ids[1], lot_ids[2], d(-50), 3, 24.0)])
+    rec = [r[0] for r in conn.execute("SELECT id FROM recettes ORDER BY id")]
+    conn.executemany(
+        "INSERT INTO avis (recette_id, lot_numero, note, commentaire, conseil, prenom, lu, publie,"
+        " created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        [(rec[0], "MC-2026-001", 5, "Un régal en digestif, la vanille est parfaite.",
+          "Une version coffret cadeau pour Noël ?", "Marie", 1, 1, d(-20) + "T18:00:00"),
+         (rec[1], None, 4, "Très fruité, j'aurais aimé un peu plus de passion.",
+          "Essayez ananas-gingembre !", "Thomas", 0, 0, d(-2) + "T11:30:00")])
     seed_matieres(conn, d)
     conn.execute("UPDATE recettes SET perte_pct = 15")
     for numero, macere, obtenu in [(1, 14, 12.1), (2, 13, 11.1), (3, 11.8, 10.2), (4, 14, None),

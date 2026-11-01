@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+{% from "_icones.html" import icone %}
+{% block titre %}Avis clients{% endblock %}
+{% block contenu %}
+<div class="titre-page">
+  <div><div class="surtitre">Notes · commentaires · idées</div><h1>Avis clients</h1><div class="filet"></div></div>
+  {% if nouveaux %}<div class="actions"><form method="post" action="{{ url_for('avis_tout_lu') }}"><input type="hidden" name="csrf" value="{{ csrf_token }}"><button class="btn btn-ligne">{{ icone('check') }}Tout marquer lu</button></form></div>{% endif %}
+</div>
+
+<section class="carte bois">
+  <div class="stats-3">
+    <div><strong class="or">{{ global_.moyenne if global_.moyenne else '—' }}{% if global_.moyenne %}<small>/5</small>{% endif %}</strong><span>note moyenne</span></div>
+    <div><strong>{{ global_.nb }}</strong><span>avis notés</span></div>
+    <div><strong>{{ nouveaux }}</strong><span>nouveau(x)</span></div>
+  </div>
+</section>
+
+<div class="grille-2-1 mt">
+  <section>
+    <div class="toggles" style="margin-bottom:12px;flex-wrap:wrap">
+      {% for cle, label in [('tous', 'Tous'), ('nouveaux', 'Nouveaux'), ('conseils', 'Avec conseils'), ('publies', 'Publiés')] %}
+      <a class="btn btn-petit {{ 'btn-or' if filtre == cle else 'btn-ligne' }}" href="{{ url_for('avis_clients', filtre=cle, recette=recette or None) }}">{{ label }}</a>
+      {% endfor %}
+    </div>
+    {% for a in liste %}
+    <article class="carte {{ 'rappel-urgent' if not a.lu }}" style="margin-bottom:12px{{ ';border-left-width:4px' if not a.lu }}" id="avis-{{ a.id }}">
+      <div style="display:flex;justify-content:space-between;gap:10px;align-items:flex-start">
+        <div style="min-width:0">
+          <strong>{{ a.recette_nom or 'Avis général' }}</strong>{% if a.lot_numero %} <span class="code">{{ a.lot_numero }}</span>{% endif %}<br>
+          <small class="doux">{{ a.prenom or 'Anonyme' }} · {{ a.created_at[:10]|datefr }}{% if a.email %} · {{ a.email }}{% endif %}</small>
+        </div>
+        {% if a.note %}<span class="texte-or" style="white-space:nowrap;font-size:1.1em" aria-label="{{ a.note }} sur 5">{{ '★' * a.note }}<span style="opacity:.3">{{ '★' * (5 - a.note) }}</span></span>{% endif %}
+      </div>
+      {% if a.commentaire %}<p class="mb0" style="margin-top:8px;overflow-wrap:anywhere">« {{ a.commentaire }} »</p>{% endif %}
+      {% if a.conseil %}<p class="mb0" style="margin-top:8px;overflow-wrap:anywhere"><span class="badge badge-revendeur sans-point">Conseil</span> {{ a.conseil }}</p>{% endif %}
+      <form method="post" action="{{ url_for('avis_action', avis_id=a.id) }}" class="toggles" style="margin-top:10px">
+        <input type="hidden" name="csrf" value="{{ csrf_token }}"><input type="hidden" name="retour" value="{{ request.full_path }}">
+        {% if not a.lu %}<button class="btn btn-petit btn-ligne" name="action" value="lu">{{ icone('check') }}Lu</button>{% endif %}
+        {% if a.recette_id and a.commentaire %}
+          {% if a.publie %}<button class="btn btn-petit btn-or" name="action" value="masquer" aria-pressed="true">{{ icone('check') }}Publié sur la fiche</button>
+          {% else %}<button class="btn btn-petit btn-ligne" name="action" value="publier">Publier sur la fiche</button>{% endif %}
+        {% endif %}
+        <button class="btn btn-petit btn-danger" name="action" value="supprimer" aria-label="Supprimer" onclick="return confirm('Supprimer cet avis ?')">{{ icone('poubelle') }}</button>
+      </form>
+    </article>
+    {% else %}
+    <div class="carte"><p class="vide mb0">Aucun avis pour l'instant. Imprimez l'affichette ou activez le QR code sur vos étiquettes.</p></div>
+    {% endfor %}
+  </section>
+
+  <div class="grille" style="align-content:start">
+    <section class="carte">
+      <h2>QR code « Votre avis »</h2>
+      <p class="aide">À poser sur votre stand ou chez un revendeur. Le client scanne, note et donne ses idées : l'avis arrive ici.</p>
+      <form method="get" action="{{ url_for('avis_affiche') }}" target="_blank" class="grille" style="gap:12px">
+        <div><label for="aff-recette">Pour</label>
+          <select id="aff-recette" name="recette"><option value="">Tous les rhums</option>{% for r in recettes %}<option value="{{ r.id }}">{{ r.nom }}</option>{% endfor %}</select></div>
+        <div><label for="aff-format">Format</label>
+          <select id="aff-format" name="format"><option value="A5">A5 (affichette de stand)</option><option value="A6">A6 (chevalet, comptoir)</option></select></div>
+        <button class="btn btn-or">{{ icone('imprimer') }}Affichette PDF</button>
+      </form>
+      <label for="lien-avis" class="mt" style="display:block">Lien à partager (SMS, Instagram…)</label>
+      <input id="lien-avis" type="text" readonly value="{{ lien }}" onclick="this.select()">
+      <p class="aide mb0">La fiche produit (QR de la contre-étiquette) propose aussi « Donner mon avis ».</p>
+    </section>
+
+    {% if par_recette %}
+    <section class="carte">
+      <h2>Par recette</h2>
+      {% for r in par_recette %}
+      <a href="{{ url_for('avis_clients', recette=r.id) }}" style="display:flex;justify-content:space-between;gap:8px;padding:9px 0;border-top:1px solid var(--bord);text-decoration:none;color:inherit{{ ';font-weight:700' if recette == r.id }}">
+        <span style="min-width:0">{{ r.nom }}<br><small class="doux">{{ r.nb }} avis{% if r.conseils %} · {{ r.conseils }} conseil(s){% endif %}</small></span>
+        <strong class="texte-or num">{{ '%.1f'|format(r.moyenne) if r.moyenne else '—' }}</strong>
+      </a>
+      {% endfor %}
+      {% if recette %}<a class="btn btn-ligne btn-petit mt" href="{{ url_for('avis_clients') }}">Toutes les recettes</a>{% endif %}
+    </section>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

@@ -231,7 +231,7 @@ def inject_globals():
 # --------------------------------------------------------------------------
 
 PUBLIC = ("static", "connexion", "theme", "service_worker", "manifeste", "hors_ligne", "icone",
-          "produit_public", "calendrier_ics")
+          "produit_public", "calendrier_ics", "avis_public")
 
 
 @app.before_request

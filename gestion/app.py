@@ -15,6 +15,7 @@ import vues_depots  # noqa: F401,E402
 import vues_cloture  # noqa: F401,E402
 import vues_public  # noqa: F401,E402
 import vues_recherche  # noqa: F401,E402
+import vues_avis  # noqa: F401,E402
 import vues_etiquettes  # noqa: F401,E402
 import vues_logo  # noqa: F401,E402
 import vues_lots  # noqa: F401,E402

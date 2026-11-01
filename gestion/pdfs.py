@@ -539,3 +539,56 @@ def avoir_pdf(avoir, ticket, conf):
     c.showPage()
     c.save()
     return buf.getvalue()
+
+
+# --------------------------------------------------------------------------
+# Affichette « Votre avis » avec QR code (stand, comptoir d'un revendeur)
+# --------------------------------------------------------------------------
+
+def affiche_avis_pdf(lien, conf, recette_nom=None, format_="A5"):
+    from reportlab.lib.pagesizes import A5
+    from etiquette_pdf import dessiner_qr
+    taille = A5 if format_ == "A5" else A6
+    L, H = taille
+    k = L / A5[0]  # échelle : tout est réduit proportionnellement en A6
+    buf = BytesIO()
+    c = canvas.Canvas(buf, pagesize=taille)
+    c.setTitle("Votre avis compte")
+    c.setStrokeColor(OR)
+    c.setLineWidth(2 * k)
+    c.roundRect(8 * mm * k, 8 * mm * k, L - 16 * mm * k, H - 16 * mm * k, 5 * mm * k)
+    y = H - 22 * mm * k
+    logo = _logo("symbole")
+    if logo:
+        _dessiner_logo(c, logo, L / 2, y - 12 * mm * k, 16 * mm * k, centre=True)
+        y -= 20 * mm * k
+    c.setFillColor(NUIT)
+    c.setFont("Times-Bold", 17 * k)
+    c.drawCentredString(L / 2, y, conf.get("producteur_nom") or "Maison Corsaire")
+    y -= 15 * mm * k
+    c.setFillColor(OR)
+    c.setFont("Times-Bold", 30 * k)
+    c.drawCentredString(L / 2, y, "Votre avis compte !")
+    y -= 10 * mm * k
+    c.setFillColor(NUIT)
+    c.setFont("Helvetica", 11 * k)
+    texte = (f"Vous avez goûté « {recette_nom} » ?" if recette_nom
+             else "Vous avez goûté nos rhums arrangés ?")
+    for ligne in [texte, "Donnez-nous votre note, votre avis", "et vos idées de nouveaux parfums."]:
+        c.drawCentredString(L / 2, y, ligne)
+        y -= 5.5 * mm * k
+    cote = 68 * mm * k
+    y -= cote + 4 * mm * k
+    dessiner_qr(c, lien, (L - cote) / 2, y, cote)
+    y -= 7 * mm * k
+    c.setFont("Helvetica-Bold", 10 * k)
+    c.drawCentredString(L / 2, y, "Scannez avec l'appareil photo de votre téléphone")
+    y -= 5 * mm * k
+    c.setFont("Helvetica", 7 * k)
+    c.setFillColor(GRIS)
+    c.drawCentredString(L / 2, y, lien[:90])
+    c.setFont("Helvetica", 6.5 * k)
+    c.drawCentredString(L / 2, 13 * mm * k, MODERATION[:110])
+    c.showPage()
+    c.save()
+    return buf.getvalue()

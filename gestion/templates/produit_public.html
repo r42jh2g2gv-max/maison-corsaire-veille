@@ -59,6 +59,15 @@
   </section>
   {% endif %}
 
+  <section class="carte" style="text-align:center">
+    <h2>Votre avis</h2>
+    {% if note.nb %}<p><span class="texte-or" style="font-size:1.4em">{{ '★' * (note.moyenne|round|int) }}</span> <strong>{{ note.moyenne }}/5</strong> <small class="doux">({{ note.nb }} avis)</small></p>{% endif %}
+    {% for a in avis %}
+    <div class="ligne" style="text-align:left;display:block"><span class="texte-or">{{ '★' * (a.note or 0) }}</span> « {{ a.commentaire }} »<br><small class="doux">{{ a.prenom or 'Un client' }}</small></div>
+    {% endfor %}
+    <a class="btn btn-or mt" href="{{ url_for('avis_public', recette=r.id, lot=lot.numero if lot else None) }}">Donner mon avis</a>
+  </section>
+
   {% if marches %}
   <section class="carte">
     <h2>Retrouvez-nous</h2>

@@ -311,3 +311,43 @@ total = [row for row in ws.iter_rows(values_only=True) if row and row[0] == 'TOT
 with app.app_context():
     assert abs(total[3] - _rappels.ca_periode(db, _date(_date.today().year, 1, 1), _date.today())) < 0.01
 print('export comptable OK')
+
+# --- 15. Avis clients
+visiteur = app.test_client()
+html = visiteur.get('/avis?recette=1&lot=MC-2026-001').get_data(as_text=True)
+assert 'Votre avis compte' in html and 'name="note"' in html
+with visiteur.session_transaction() as s:
+    jeton_v = s['csrf']
+nb0 = db.execute('select count(*) from avis').fetchone()[0]
+r = visiteur.post('/avis', data={'csrf': jeton_v, 'recette': '1', 'lot': 'MC-2026-001', 'note': '5',
+                                 'commentaire': 'Superbe', 'conseil': 'Un rhum au coco svp',
+                                 'prenom': 'Léa', 'email': 'lea@exemple.fr', 'nouveautes': '1'})
+assert 'Merci' in r.get_data(as_text=True)
+a = db.execute('select * from avis order by id desc limit 1').fetchone()
+assert a['note'] == 5 and a['recette_id'] == 1 and a['lot_numero'] == 'MC-2026-001' and a['lu'] == 0
+cl = db.execute("select * from clients where email='lea@exemple.fr'").fetchone()
+assert cl and cl['accepte_infos'] == 1, 'inscription aux nouveautés'
+# vide -> refus ; robot (champ piège) -> ignoré ; limite 5/heure
+assert 'Donnez une note' in visiteur.post('/avis', data={'csrf': jeton_v}).get_data(as_text=True)
+visiteur.post('/avis', data={'csrf': jeton_v, 'note': '1', 'commentaire': 'spam', 'site_web': 'http://x'})
+assert db.execute("select count(*) from avis where commentaire='spam'").fetchone()[0] == 0
+for i in range(5):
+    visiteur.post('/avis', data={'csrf': jeton_v, 'note': '4'})
+assert db.execute('select count(*) from avis').fetchone()[0] == nb0 + 5, 'limite par heure'
+assert visiteur.get('/avis-clients').status_code == 302, 'rubrique protégée'
+# rubrique, rappel, publication sur la fiche produit
+html = c.get('/avis-clients').get_data(as_text=True)
+assert 'Superbe' in html and 'Un rhum au coco' in html and 'lea@exemple.fr' in html
+assert 'nouveaux avis clients' in c.get('/').get_data(as_text=True)
+assert 'Superbe' not in visiteur.get('/p/1').get_data(as_text=True), 'pas publié par défaut'
+c.post(f'/avis-clients/{a["id"]}', data={'csrf': csrf(), 'action': 'publier'})
+html = visiteur.get('/p/1').get_data(as_text=True)
+assert 'Superbe' in html and 'Léa' in html and 'lea@exemple.fr' not in html and 'Donner mon avis' in html
+assert 'Avec conseils' in c.get('/avis-clients?filtre=conseils').get_data(as_text=True)
+r = c.get('/avis-clients/affiche.pdf?recette=1&format=A6'); assert r.data[:4] == b'%PDF'
+r = c.get('/avis-clients/affiche.pdf'); assert r.data[:4] == b'%PDF'
+c.post('/avis-clients/tout-lu', data={'csrf': csrf()})
+assert db.execute('select count(*) from avis where lu = 0').fetchone()[0] == 0
+c.post(f'/avis-clients/{a["id"]}', data={'csrf': csrf(), 'action': 'supprimer'})
+assert not db.execute('select 1 from avis where id=?', (a['id'],)).fetchone()
+print('avis OK')

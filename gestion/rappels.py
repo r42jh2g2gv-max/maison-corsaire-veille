@@ -212,6 +212,13 @@ def calculer_rappels(conn, conf):
                     f"Dernière commande il y a {(ajd - date.fromisoformat(c['dernier'])).days} jours",
                     None, url_for("client_detail", client_id=c["id"]))
 
+    # Nouveaux avis clients
+    nb_avis = conn.execute("SELECT COUNT(*) FROM avis WHERE lu = 0").fetchone()[0]
+    if nb_avis:
+        ajouter("info", "message", f"{nb_avis} nouvel avis client" if nb_avis == 1
+                else f"{nb_avis} nouveaux avis clients", "Notes, commentaires et conseils à lire",
+                None, url_for("avis_clients", filtre="nouveaux"))
+
     ordre = {"retard": 0, "urgent": 1, "info": 2}
     rappels.sort(key=lambda r: (ordre[r["niveau"]], r["echeance"] or "9999"))
     return rappels
