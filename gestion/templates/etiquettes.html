@@ -6,6 +6,16 @@
   <div><div class="surtitre">Module 5 · Mentions obligatoires</div><h1>Contre-étiquettes</h1><div class="filet"></div></div>
 </div>
 
+<details class="carte bois" style="margin-bottom:16px" id="affiche">
+  <summary>Affiche de prix du stand</summary>
+  <p class="aide mt">Les rhums en stock avec leur prix actuel, les coffrets, la fidélité, la consigne et le QR code « Votre avis ». Elle suit vos prix : réimprimez-la avant chaque marché.</p>
+  <form method="get" action="{{ url_for('affiche_prix') }}" target="_blank" class="champs">
+    <div><label for="aff-f">Format</label><select id="aff-f" name="format"><option value="A4">A4</option><option value="A3">A3 (grand format)</option></select></div>
+    <div><label for="aff-n">Notes de dégustation</label><select id="aff-n" name="notes"><option value="1">Affichées</option><option value="0">Masquées</option></select></div>
+    <div class="large"><button class="btn btn-or">{{ icone('imprimer') }}Affiche PDF</button></div>
+  </form>
+</details>
+
 <div class="encart encart-or" style="margin-bottom:16px">
   <strong>À relire avant d'imprimer.</strong> L'étiquette reprend : nom du parfum, dénomination « {{ DENOMINATION_DEFAUT }} », ingrédients (allergènes en gras), volume, degré, case « LOT » à tamponner, producteur, pictogramme femme enceinte officiel et consigne de tri.
 </div>

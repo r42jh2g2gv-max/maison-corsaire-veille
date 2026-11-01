@@ -413,3 +413,14 @@ assert c.get('/chiffres/bilan/2026-13.pdf').status_code == 404
 # envoi automatique : sans SMTP, rien ne se passe et rien ne casse
 assert c.get('/').status_code == 200
 print('bilan OK')
+
+# --- 19. Affiche de prix
+from vues_affiche import carte_des_prix
+with app.app_context():
+    produits, coffrets_ = carte_des_prix(db)
+assert produits and all(p['prix'] for p in produits)
+for q in ('', '?format=A3&notes=0'):
+    r = c.get('/affiche-prix.pdf' + q); assert r.data[:4] == b'%PDF'
+assert 'Affiche de prix' in c.get('/agenda').get_data(as_text=True)
+assert 'Affiche de prix du stand' in c.get('/etiquettes').get_data(as_text=True)
+print('affiche de prix OK')

@@ -19,6 +19,7 @@ import vues_avis  # noqa: F401,E402
 import vues_production  # noqa: F401,E402
 import vues_hygiene  # noqa: F401,E402
 import bilan  # noqa: F401,E402
+import vues_affiche  # noqa: F401,E402
 import vues_etiquettes  # noqa: F401,E402
 import vues_logo  # noqa: F401,E402
 import vues_lots  # noqa: F401,E402
