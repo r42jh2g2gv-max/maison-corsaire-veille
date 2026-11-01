@@ -225,3 +225,58 @@ assert 'Caisse -2,00' in c.get('/agenda').get_data(as_text=True)
 c.post(f'/agenda/{evt}/cloture', data={'csrf': csrf(), 'fond_caisse': '50', 'especes_comptees': ''})
 assert db.execute('select count(*) from clotures where evenement_id=?', (evt,)).fetchone()[0] == 1
 print('clôture OK')
+
+# --- 11. Fiche produit publique + QR code sur l'étiquette
+lot1 = db.execute('select * from lots where id=1').fetchone()
+r = c.get(f'/etiquettes/lot/1.pdf?qr=1&copies=2'); assert r.data[:4] == b'%PDF'
+r = c.get(f'/etiquettes/recette/1.pdf?qr=1&format=unite'); assert r.data[:4] == b'%PDF'
+anonyme = app.test_client()
+html = anonyme.get(f'/p/{lot1["recette_id"]}?lot={lot1["numero"]}').get_data(as_text=True)
+assert lot1['numero'] in html and 'modération' in html and 'Composition' in html
+recette1 = db.execute('select * from recettes where id=?', (lot1['recette_id'],)).fetchone()
+if recette1['instructions']:
+    assert recette1['instructions'][:30] not in html, 'recette secrète'
+assert 'prix' not in html.lower()
+assert anonyme.get('/p/9999').status_code == 404
+assert anonyme.get('/lots').status_code == 302  # le reste reste protégé
+from etiquette_pdf import etiquettes_pdf
+print('fiche produit OK')
+
+# --- 12. Calendrier abonné
+html = c.get('/parametres').get_data(as_text=True)
+assert 'webcal://' in html
+jeton = db.execute("select value from settings where key='calendrier_jeton'").fetchone()[0]
+ics = anonyme.get(f'/calendrier/{jeton}.ics')
+txt = ics.get_data(as_text=True)
+assert ics.status_code == 200 and txt.startswith('BEGIN:VCALENDAR') and 'BEGIN:VALARM' in txt and 'Grand marché de Noël' in txt
+assert all(len(l.encode()) <= 75 for l in txt.split('\r\n')), 'lignes pliées'
+assert anonyme.get('/calendrier/mauvais.ics').status_code == 404
+c.post('/parametres/calendrier', data={'csrf': csrf()})
+assert anonyme.get(f'/calendrier/{jeton}.ics').status_code == 404, 'ancien jeton révoqué'
+print('calendrier OK')
+
+# --- 13. Recherche globale (sans accents, plusieurs mots)
+html = c.get('/recherche?q=julien').get_data(as_text=True)
+assert 'Julien Robert' in html and 'Clients' in html
+html = c.get('/recherche?q=' + lot1['numero']).get_data(as_text=True)
+assert 'Lots' in html
+html = c.get('/recherche?q=F-2026').get_data(as_text=True)
+assert 'Tickets et factures' in html
+html = c.get('/recherche?q=vanille madagascar').get_data(as_text=True)
+assert 'Vanille' in html or 'vanille' in html
+html = c.get('/recherche?q=epicerie').get_data(as_text=True)
+assert 'picerie' in html, 'recherche sans accents'
+assert 'Aucun résultat' in c.get('/recherche?q=zzzzzz').get_data(as_text=True)
+print('recherche OK')
+
+# --- 14. Export comptable
+from openpyxl import load_workbook
+r = c.get('/exports/comptable.xlsx')
+wb = load_workbook(io.BytesIO(r.data))
+assert wb.sheetnames[:4] == ['Récapitulatif', 'Livre des recettes', 'Factures en attente', 'Factures émises'], wb.sheetnames
+assert 'Avoirs' in wb.sheetnames and 'Registre des achats' in wb.sheetnames
+ws = wb['Récapitulatif']
+total = [row for row in ws.iter_rows(values_only=True) if row and row[0] == 'TOTAL'][0]
+with app.app_context():
+    assert abs(total[3] - _rappels.ca_periode(db, _date(_date.today().year, 1, 1), _date.today())) < 0.01
+print('export comptable OK')

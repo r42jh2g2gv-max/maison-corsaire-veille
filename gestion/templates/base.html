@@ -60,6 +60,7 @@
     </nav>
     <div class="actions-entete">
       <a id="indicateur-reseau" href="{{ url_for('caisse') }}#attente" class="badge badge-urgent" hidden></a>
+      <a class="bouton-icone{{ ' actif' if page == 'recherche' }}" href="{{ url_for('recherche') }}" aria-label="Rechercher">{{ icone('recherche') }}</a>
       <details class="menu-plus">
         <summary class="bouton-icone" aria-label="Toutes les pages">{{ icone('menu') }}</summary>
         <div class="panneau">

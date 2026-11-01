@@ -1,4 +1,5 @@
 """Module 5 — contre-étiquettes réglementaires par recette ou par lot."""
+import os
 import re
 
 from flask import Response, flash, redirect, render_template, request, url_for
@@ -95,7 +96,18 @@ def donnees_etiquette(conn, recette=None, lot=None):
         "producteur_adresse": conf.get("producteur_adresse") or "",
         "tri": conf.get("etiquette_tri") or "",
         "lot": lot["numero"] if lot and request.args.get("lot_imprime") else None,
+        "qr": lien_fiche(recette, lot) if request.args.get("qr") and (recette or lot) else None,
     }
+
+
+def lien_fiche(recette, lot):
+    """Adresse publique de la fiche produit (scannée depuis la contre-étiquette)."""
+    rid = recette["id"] if recette else lot["recette_id"]
+    if not rid:
+        return None
+    lien = url_for("produit_public", recette_id=rid, _external=True,
+                   _scheme="https" if os.environ.get("HTTPS") == "1" else None)
+    return lien + (f"?lot={lot['numero']}" if lot else "")
 
 
 @app.route("/etiquettes")

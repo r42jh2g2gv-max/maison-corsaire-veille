@@ -230,7 +230,8 @@ def inject_globals():
 # Sécurité : connexion obligatoire et jeton CSRF
 # --------------------------------------------------------------------------
 
-PUBLIC = ("static", "connexion", "theme", "service_worker", "manifeste", "hors_ligne", "icone")
+PUBLIC = ("static", "connexion", "theme", "service_worker", "manifeste", "hors_ligne", "icone",
+          "produit_public", "calendrier_ics")
 
 
 @app.before_request

@@ -15,7 +15,7 @@
       <thead><tr><th>Bénéficiaire</th><th>Montant</th><th>Code</th><th>Validité</th><th>Statut</th><th></th></tr></thead>
       <tbody>
         {% for b in bons %}{% set st = statut_bon(b) %}
-        <tr>
+        <tr id="bon-{{ b.id }}">
           <td class="titre-ligne" data-label="Bénéficiaire">{% if b.client_id %}<a href="{{ url_for('client_detail', client_id=b.client_id) }}">{{ b.beneficiaire }}</a>{% else %}{{ b.beneficiaire or 'Au porteur' }}{% endif %}
             {% if b.motif %}<br><small>{{ b.motif }}</small>{% endif %}</td>
           <td class="num" data-label="Montant"><strong>{{ b.montant|euro }}</strong></td>

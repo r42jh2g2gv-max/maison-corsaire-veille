@@ -146,6 +146,23 @@
 </section>
 {% endif %}
 
+<section class="carte mt" id="calendrier">
+  <h2>Calendrier du téléphone</h2>
+  <p>Vos marchés, dates d'inscription et rappels (lots à embouteiller, stock bas, factures en attente, URSSAF…) apparaissent dans l'app Calendrier de l'iPhone, avec une alerte. Ils se mettent à jour tout seuls.</p>
+  {% set lien_ics = url_for('calendrier_ics', jeton=jeton_calendrier(), _external=True) %}
+  <label for="lien-ics">Adresse d'abonnement</label>
+  <input id="lien-ics" type="text" readonly value="{{ lien_ics }}" onclick="this.select()">
+  <div class="form-actions">
+    <a class="btn btn-or" href="{{ lien_ics.replace('https://', 'webcal://').replace('http://', 'webcal://') }}">{{ icone('agenda') }}S'abonner sur cet iPhone</a>
+    <button type="button" class="btn btn-ligne" onclick="navigator.clipboard && navigator.clipboard.writeText(document.getElementById('lien-ics').value).then(function(){ this.textContent = 'Copié ✓'; }.bind(this))">Copier l'adresse</button>
+  </div>
+  <p class="aide">Sinon : Réglages → Apps → Calendrier → Comptes → Ajouter un compte → Autre → « Ajouter un calendrier avec abonnement », puis collez l'adresse. L'iPhone actualise le calendrier toutes les heures environ (Réglages → Calendrier → Comptes → Nouvelles données).</p>
+  <form method="post" action="{{ url_for('calendrier_regenerer') }}" onsubmit="return confirm('L\'ancienne adresse cessera de fonctionner. Continuer ?')">
+    <input type="hidden" name="csrf" value="{{ csrf_token }}">
+    <button class="btn btn-ligne btn-petit">Changer l'adresse secrète</button>
+  </form>
+</section>
+
 <section class="carte mt" id="sauvegardes">
   <h2>Sauvegardes</h2>
   <p>Une copie de toutes vos données est faite <strong>automatiquement chaque jour</strong> (à la première ouverture de l'appli) et gardée {{ 30 }} jours. En cas d'erreur, vous pouvez revenir à un jour précédent.</p>

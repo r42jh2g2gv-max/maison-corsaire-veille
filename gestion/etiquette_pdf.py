@@ -105,6 +105,17 @@ def picto_dessine(c, x, y, d):
     c.restoreState()
 
 
+def dessiner_qr(c, texte, x, y, cote):
+    from reportlab.graphics import renderPDF
+    from reportlab.graphics.barcode import qr
+    from reportlab.graphics.shapes import Drawing
+    w = qr.QrCodeWidget(texte, barLevel="M")
+    x0, y0, x1, y1 = w.getBounds()
+    dessin = Drawing(cote, cote, transform=[cote / (x1 - x0), 0, 0, cote / (y1 - y0), 0, 0])
+    dessin.add(w)
+    renderPDF.draw(dessin, c, x, y)
+
+
 def dessiner_etiquette(c, x, y, L, H, e, trait_coupe=True):
     """Dessine une contre-étiquette de L × H (points) à la position (x, y)."""
     m = 3.5 * mm
@@ -123,11 +134,16 @@ def dessiner_etiquette(c, x, y, L, H, e, trait_coupe=True):
     if e["tri"]:
         pied.append(Paragraph(escape(e["tri"]), _style(5.4, interligne=1.15)))
     yb = y + m
+    l_pied, cote = largeur, 0
+    if e.get("qr"):  # QR code vers la fiche produit, en bas à droite à côté du producteur
+        cote = min(13 * mm, largeur * 0.22)
+        l_pied = largeur - cote - 2 * mm
+        dessiner_qr(c, e["qr"], x + L - m - cote, y + m, cote)
     for para in reversed(pied):
-        h = para.wrap(largeur, 40 * mm)[1]
+        h = para.wrap(l_pied, 40 * mm)[1]
         para.drawOn(c, x + m, yb)
         yb += h + 1.2 * mm
-    yb += 1 * mm
+    yb = max(yb, y + m + cote + 1.2 * mm) + 1 * mm
 
     # --- Une seule rangée : volume + degré | case LOT à tamponner | pictogramme ---
     d = min(15 * mm, largeur * 0.26)

@@ -1,0 +1,80 @@
+{% from "_icones.html" import logo %}
+<!doctype html>
+<html lang="fr" data-theme="{{ theme }}">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0a1322">
+  <title>{{ e.nom }} · {{ conf.producteur_nom or 'Maison Corsaire' }}</title>
+  <meta name="description" content="{{ e.denomination }} — {{ e.nom }}">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <link rel="icon" href="{{ url_for('icone', nom='icone-192', v=version_logo()) if logo_perso() else url_for('static', filename='ancre.svg') }}">
+  <style>
+    .fiche { max-width: 560px; margin: 0 auto; padding: calc(24px + env(safe-area-inset-top)) 16px 40px; }
+    .fiche .marque { display: flex; flex-direction: column; align-items: center; gap: 10px; text-align: center; margin-bottom: 20px; }
+    .fiche .marque .medaillon { width: 88px; height: 88px; }
+    .fiche .marque .medaillon img { width: 100%; height: 100%; object-fit: contain; }
+    .fiche h1 { text-align: center; margin: 4px 0 0; overflow-wrap: anywhere; }
+    .fiche .denom { text-align: center; color: var(--texte-doux, inherit); margin: 6px 0 18px; }
+    .fiche .carte + .carte { margin-top: 14px; }
+    .fiche .ligne { display: flex; justify-content: space-between; gap: 12px; padding: 8px 0; border-bottom: 1px solid var(--bord); }
+    .fiche .ligne:last-child { border-bottom: 0; }
+    .fiche .sante { display: flex; align-items: center; gap: 14px; }
+    .fiche .sante img { width: 54px; height: 54px; flex: none; background: #fff; border-radius: 50%; }
+  </style>
+</head>
+<body>
+<main class="fiche">
+  <div class="marque">
+    <span class="medaillon{{ ' perso' if logo_perso() }}"{% if logo_perso() %} style="background:{{ logo_fond() }}"{% endif %}>{% if logo_perso() %}<img src="{{ url_for('icone', nom='logo', v=version_logo()) }}" alt="">{% else %}{{ logo() }}{% endif %}</span>
+    <div class="surtitre" style="margin:0">{{ conf.producteur_nom or 'Maison Corsaire' }}</div>
+  </div>
+  <h1>{{ e.nom }}</h1>
+  <p class="denom">{{ e.denomination }} · {{ e.volume if lot else '' }}{{ ' · ' if lot }}{{ e.degre }}</p>
+
+  {% if r.notes_degustation %}
+  <section class="carte bois">
+    <h2>Notes de dégustation</h2>
+    <p class="mb0">{{ r.notes_degustation }}</p>
+  </section>
+  {% endif %}
+
+  <section class="carte">
+    <h2>Composition</h2>
+    {% if e.ingredients %}<p><strong>Ingrédients :</strong> {{ e.ingredients }}</p>{% endif %}
+    {% if e.allergenes %}<p><strong>Contient : {{ e.allergenes }}.</strong></p>{% endif %}
+    {% if e.mentions %}<p class="mb0">{{ e.mentions }}</p>{% endif %}
+  </section>
+
+  {% if lot %}
+  <section class="carte">
+    <h2>Votre bouteille</h2>
+    <div class="ligne"><span>Lot</span><strong class="code">{{ lot.numero }}</strong></div>
+    {% if lot.date_maceration %}<div class="ligne"><span>Mise en macération</span><span>{{ lot.date_maceration|datefr }}</span></div>{% endif %}
+    {% if lot.date_embouteillage %}<div class="ligne"><span>Mise en bouteille</span><span>{{ lot.date_embouteillage|datefr }}</span></div>{% endif %}
+    {% if lot.dlc %}<div class="ligne"><span>À consommer de préférence avant</span><span>{{ lot.dlc|datefr }}</span></div>{% endif %}
+  </section>
+  {% endif %}
+
+  {% if marches %}
+  <section class="carte">
+    <h2>Retrouvez-nous</h2>
+    {% for m in marches %}
+    <div class="ligne"><span>{{ m.nom }}{% if m.lieu %}<br><small class="doux">{{ m.lieu }}</small>{% endif %}</span><span style="white-space:nowrap">{{ m.date_debut|datefr }}</span></div>
+    {% endfor %}
+  </section>
+  {% endif %}
+
+  <section class="carte">
+    <div class="sante">
+      <img src="{{ url_for('static', filename='etiquette/pictogramme-femme-enceinte.png') }}" alt="Déconseillé aux femmes enceintes">
+      <p class="mb0">L'abus d'alcool est dangereux pour la santé, à consommer avec modération. Vente interdite aux mineurs.</p>
+    </div>
+  </section>
+  {% if conf.producteur_adresse %}<p class="aide" style="text-align:center;margin-top:18px">Élaboré par {{ conf.producteur_nom }}, {{ conf.producteur_adresse }}</p>{% endif %}
+</main>
+</body>
+</html>

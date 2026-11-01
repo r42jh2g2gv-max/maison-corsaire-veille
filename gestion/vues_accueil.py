@@ -8,7 +8,7 @@ from openpyxl.styles import Alignment, Font, PatternFill
 from openpyxl.utils import get_column_letter
 
 from calculs import STATUTS, cout_revient, marge_pct, taux_tva, to_float
-from noyau import (MODES_PAIEMENT, MOIS, TYPES_CLIENTS, app, couts_par_lot, get_db,
+from noyau import (MODES_PAIEMENT, MOIS, MOIS_LONGS, TYPES_CLIENTS, app, couts_par_lot, get_db,
                    lots_avec_stock, mois_label, parse_date, settings, stock_lot, today)
 from rappels import ca_periode, calculer_rappels, periodes_urssaf
 
@@ -322,6 +322,90 @@ def feuille_achats(wb, conn, debut, fin):
                "oui" if a["justificatif"] else "non") for a in rows], {6: EURO})
 
 
+def _mois_entre(debut, fin):
+    d = date.fromisoformat(debut).replace(day=1)
+    f = date.fromisoformat(fin)
+    while d <= f:
+        suivant = (d.replace(day=28) + timedelta(days=4)).replace(day=1)
+        yield d, min(suivant - timedelta(days=1), f)
+        d = suivant
+
+
+def feuille_recap_comptable(wb, conn, conf, debut, fin, couts):
+    """Synthèse mensuelle : CA encaissé, avoirs, achats, cotisations estimées."""
+    taux = (to_float(conf.get("urssaf_taux")) + to_float(conf.get("cfp_taux"))) / 100
+    lignes = []
+    tot = [0, 0, 0, 0, 0]
+    for d1, d2 in _mois_entre(debut, fin):
+        a, b = max(d1.isoformat(), debut), d2.isoformat()
+        avoirs = conn.execute("SELECT COALESCE(SUM(montant), 0) FROM avoirs"
+                              " WHERE date_avoir BETWEEN ? AND ?", (a, b)).fetchone()[0]
+        net = ca_periode(conn, date.fromisoformat(a), d2)
+        achats = conn.execute("SELECT COALESCE(SUM(montant_total), 0) FROM achats"
+                              " WHERE date_achat BETWEEN ? AND ?", (a, b)).fetchone()[0]
+        cotis = round(net * taux, 2)
+        valeurs = [net + avoirs, avoirs, net, achats, cotis]
+        tot = [x + y for x, y in zip(tot, valeurs)]
+        lignes.append((f"{MOIS_LONGS[d1.month - 1].capitalize()} {d1.year}", *valeurs,
+                       net - achats - cotis))
+    lignes.append(("TOTAL", *tot, tot[2] - tot[3] - tot[4]))
+    ws = _feuille(wb, "Récapitulatif",
+                  [("Mois", 18), ("Ventes encaissées", 17), ("Avoirs", 12), ("CA net", 13),
+                   ("Achats", 13), ("Cotisations estimées", 19), ("Solde", 13)],
+                  lignes, {i: EURO for i in range(2, 8)})
+    for cell in ws[ws.max_row]:
+        cell.font = Font(bold=True)
+    attente = conn.execute("SELECT COUNT(*), COALESCE(SUM(total), 0) FROM tickets WHERE paye = 0"
+                           ).fetchone()
+    stock = sum(stock_lot(l) * couts.get(l["id"], 0) for l in lots_avec_stock())
+    mp = conn.execute(
+        """SELECT COALESCE(SUM(MAX(COALESCE((SELECT SUM(quantite) FROM mouvements_mp v
+             WHERE v.mp_id = m.id), 0), 0) * m.cout_unitaire), 0) FROM matieres_premieres m"""
+    ).fetchone()[0]
+    ws.append([])
+    infos = [("Entreprise", conf.get("producteur_nom") or ""),
+             ("SIRET", conf.get("siret") or ""),
+             ("Période", f"{date.fromisoformat(debut):%d/%m/%Y} au {date.fromisoformat(fin):%d/%m/%Y}"),
+             ("Régime", "Micro-entreprise : CA retenu à la date d'encaissement"),
+             ("Factures en attente de paiement", f"{attente[0]} pour {attente[1]:.2f} €"),
+             ("Stock bouteilles au coût de revient (aujourd'hui)", round(stock, 2)),
+             ("Stock matières premières (aujourd'hui)", round(mp, 2))]
+    for k, v in infos:
+        ws.append([k, v])
+        ws.cell(row=ws.max_row, column=1).font = Font(bold=True)
+        if isinstance(v, float):
+            ws.cell(row=ws.max_row, column=2).number_format = EURO
+    ws.column_dimensions["A"].width = 44
+
+
+def feuille_factures(wb, conn, conf, debut, fin):
+    tva = taux_tva(conf)
+    rows = conn.execute(
+        """SELECT t.*, COALESCE((SELECT SUM(montant) FROM avoirs a WHERE a.ticket_id = t.id), 0)
+                  AS avoirs FROM tickets t
+           WHERE t.facture_numero IS NOT NULL AND t.facture_date BETWEEN ? AND ?
+           ORDER BY t.facture_numero""", (debut, fin)).fetchall()
+    _feuille(wb, "Factures émises",
+             [("N° facture", 14), ("Date de facture", 14), ("Client", 28), ("Adresse", 36),
+              ("Total HT", 12), ("TVA", 10), ("Total TTC", 12), ("Avoirs", 11), ("Payée", 8),
+              ("Date de paiement", 15), ("Mode", 12)],
+             [(t["facture_numero"], t["facture_date"], t["client_nom"], t["client_adresse"] or "",
+               round((t["sous_total"] - t["remise"]) / (1 + tva), 2),
+               round((t["sous_total"] - t["remise"]) * tva / (1 + tva), 2),
+               t["sous_total"] - t["remise"], t["avoirs"], "oui" if t["paye"] else "NON",
+               t["date_paiement"] or "", MODES_PAIEMENT.get(t["mode_paiement"], ""))
+              for t in rows], {5: EURO, 6: EURO, 7: EURO, 8: EURO})
+    avoirs = conn.execute(
+        """SELECT a.*, t.facture_numero, t.client_nom FROM avoirs a JOIN tickets t ON t.id = a.ticket_id
+           WHERE a.date_avoir BETWEEN ? AND ? ORDER BY a.numero""", (debut, fin)).fetchall()
+    if avoirs:
+        _feuille(wb, "Avoirs",
+                 [("N° avoir", 14), ("Date", 12), ("Sur facture", 14), ("Client", 28),
+                  ("Montant", 12), ("Motif", 36)],
+                 [(a["numero"], a["date_avoir"], a["facture_numero"], a["client_nom"],
+                   a["montant"], a["motif"] or "") for a in avoirs], {5: EURO})
+
+
 def feuille_sorties(wb, conn, debut, fin, couts):
     from vues_sorties import MOTIFS
     rows = conn.execute(
@@ -377,6 +461,7 @@ EXPORTS = {
     "stock": "Stock",
     "clients": "Clients et bons d'achat",
     "recettes": "Recettes",
+    "comptable": "Dossier pour le comptable",
     "complet": "Classeur complet",
 }
 app.jinja_env.globals["EXPORTS"] = EXPORTS
@@ -393,6 +478,17 @@ def export(nom):
     fin = parse_date(request.args.get("fin")) or "2999-12-31"
     wb = Workbook()
     wb.remove(wb.active)
+    if nom == "comptable":
+        if debut == "2000-01-01":
+            debut = f"{date.today().year}-01-01"
+        fin = min(fin, today())
+        feuille_recap_comptable(wb, conn, conf, debut, fin, couts)
+        feuille_livre(wb, conn, debut, fin)
+        feuille_factures(wb, conn, conf, debut, fin)
+        feuille_achats(wb, conn, debut, fin)
+        feuille_stock(wb, conn, conf, couts)
+        feuille_matieres(wb, conn)
+        feuille_sorties(wb, conn, debut, fin, couts)
     if nom in ("livre-recettes", "complet"):
         feuille_livre(wb, conn, debut, fin)
     if nom in ("ventes", "complet"):

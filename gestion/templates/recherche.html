@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% from "_icones.html" import icone %}
+{% block titre %}Recherche{% endblock %}
+{% block contenu %}
+<div class="titre-page">
+  <div><div class="surtitre">Clients · lots · factures · ingrédients · bons</div><h1>Recherche</h1><div class="filet"></div></div>
+</div>
+<form method="get" class="carte" role="search">
+  <label for="q">Que cherchez-vous ?</label>
+  <div style="display:flex;gap:8px">
+    <input id="q" type="search" name="q" value="{{ q }}" placeholder="Nom, n° de lot, F-2026-0003, vanille…" autofocus enterkeyhint="search" autocomplete="off" style="flex:1;min-width:0">
+    <button class="btn btn-or" aria-label="Rechercher">{{ icone('recherche') }}</button>
+  </div>
+</form>
+
+{% if q %}
+  {% if groupes %}
+  <div class="grille mt" style="gap:14px">
+    {% for g in groupes %}
+    <section class="carte">
+      <h2 style="display:flex;align-items:center;gap:8px"><span class="texte-or" style="display:inline-flex;width:22px">{{ icone(g.icone) }}</span>{{ g.titre }} <span class="badge badge-neutre sans-point">{{ g.total }}</span></h2>
+      {% for r in g.resultats %}
+      <a href="{{ r.lien }}" style="display:block;padding:10px 0;border-top:1px solid var(--bord);text-decoration:none;color:inherit;min-width:0">
+        <strong style="overflow-wrap:anywhere">{{ r.titre }}</strong>
+        {% if r.detail %}<br><small class="doux" style="overflow-wrap:anywhere">{{ r.detail }}</small>{% endif %}
+      </a>
+      {% endfor %}
+      {% if g.total > g.resultats|length %}<a class="btn btn-ligne btn-petit mt" href="{{ url_for('recherche', q=q, tout=1) }}">Voir les {{ g.total }} résultats</a>{% endif %}
+    </section>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="carte mt"><p class="vide mb0">Aucun résultat pour « {{ q }} ».</p></div>
+  {% endif %}
+{% endif %}
+{% endblock %}
