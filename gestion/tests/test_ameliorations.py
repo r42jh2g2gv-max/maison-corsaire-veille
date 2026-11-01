@@ -43,3 +43,24 @@ assert t['remise'] == 5 and t['total'] == 31
 # Revendeur : pas de carte
 assert 'Carte de fidélité' not in c.get('/clients/1').get_data(as_text=True)
 print('fidélité OK')
+
+# --- 2. Sauvegardes : copie du jour automatique, manuelle, restauration
+from pathlib import Path
+from datetime import date
+dossier = Path(os.environ["DATA_DIR"]) / "sauvegardes"
+assert (dossier / f"corsaire-{date.today().isoformat()}.db").exists(), 'sauvegarde du jour'
+nb_clients = db.execute('select count(*) from clients').fetchone()[0]
+c.post('/parametres/sauvegardes/maintenant', data={'csrf': csrf()})
+manuelle = sorted(dossier.glob('corsaire-manuelle-*.db'))[-1].name
+c.post('/clients/nouveau', data={'csrf': csrf(), 'nom': 'Client à effacer', 'type': 'particulier'})
+assert db.execute('select count(*) from clients').fetchone()[0] == nb_clients + 1
+r = c.post('/parametres/sauvegardes/restaurer', data={'csrf': csrf(), 'nom': manuelle, 'confirmation': 'non'}, follow_redirects=True)
+assert 'Tapez CONFIRMER' in r.get_data(as_text=True)
+c.post('/parametres/sauvegardes/restaurer', data={'csrf': csrf(), 'nom': manuelle, 'confirmation': 'CONFIRMER'})
+assert db.execute('select count(*) from clients').fetchone()[0] == nb_clients, 'restauration'
+assert list(dossier.glob('corsaire-avant-restauration-*.db')), 'filet de sécurité'
+assert c.get(f'/parametres/sauvegardes/{manuelle}').status_code == 200
+assert c.get('/parametres/sauvegardes/..%2Fcorsaire.db').status_code == 404
+z = c.get('/parametres/sauvegarde-complete.zip'); assert z.data[:2] == b'PK'
+assert 'Sauvegardes' in c.get('/parametres').get_data(as_text=True)
+print('sauvegardes OK')

@@ -146,6 +146,34 @@
 </section>
 {% endif %}
 
+<section class="carte mt" id="sauvegardes">
+  <h2>Sauvegardes</h2>
+  <p>Une copie de toutes vos données est faite <strong>automatiquement chaque jour</strong> (à la première ouverture de l'appli) et gardée {{ 30 }} jours. En cas d'erreur, vous pouvez revenir à un jour précédent.</p>
+  <div class="groupe-boutons">
+    <form method="post" action="{{ url_for('sauvegarde_maintenant') }}" class="inline"><input type="hidden" name="csrf" value="{{ csrf_token }}"><button class="btn btn-ligne">{{ icone('check') }}Sauvegarder maintenant</button></form>
+    <a class="btn btn-ligne" href="{{ url_for('sauvegarde_complete') }}">{{ icone('telecharger') }}Tout télécharger (.zip)</a>
+  </div>
+  {% set sauvegardes = liste_sauvegardes() %}
+  {% if sauvegardes %}
+  <form method="post" action="{{ url_for('sauvegarde_restaurer') }}" class="mt" onsubmit="return confirm('Remplacer toutes les données actuelles par cette sauvegarde ?')">
+    <input type="hidden" name="csrf" value="{{ csrf_token }}">
+    <ul class="liste">
+      {% for s in sauvegardes[:10] %}
+      <li><label class="case" style="margin:0"><input type="radio" name="nom" value="{{ s.nom }}" {{ 'checked' if loop.first }}>
+        <span>{{ s.date.strftime('%d/%m/%Y à %H:%M') }}<br><small>{{ s.nom }} · {{ (s.taille / 1024)|round|int }} Ko</small></span></label>
+        <a class="btn btn-ligne btn-petit" href="{{ url_for('sauvegarde_telecharger', nom=s.nom) }}" aria-label="Télécharger">{{ icone('telecharger') }}</a></li>
+      {% endfor %}
+    </ul>
+    {% if sauvegardes|length > 10 %}<p class="aide">… et {{ sauvegardes|length - 10 }} plus anciennes.</p>{% endif %}
+    <details class="mt"><summary>Restaurer la sauvegarde cochée</summary>
+      <div class="champs mt"><div><label for="conf-restaurer">Tapez CONFIRMER</label><input id="conf-restaurer" type="text" name="confirmation" autocomplete="off"></div></div>
+      <div class="form-actions"><button class="btn btn-danger">Restaurer</button></div>
+      <p class="aide mb0">L'état actuel est d'abord sauvegardé (« avant-restauration »), pour pouvoir revenir en arrière.</p>
+    </details>
+  </form>
+  {% endif %}
+</section>
+
 <section class="carte mt" id="donnees">
   <h2>Données</h2>
   <p>Téléchargez une sauvegarde complète au format Excel, ou effacez les données d'exemple pour démarrer votre vrai registre (le compte et les paramètres sont conservés).</p>
