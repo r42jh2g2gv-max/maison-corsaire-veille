@@ -482,3 +482,10 @@ h2 > span > svg, h2 > .texte-or svg { width: 24px; height: 24px; display: block;
 /* Logo personnalisé dans le médaillon */
 .medaillon.perso { overflow: hidden; }
 .medaillon.perso img { width: 100%; height: 100%; object-fit: contain; padding: 3px; display: block; }
+
+/* ---------- Jauge de plafond ---------- */
+.jauge { position: relative; height: 12px; border-radius: 999px; background: var(--surface-2, rgba(255,255,255,.06)); border: 1px solid var(--bord); margin: 8px 0 6px; overflow: hidden; }
+.jauge span { position: absolute; inset: 0 auto 0 0; border-radius: 999px; background: linear-gradient(90deg, #7a5228, #d9793a); }
+.jauge.niveau-info span { background: linear-gradient(90deg, #d9793a, #e8a33a); }
+.jauge.niveau-urgent span, .jauge.niveau-retard span { background: var(--rouge); }
+.jauge i { position: absolute; top: -2px; bottom: -2px; width: 2px; background: var(--texte); opacity: .55; transform: translateX(-1px); }

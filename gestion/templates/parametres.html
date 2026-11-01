@@ -36,6 +36,14 @@
           <option value="trimestrielle" {{ 'selected' if conf.urssaf_periodicite == 'trimestrielle' }}>Trimestrielle</option>
         </select></div>
     </div>
+    <h3 class="mt">Plafonds (alertes)</h3>
+    <div class="champs">
+      <div><label for="debut_activite">Début d'activité</label><input id="debut_activite" type="date" name="debut_activite" value="{{ conf.debut_activite }}"></div>
+      <div><label for="plafond_micro">Plafond micro, ventes (€ HT)</label><input id="plafond_micro" type="number" step="100" min="0" name="plafond_micro" value="{{ conf.plafond_micro|float|int }}" inputmode="numeric"></div>
+      <div><label for="seuil_tva">Franchise TVA : seuil (€)</label><input id="seuil_tva" type="number" step="100" min="0" name="seuil_tva" value="{{ conf.seuil_tva|float|int }}" inputmode="numeric"></div>
+      <div><label for="seuil_tva_majore">Franchise TVA : seuil majoré (€)</label><input id="seuil_tva_majore" type="number" step="100" min="0" name="seuil_tva_majore" value="{{ conf.seuil_tva_majore|float|int }}" inputmode="numeric"></div>
+    </div>
+    <p class="aide mt mb0">Valeurs 2026 pour la vente de marchandises : plafond micro 203 100 € (2026-2028), franchise de TVA 85 000 € / 93 500 €. Le début d'activité sert à calculer le plafond au prorata la première année.</p>
     <p class="aide mt mb0">Vérifiez chaque année les taux sur autoentrepreneur.urssaf.fr (vente de marchandises, BIC) et les tarifs des droits sur douane.gouv.fr. Les droits sont ajoutés au coût de chaque bouteille selon son volume et son degré ; laissez 0 s'ils sont déjà compris dans le prix d'achat de votre rhum.</p>
   </section>
 
@@ -77,6 +85,7 @@
         <input id="smtp_password" type="password" name="smtp_password" autocomplete="new-password"></div>
       <div><label for="smtp_expediteur">Adresse d'expédition</label><input id="smtp_expediteur" type="email" name="smtp_expediteur" value="{{ conf.smtp_expediteur }}" placeholder="contact@maisoncorsaire.fr"></div>
       {% if conf.smtp_password %}<div><label class="case" style="margin-top:34px"><input type="checkbox" name="smtp_effacer" value="1"> Effacer le mot de passe enregistré</label></div>{% endif %}
+      <div class="large"><label class="case"><input type="checkbox" name="bilan_email_auto" value="1" {{ 'checked' if conf.bilan_email_auto != '0' }}> M'envoyer le bilan du mois écoulé au début de chaque mois (à l'adresse du producteur)</label></div>
     </div>
   </section>
   <div class="form-actions" style="margin-top:0"><button class="btn btn-or" type="submit">Enregistrer les paramètres</button></div>

@@ -1,0 +1,135 @@
+{% extends "base.html" %}
+{% from "_icones.html" import icone %}
+{% block titre %}Cahier d'hygiène{% endblock %}
+{% block contenu %}
+<div class="titre-page">
+  <div><div class="surtitre">Plan de maîtrise sanitaire</div><h1>Cahier d'hygiène</h1><div class="filet"></div></div>
+  <div class="actions"><a class="btn btn-or" href="#nouveau" onclick="document.getElementById('nouveau').open = true">{{ icone('plus') }}Noter</a></div>
+</div>
+
+<section class="carte">
+  <h2>Plan de nettoyage et de contrôle</h2>
+  {% for x in plan %}
+  <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 0;border-top:1px solid var(--bord)">
+    <div style="min-width:0">
+      <strong style="overflow-wrap:anywhere">{{ x.t.nom }}</strong><br>
+      <small class="doux">{% if x.t.frequence_jours %}Tous les {{ x.t.frequence_jours }} j{% else %}À chaque production / marché{% endif %}
+        · {% if x.dernier %}fait le {{ x.dernier|datefr }}{% else %}jamais noté{% endif %}</small>
+      {% if x.etat != 'ok' %}<br><span class="badge badge-{{ x.etat }}">{{ 'En retard' if x.etat == 'retard' else 'À faire aujourd\'hui' }}</span>{% endif %}
+    </div>
+    <form method="post" action="{{ url_for('hygiene_fait', tache_id=x.t.id) }}">
+      <input type="hidden" name="csrf" value="{{ csrf_token }}">
+      <button class="btn btn-petit {{ 'btn-or' if x.etat != 'ok' else 'btn-ligne' }}">{{ icone('check') }}Fait</button>
+    </form>
+  </div>
+  {% else %}<p class="vide mb0">Aucune tâche : ajoutez-en ci-dessous.</p>{% endfor %}
+  <p class="aide mt mb0">« Fait » note la tâche aujourd'hui, conforme. Pour un problème, une température ou une photo, utilisez « Noter ».</p>
+</section>
+
+<details class="carte mt" id="nouveau">
+  <summary>+ Noter un nettoyage, un contrôle ou un incident</summary>
+  <form method="post" enctype="multipart/form-data" class="mt">
+    <input type="hidden" name="csrf" value="{{ csrf_token }}">
+    <div class="champs">
+      <div><label for="h-tache">Tâche du plan</label>
+        <select id="h-tache" name="tache_id"><option value="">— Autre (préciser) —</option>{% for x in plan %}<option value="{{ x.t.id }}">{{ x.t.nom }}</option>{% endfor %}</select></div>
+      <div><label for="h-type">Type</label>
+        <select id="h-type" name="type">{% for k, v in TYPES_HYGIENE.items() %}<option value="{{ k }}">{{ v }}</option>{% endfor %}</select></div>
+      <div class="large"><label for="h-objet">Ce qui a été fait ou contrôlé</label>
+        <input id="h-objet" type="text" name="objet" maxlength="200" placeholder="ex. Température frigo : 3 °C · Réception de 5 kg d'ananas"></div>
+      <div><label for="h-date">Date</label><input id="h-date" type="date" name="date" value="{{ today }}"></div>
+      <div><label for="h-lot">Lot concerné <span class="aide">(facultatif)</span></label>
+        <select id="h-lot" name="lot_id"><option value="">—</option>{% for l in lots %}<option value="{{ l.id }}">{{ l.numero }} — {{ l.recette_nom }}</option>{% endfor %}</select></div>
+      <div class="large">
+        <span style="display:block;font-weight:600;margin-bottom:6px">Résultat</span>
+        <div class="toggles">
+          <label class="case"><input type="radio" name="resultat" value="conforme" checked> Conforme</label>
+          <label class="case"><input type="radio" name="resultat" value="non_conforme"> Non conforme</label>
+        </div>
+      </div>
+      <div class="large"><label for="h-action">Action corrective <span class="aide">(obligatoire si non conforme)</span></label>
+        <textarea id="h-action" name="action_corrective" rows="2" placeholder="ex. Fruits abîmés écartés, fournisseur prévenu"></textarea></div>
+      <div><label for="h-par">Fait par</label><input id="h-par" type="text" name="fait_par" maxlength="40"></div>
+      <div><label for="h-photo">Photo <span class="aide">(facultatif)</span></label><input id="h-photo" type="file" name="photo" accept="image/*"></div>
+    </div>
+    <div class="form-actions"><button class="btn btn-or">{{ icone('check') }}Enregistrer</button></div>
+  </form>
+</details>
+
+<section class="carte mt">
+  <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
+    <h2 style="margin:0">Journal</h2>
+    <div class="toggles">
+      <a class="btn btn-petit {{ 'btn-or' if not type_filtre else 'btn-ligne' }}" href="{{ url_for('hygiene') }}">Tout</a>
+      <a class="btn btn-petit {{ 'btn-or' if type_filtre == 'nc' else 'btn-ligne' }}" href="{{ url_for('hygiene', type='nc') }}">Non conformes</a>
+      <a class="btn btn-petit {{ 'btn-or' if type_filtre == 'reception' else 'btn-ligne' }}" href="{{ url_for('hygiene', type='reception') }}">Réceptions</a>
+    </div>
+  </div>
+  {% for r in journal %}
+  <div style="display:flex;justify-content:space-between;gap:10px;padding:10px 0;border-top:1px solid var(--bord){{ ';margin-top:12px' if loop.first }}">
+    <div style="min-width:0">
+      <small class="doux">{{ r.date_releve|datefr }} · {{ TYPES_HYGIENE.get(r.type, r.type) }}{% if r.lot_numero %} · <span class="code">{{ r.lot_numero }}</span>{% endif %}{% if r.fait_par %} · {{ r.fait_par }}{% endif %}</small><br>
+      <span style="overflow-wrap:anywhere">{{ r.objet }}</span>
+      {% if r.resultat == 'non_conforme' %}<br><span class="badge badge-retard">Non conforme</span> <small style="overflow-wrap:anywhere">{{ r.action_corrective }}</small>{% endif %}
+      {% if r.photo %}<br><a href="{{ url_for('photo', nom=r.photo) }}" target="_blank"><img src="{{ url_for('photo', nom=r.photo) }}" alt="Photo" style="margin-top:6px;max-width:120px;border-radius:8px"></a>{% endif %}
+    </div>
+    <form method="post" action="{{ url_for('hygiene_supprimer', rid=r.id) }}" onsubmit="return confirm('Supprimer cet enregistrement ?')">
+      <input type="hidden" name="csrf" value="{{ csrf_token }}">
+      <button class="btn btn-danger btn-petit" aria-label="Supprimer">{{ icone('poubelle') }}</button>
+    </form>
+  </div>
+  {% else %}<p class="vide mb0 mt">Rien de noté pour l'instant.</p>{% endfor %}
+</section>
+
+<div class="grille mt">
+  <section class="carte bois">
+    <h2>Registre pour un contrôle</h2>
+    <p class="aide">Le plan et tous les enregistrements de la période, en PDF, à montrer lors d'une visite des services d'hygiène (DDPP).</p>
+    <form method="get" action="{{ url_for('hygiene_registre') }}" target="_blank">
+      <div class="champs">
+        <div><label for="r-debut">Du</label><input id="r-debut" type="date" name="debut" value="{{ debut }}"></div>
+        <div><label for="r-fin">Au</label><input id="r-fin" type="date" name="fin" value="{{ today }}"></div>
+      </div>
+      <div class="form-actions"><button class="btn btn-or">{{ icone('imprimer') }}Registre PDF</button></div>
+    </form>
+  </section>
+
+  <details class="carte" id="plan-gerer">
+    <summary>Modifier le plan d'hygiène</summary>
+    {% for t in taches %}
+    <form method="post" action="{{ url_for('hygiene_taches') }}" class="mt" style="border-top:1px solid var(--bord);padding-top:12px">
+      <input type="hidden" name="csrf" value="{{ csrf_token }}"><input type="hidden" name="id" value="{{ t.id }}">
+      <div class="champs">
+        <div class="large"><label for="t-nom-{{ t.id }}">Tâche</label><input id="t-nom-{{ t.id }}" type="text" name="nom" value="{{ t.nom }}" maxlength="120"></div>
+        <div><label for="t-cat-{{ t.id }}">Catégorie</label><select id="t-cat-{{ t.id }}" name="categorie">{% for k, v in CATEGORIES_TACHES.items() %}<option value="{{ k }}" {{ 'selected' if t.categorie == k }}>{{ v }}</option>{% endfor %}</select></div>
+        <div><label for="t-freq-{{ t.id }}">Tous les … jours <span class="aide">(vide = à chaque production)</span></label><input id="t-freq-{{ t.id }}" type="number" name="frequence_jours" min="1" step="1" inputmode="numeric" value="{{ t.frequence_jours or '' }}"></div>
+        <div class="large"><label class="case"><input type="checkbox" name="actif" value="1" {{ 'checked' if t.actif }}> Active</label></div>
+      </div>
+      <div class="form-actions">
+        <button class="btn btn-ligne btn-petit">Enregistrer</button>
+        <button class="btn btn-danger btn-petit" name="action" value="supprimer" onclick="return confirm('Retirer cette tâche du plan ?')">{{ icone('poubelle') }}</button>
+      </div>
+    </form>
+    {% endfor %}
+    <form method="post" action="{{ url_for('hygiene_taches') }}" class="mt" style="border-top:1px solid var(--bord);padding-top:12px">
+      <input type="hidden" name="csrf" value="{{ csrf_token }}">
+      <div class="champs">
+        <div class="large"><label for="t-nouveau">Nouvelle tâche</label><input id="t-nouveau" type="text" name="nom" maxlength="120" placeholder="ex. Détartrage de la bouilloire"></div>
+        <div><label for="t-cat">Catégorie</label><select id="t-cat" name="categorie">{% for k, v in CATEGORIES_TACHES.items() %}<option value="{{ k }}">{{ v }}</option>{% endfor %}</select></div>
+        <div><label for="t-freq">Tous les … jours</label><input id="t-freq" type="number" name="frequence_jours" min="1" step="1" inputmode="numeric"></div>
+      </div>
+      <div class="form-actions"><button class="btn btn-or btn-petit">{{ icone('plus') }}Ajouter</button></div>
+    </form>
+  </details>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+(function () {
+  var t = document.getElementById('h-tache'), o = document.getElementById('h-objet');
+  t.addEventListener('change', function () {
+    if (t.value && !o.value) o.value = t.options[t.selectedIndex].text;
+  });
+})();
+</script>
+{% endblock %}

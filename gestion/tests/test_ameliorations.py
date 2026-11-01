@@ -351,3 +351,65 @@ assert db.execute('select count(*) from avis where lu = 0').fetchone()[0] == 0
 c.post(f'/avis-clients/{a["id"]}', data={'csrf': csrf(), 'action': 'supprimer'})
 assert not db.execute('select 1 from avis where id=?', (a['id'],)).fetchone()
 print('avis OK')
+
+# --- 16. Plafonds micro / TVA, fiche de production
+html = c.get('/chiffres').get_data(as_text=True)
+assert 'Plafond micro-entreprise' in html and 'Franchise de TVA' in html and '203' in html
+from plafonds import etat_plafonds
+with app.app_context():
+    from noyau import settings as _settings
+    conf = dict(_settings())
+    assert conf['plafond_micro'] == '203100'
+    conf['seuil_tva'] = '100'; conf['seuil_tva_majore'] = '200'
+    e = etat_plafonds(db, conf)
+    tva_j = [j for j in e['jauges'] if j['cle'] == 'tva'][0]
+    assert tva_j['niveau'] == 'retard'
+    conf['tva_applicable'] = '1'
+    assert [j['cle'] for j in etat_plafonds(db, conf)['jauges']] == ['micro']
+db.execute("update settings set value='1000' where key='plafond_micro'"); db.commit()
+assert 'Plafond micro-entreprise' in c.get('/').get_data(as_text=True)
+db.execute("update settings set value='203100' where key='plafond_micro'"); db.commit()
+r = c.get('/lots/4/production.pdf'); assert r.data[:4] == b'%PDF'
+r = c.get('/recettes/1/production.pdf?litres=12.5'); assert r.data[:4] == b'%PDF'
+assert 'fiche de pesée' in c.get('/recettes').get_data(as_text=True)
+print('plafonds + production OK')
+
+# --- 17. Cahier d'hygiène
+html = c.get('/hygiene').get_data(as_text=True)
+assert 'Plan de nettoyage' in html and 'Température du réfrigérateur' in html and 'Réception ananas' in html
+tache = db.execute("select * from hygiene_taches where nom like 'Pièges%'").fetchone()
+assert 'Hygiène : Pièges' in c.get('/').get_data(as_text=True), 'tâche en retard (40 j > 30 j)'
+c.post(f'/hygiene/fait/{tache["id"]}', data={'csrf': csrf()})
+assert 'Hygiène : Pièges' not in c.get('/').get_data(as_text=True)
+r = c.post('/hygiene', data={'csrf': csrf(), 'objet': 'Frigo 9 °C', 'type': 'controle', 'resultat': 'non_conforme'}, follow_redirects=True)
+assert "action corrective" in r.get_data(as_text=True)
+img = io.BytesIO(); Image.new('RGB', (30, 30), (10, 120, 200)).save(img, 'JPEG'); img.seek(0)
+c.post('/hygiene', data={'csrf': csrf(), 'objet': 'Frigo 9 °C', 'type': 'controle', 'resultat': 'non_conforme',
+                         'action_corrective': 'Thermostat réglé, produits vérifiés', 'lot_id': '4', 'photo': (img, 'f.jpg')},
+       content_type='multipart/form-data')
+h = db.execute('select * from hygiene_releves order by id desc limit 1').fetchone()
+assert h['resultat'] == 'non_conforme' and h['photo'] and h['lot_id'] == 4
+assert 'Thermostat' in c.get('/hygiene?type=nc').get_data(as_text=True)
+r = c.get('/hygiene/registre.pdf'); assert r.data[:4] == b'%PDF'
+c.post('/hygiene/taches', data={'csrf': csrf(), 'nom': 'Détartrage bouilloire', 'categorie': 'nettoyage', 'frequence_jours': '60'})
+assert db.execute("select frequence_jours from hygiene_taches where nom='Détartrage bouilloire'").fetchone()[0] == 60
+c.post(f'/hygiene/releve/{h["id"]}/supprimer', data={'csrf': csrf()})
+assert not db.execute('select 1 from hygiene_releves where id=?', (h['id'],)).fetchone()
+print('hygiène OK')
+
+# --- 18. Bilan mensuel
+html = c.get('/chiffres').get_data(as_text=True)
+assert 'Bilan du mois' in html and '(en cours)' in html
+from bilan import donnees_bilan, mois_precedent
+with app.app_context():
+    from noyau import settings as _settings
+    ym = _date.today().strftime('%Y-%m')
+    b = donnees_bilan(db, dict(_settings()), ym)
+    assert b['btl'] > 0 and b['top'] and len(b['evolution']) == 6
+    assert mois_precedent('2026-01') == '2025-12' and mois_precedent('2026-03', 12) == '2025-03'
+for m in (ym, mois_precedent(ym), mois_precedent(ym, 6)):
+    r = c.get(f'/chiffres/bilan/{m}.pdf'); assert r.data[:4] == b'%PDF', m
+assert c.get('/chiffres/bilan/2026-13.pdf').status_code == 404
+# envoi automatique : sans SMTP, rien ne se passe et rien ne casse
+assert c.get('/').status_code == 200
+print('bilan OK')

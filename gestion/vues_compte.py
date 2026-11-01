@@ -14,7 +14,7 @@ from noyau import BASE, app, get_db, redirection_sure, set_setting, settings
 
 CHAMPS_TEXTE = ("producteur_nom", "producteur_adresse", "producteur_email",
                 "producteur_telephone", "siret", "iban", "conditions_paiement",
-                "smtp_host", "smtp_user", "smtp_expediteur")
+                "smtp_host", "smtp_user", "smtp_expediteur", "debut_activite")
 CHAMPS_NOMBRE = ("tva_taux", "accise_hlap", "secu_hlap", "consigne_montant",
                  "urssaf_taux", "cfp_taux", "smtp_port")
 
@@ -74,6 +74,10 @@ def parametres():
         for key in CHAMPS_NOMBRE:
             set_setting(key, str(max(to_float(request.form.get(key)), 0)))
         set_setting("tva_applicable", "1" if request.form.get("tva_applicable") else "0")
+        set_setting("bilan_email_auto", "1" if request.form.get("bilan_email_auto") else "0")
+        for key in ("plafond_micro", "seuil_tva", "seuil_tva_majore"):
+            if request.form.get(key):
+                set_setting(key, str(max(to_float(request.form.get(key)), 0)))
         for key in ("fidelite_seuil", "fidelite_montant", "fidelite_validite",
                     "fidelite_pourcentage"):
             if request.form.get(key):

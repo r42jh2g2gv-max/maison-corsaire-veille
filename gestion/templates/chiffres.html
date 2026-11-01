@@ -8,7 +8,7 @@
 
 <nav class="filtres" aria-label="Sections">
   <a href="{{ url_for('statistiques') }}">Statistiques par recette →</a>
-  <a href="#urssaf" class="actif">URSSAF</a><a href="#douanes">Douanes</a><a href="#tableurs">Tableurs</a>
+  <a href="#urssaf" class="actif">URSSAF</a><a href="#plafonds">Plafonds</a><a href="#bilans">Bilans</a><a href="#douanes">Douanes</a><a href="#tableurs">Tableurs</a>
 </nav>
 
 {% if choisie %}
@@ -58,6 +58,41 @@
   </div>
 </section>
 {% endif %}
+
+<section class="carte mt" id="bilans">
+  <h2>Bilan du mois (PDF)</h2>
+  <p class="aide">Ventes, meilleurs rhums, marchés, avis, hygiène et plafonds sur une page.
+    {% if smtp_ok %}Le bilan du mois écoulé vous est envoyé par email au début de chaque mois.{% else %}Configurez l'envoi d'emails (Paramètres) pour le recevoir automatiquement chaque mois.{% endif %}</p>
+  <div style="display:flex;flex-wrap:wrap;gap:8px">
+    {% for ym, label in mois_bilans %}
+    <a class="btn btn-petit {{ 'btn-or' if loop.index == 2 else 'btn-ligne' }}" href="{{ url_for('bilan_mensuel', ym=ym) }}" target="_blank">{{ icone('imprimer') }}{{ label }}{% if loop.first %} (en cours){% endif %}</a>
+    {% endfor %}
+  </div>
+  {% if smtp_ok %}
+  <form method="post" action="{{ url_for('bilan_envoyer', ym=mois_bilans[1][0]) }}" class="mt">
+    <input type="hidden" name="csrf" value="{{ csrf_token }}">
+    <button class="btn btn-ligne btn-petit">{{ icone('mail') }}M'envoyer le bilan de {{ mois_bilans[1][1]|lower }}</button>
+  </form>
+  {% endif %}
+</section>
+
+<section class="carte mt" id="plafonds">
+  <h2>Plafonds {{ plafonds.annee }}</h2>
+  {% for j in plafonds.jauges %}
+  <div class="{{ 'mt' if not loop.first }}">
+    <div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap">
+      <strong>{{ j.titre }}</strong>
+      <span class="num">{{ j.ca|euro }} / {{ j.plafond|euro }}{% if j.prorata %} <small class="doux">(prorata)</small>{% endif %}</span>
+    </div>
+    <div class="jauge niveau-{{ j.niveau }}" role="meter" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ j.pct }}" aria-label="{{ j.titre }}">
+      <span style="width:{{ [j.pct, 100]|min }}%"></span>
+      <i style="left:{{ [j.pct_projection, 100]|min }}%" title="Projection fin d'année"></i>
+    </div>
+    <p class="aide mb0"><strong>{{ '%.0f'|format(j.pct) }} %</strong> atteint · projection fin d'année ≈ {{ j.projection|euro }} ({{ j.pct_projection }} %){% if j.majore %} · seuil majoré {{ j.majore|euro }}{% endif %}.<br>{{ j.aide }}</p>
+  </div>
+  {% endfor %}
+  <p class="aide mt mb0">CA encaissé hors taxes depuis le 1er janvier. Seuils modifiables dans <a href="{{ url_for('parametres') }}#fiscalite">Paramètres</a>.</p>
+</section>
 
 <section class="carte mt" id="douanes">
   <h2>Douanes : volumes d'alcool</h2>

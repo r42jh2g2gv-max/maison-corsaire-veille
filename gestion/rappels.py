@@ -212,6 +212,32 @@ def calculer_rappels(conn, conf):
                     f"Dernière commande il y a {(ajd - date.fromisoformat(c['dernier'])).days} jours",
                     None, url_for("client_detail", client_id=c["id"]))
 
+    # Plafonds micro-entreprise et franchise de TVA
+    from plafonds import etat_plafonds
+    for j in etat_plafonds(conn, conf)["jauges"]:
+        if j["niveau"] == "ok":
+            continue
+        if j["niveau"] == "retard":
+            titre = "Seuil majoré de TVA dépassé"
+            detail = "La TVA est due dès le jour du dépassement : contactez votre comptable ou le SIE"
+        elif j["pct"] >= 80:
+            titre = f"{j['titre']} : {j['pct']:.0f} % atteint"
+            detail = f"{j['ca']:,.0f} € sur {j['plafond']:,.0f} €".replace(",", " ")
+        else:
+            titre = f"{j['titre']} : dépassement possible"
+            detail = (f"À ce rythme, environ {j['projection']:,.0f} € sur l'année "
+                      f"(plafond {j['plafond']:,.0f} €)").replace(",", " ")
+        ajouter(j["niveau"], "chiffres", titre, detail, None, url_for("chiffres") + "#plafonds")
+
+    # Plan d'hygiène : tâches à faire
+    from vues_hygiene import rappels_hygiene
+    for x in rappels_hygiene(conn):
+        ajouter(x["etat"], "check", f"Hygiène : {x['t']['nom']}",
+                f"Tous les {x['t']['frequence_jours']} jours"
+                + (f" · dernier le {date.fromisoformat(x['dernier']):%d/%m}" if x["dernier"]
+                   else " · jamais noté"),
+                date.fromisoformat(x["prochaine"]), url_for("hygiene"))
+
     # Nouveaux avis clients
     nb_avis = conn.execute("SELECT COUNT(*) FROM avis WHERE lu = 0").fetchone()[0]
     if nb_avis:

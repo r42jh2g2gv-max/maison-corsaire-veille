@@ -10,6 +10,8 @@ from openpyxl.utils import get_column_letter
 from calculs import STATUTS, cout_revient, marge_pct, taux_tva, to_float
 from noyau import (MODES_PAIEMENT, MOIS, MOIS_LONGS, TYPES_CLIENTS, app, couts_par_lot, get_db,
                    lots_avec_stock, mois_label, parse_date, settings, stock_lot, today)
+from bilan import mois_precedent
+from plafonds import etat_plafonds
 from rappels import ca_periode, calculer_rappels, periodes_urssaf
 
 
@@ -136,6 +138,10 @@ def chiffres():
         "chiffres.html", periodes=periodes, choisie=choisie, periodicite=periodicite,
         taux=taux, cfp=cfp, douanes=douanes, stock_lap=stock_lap,
         debut_annee=f"{annee}-01-01", fin_annee=f"{annee}-12-31",
+        plafonds=etat_plafonds(conn, conf),
+        mois_bilans=[(ym, mois_label(ym).capitalize()) for ym in
+                     (mois_precedent(date.today().strftime("%Y-%m"), k) for k in range(12))],
+        smtp_ok=__import__("emails").smtp_configure(conf),
     )
 
 

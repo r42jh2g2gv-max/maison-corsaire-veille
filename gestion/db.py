@@ -316,6 +316,30 @@ CREATE TABLE IF NOT EXISTS avis (
     created_at TEXT NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS hygiene_taches (
+    id INTEGER PRIMARY KEY,
+    nom TEXT NOT NULL,
+    categorie TEXT NOT NULL DEFAULT 'nettoyage',
+    -- nombre de jours entre deux passages ; NULL = à chaque production / marché
+    frequence_jours INTEGER,
+    actif INTEGER NOT NULL DEFAULT 1,
+    notes TEXT
+);
+
+CREATE TABLE IF NOT EXISTS hygiene_releves (
+    id INTEGER PRIMARY KEY,
+    date_releve TEXT NOT NULL,
+    tache_id INTEGER REFERENCES hygiene_taches(id) ON DELETE SET NULL,
+    type TEXT NOT NULL DEFAULT 'nettoyage',
+    objet TEXT NOT NULL,
+    resultat TEXT NOT NULL DEFAULT 'conforme',
+    action_corrective TEXT,
+    lot_id INTEGER REFERENCES lots(id) ON DELETE SET NULL,
+    fait_par TEXT,
+    photo TEXT,
+    created_at TEXT NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS declarations (
     periode TEXT PRIMARY KEY,
     declare_le TEXT NOT NULL,
@@ -349,6 +373,10 @@ DEFAULT_SETTINGS = {
     "smtp_expediteur": "",
     "fidelite_active": "1",
     "fidelite_seuil": "3",
+    "plafond_micro": "203100",
+    "seuil_tva": "85000",
+    "seuil_tva_majore": "93500",
+    "debut_activite": "",
     "fidelite_type": "montant",
     "fidelite_pourcentage": "10",
     "fidelite_coffret": "1",
@@ -442,6 +470,19 @@ def code_bon():
         "".join(secrets.choice(alphabet) for _ in range(4))
 
 
+# Plan d'hygiène proposé au départ (modifiable dans l'application)
+PLAN_HYGIENE = [
+    ("Bocaux, cuves et entonnoirs : lavage, désinfection, séchage", "nettoyage", None),
+    ("Plan de travail et ustensiles (couteaux, planches, balance)", "nettoyage", None),
+    ("Matériel de marché : verres de dégustation, pipettes, glacière", "nettoyage", None),
+    ("Sol et local de production", "nettoyage", 7),
+    ("Réfrigérateur : nettoyage complet", "nettoyage", 30),
+    ("Température du réfrigérateur (0 à 4 °C)", "controle", 7),
+    ("Pièges et traces de nuisibles", "nuisibles", 30),
+    ("Dates limites des matières premières en stock", "controle", 30),
+]
+
+
 def init_db(app):
     conn = sqlite3.connect(app.config["DATABASE"])
     conn.row_factory = sqlite3.Row
@@ -455,6 +496,10 @@ def init_db(app):
         conn.execute("INSERT INTO settings (key, value) VALUES ('fidelite_regle', 'achat')")
     for key, value in DEFAULT_SETTINGS.items():
         conn.execute("INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)", (key, value))
+    if not conn.execute("SELECT 1 FROM hygiene_taches").fetchone():
+        conn.executemany(
+            "INSERT INTO hygiene_taches (nom, categorie, frequence_jours) VALUES (?, ?, ?)",
+            PLAN_HYGIENE)
     if not conn.execute("SELECT 1 FROM users").fetchone():
         conn.execute(
             "INSERT INTO users (email, password_hash) VALUES (?, ?)",
@@ -467,7 +512,7 @@ def init_db(app):
 
 def clear_data(conn):
     """Supprime toutes les données métier (garde le compte et les réglages)."""
-    for table in ("avis", "clotures", "depots", "avoirs", "degustations", "coffret_elements", "coffrets", "sorties", "consignes", "bons", "ventes", "tickets", "messages", "declarations",
+    for table in ("hygiene_releves", "avis", "clotures", "depots", "avoirs", "degustations", "coffret_elements", "coffrets", "sorties", "consignes", "bons", "ventes", "tickets", "messages", "declarations",
                   "evenements", "clients", "mouvements_mp", "achat_lignes", "achats",
                   "lot_ingredients", "lots", "recette_ingredients", "recettes",
                   "matieres_premieres", "materiaux"):
@@ -738,6 +783,19 @@ def seed_demo(conn):
           "Une version coffret cadeau pour Noël ?", "Marie", 1, 1, d(-20) + "T18:00:00"),
          (rec[1], None, 4, "Très fruité, j'aurais aimé un peu plus de passion.",
           "Essayez ananas-gingembre !", "Thomas", 0, 0, d(-2) + "T11:30:00")])
+    taches = {r[1]: r[0] for r in conn.execute("SELECT id, nom FROM hygiene_taches")}
+    def tache(debut):
+        return next((i for n, i in taches.items() if n.startswith(debut)), None)
+    conn.executemany(
+        "INSERT INTO hygiene_releves (date_releve, tache_id, type, objet, resultat,"
+        " action_corrective, fait_par, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+        [(d(-12), tache("Sol"), "nettoyage", "Sol et local de production", "conforme", None, None, now),
+         (d(-9), tache("Température"), "controle", "Température du réfrigérateur : 3 °C",
+          "conforme", None, None, now),
+         (d(-40), tache("Pièges"), "nuisibles", "Pièges et traces de nuisibles", "conforme",
+          None, None, now),
+         (d(-15), None, "reception", "Réception ananas (Primeur du marché)", "non_conforme",
+          "2 fruits abîmés écartés, fournisseur prévenu", None, now)])
     seed_matieres(conn, d)
     conn.execute("UPDATE recettes SET perte_pct = 15")
     for numero, macere, obtenu in [(1, 14, 12.1), (2, 13, 11.1), (3, 11.8, 10.2), (4, 14, None),

@@ -41,6 +41,10 @@
       <a class="btn btn-or" href="{{ url_for('lot_nouveau', recette_id=r.id) }}">{{ icone('lot') }}Lancer un lot</a>
       <a class="btn btn-ligne btn-petit" href="{{ url_for('lot_nouveau', recette_id=r.id, essai=1, litres=1) }}">Essai 1 L</a>
       <a class="btn btn-ligne btn-petit" href="{{ url_for('recette_fiche', recette_id=r.id) }}" target="_blank" aria-label="Fiche recette imprimable">{{ icone('imprimer') }}Fiche</a>
+      <form method="get" action="{{ url_for('production_recette', recette_id=r.id) }}" target="_blank" class="inline" style="display:inline-flex;gap:6px;align-items:center">
+        <input type="number" name="litres" value="10" min="0.5" step="0.5" inputmode="decimal" aria-label="Litres à macérer" style="width:72px;padding:8px">
+        <button class="btn btn-ligne btn-petit">{{ icone('imprimer') }}L · fiche de pesée</button>
+      </form>
       <a class="btn btn-ligne btn-petit" href="{{ url_for('etiquettes', recette=r.id) }}#recette-{{ r.id }}" aria-label="Étiquette">{{ icone('etiquette') }}Étiquette</a>
       <form method="post" action="{{ url_for('recette_dupliquer', recette_id=r.id) }}" class="inline">
         <input type="hidden" name="csrf" value="{{ csrf_token }}">
