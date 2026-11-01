@@ -43,14 +43,23 @@
       </div>
     </div>
 
-    {% if produits %}
+    {% if produits or coffrets %}
     <div class="produits" id="produits">
       {% for p in produits %}
       <button type="button" class="produit" data-id="{{ p.id }}">
         <span class="pastille" aria-hidden="true"></span>
         <span class="texte-or" style="width:24px">{{ icone('lot') }}</span>
-        <span class="nom-produit">{{ p.nom }}</span>
+        <span class="nom-produit">{{ p.nom }}{% if p.volume != 50 %} <small>{{ p.volume }} cl</small>{% endif %}</span>
         <span class="lot-produit"><span class="code">{{ p.numero }}</span> · <span class="dispo">{{ p.stock }}</span> dispo.</span>
+        <span class="prix-produit"></span>
+      </button>
+      {% endfor %}
+      {% for p in coffrets %}
+      <button type="button" class="produit bois" data-id="{{ p.id }}">
+        <span class="pastille" aria-hidden="true"></span>
+        <span class="texte-or" style="width:24px">{{ icone('bon') }}</span>
+        <span class="nom-produit">{{ p.nom }}</span>
+        <span class="lot-produit">Coffret · <span class="dispo">{{ p.stock }}</span> dispo.</span>
         <span class="prix-produit"></span>
       </button>
       {% endfor %}
@@ -122,7 +131,7 @@
 {% block scripts %}
 <script>
 (function () {
-  var PRODUITS = {{ produits|tojson }};
+  var PRODUITS = {{ (produits + coffrets)|tojson }};
   var CLIENTS = {{ clients|tojson }};
   var CONSIGNE = {{ consigne_montant|tojson }};
   var parId = {}; PRODUITS.forEach(function (p) { parId[p.id] = p; });
@@ -222,7 +231,7 @@
   }
 
   document.querySelectorAll('.produit').forEach(function (b) {
-    b.addEventListener('click', function () { ajouter(parseInt(b.dataset.id, 10)); });
+    b.addEventListener('click', function () { ajouter(b.dataset.id); });
   });
   document.querySelectorAll('input[name=canal]').forEach(function (r) { r.addEventListener('change', repricer); });
   $('vider').addEventListener('click', function () { panier = []; maj(); });
@@ -277,7 +286,11 @@
   $('bon_code').addEventListener('change', function () { $('verifier-bon').click(); });
 
   function lignesPanier() {
-    return panier.map(function (l) { return { lot_id: l.id, quantite: l.quantite, prix: l.prix }; });
+    return panier.map(function (l) {
+      var p = parId[l.id];
+      return p.coffret_id ? { coffret_id: p.coffret_id, quantite: l.quantite, prix: l.prix }
+                          : { lot_id: l.id, quantite: l.quantite, prix: l.prix };
+    });
   }
   function totalCourant() { return $('d-total').textContent; }
 

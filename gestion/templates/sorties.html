@@ -19,7 +19,9 @@
             <select id="lot_id" name="lot_id" required>
               {% for l in lots %}<option value="{{ l.id }}" {{ 'selected' if l.id == lot_preselect }}>{{ l.recette_nom }} — {{ l.numero }} ({{ stock_lot(l) }} en stock)</option>{% endfor %}
             </select></div>
-          <div><label for="quantite">Bouteilles</label><input id="quantite" type="number" name="quantite" min="1" step="1" value="1" inputmode="numeric" required></div>
+          {% if coffrets %}<div class="large"><label for="coffret_id">… ou un coffret entier <span class="aide">(remplace le lot)</span></label>
+            <select id="coffret_id" name="coffret_id"><option value="">—</option>{% for c in coffrets %}<option value="{{ c.id }}">{{ c.nom }}</option>{% endfor %}</select></div>{% endif %}
+          <div><label for="quantite">Bouteilles <span class="aide">(ou nombre de coffrets)</span></label><input id="quantite" type="number" name="quantite" min="1" step="1" value="1" inputmode="numeric" required></div>
           <div><label for="motif">Motif</label>
             <select id="motif" name="motif">{% for k, v in MOTIFS_SORTIE.items() %}<option value="{{ k }}" {{ 'selected' if k == motif_preselect }}>{{ v }}</option>{% endfor %}</select></div>
           <div><label for="beneficiaire">Pour qui <span class="aide">(facultatif)</span></label><input id="beneficiaire" type="text" name="beneficiaire" placeholder="Gagnant du concours, Cave Le Galion…"></div>
@@ -29,7 +31,7 @@
           <div class="large"><label for="notes">Note</label><input id="notes" type="text" name="notes" placeholder="Concours Instagram de lancement, bouteille ouverte au stand…"></div>
         </div>
         <div class="form-actions"><button class="btn btn-or">{{ icone('stock') }}Enregistrer la sortie</button></div>
-        <p class="aide mb0">Pour un coffret de 3 bouteilles de parfums différents, enregistrez une sortie par lot (même motif, même bénéficiaire).</p>
+        <p class="aide mb0">Pour offrir un coffret (concours…), choisissez-le dans « un coffret entier » : chaque bouteille sort de son lot, les plus anciens d'abord.</p>
       </form>
       {% else %}<p class="vide mb0">Aucune bouteille en stock.</p>{% endif %}
     </section>

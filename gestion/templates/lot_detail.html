@@ -36,6 +36,15 @@
           <input id="emb-nb" type="number" name="nb_bouteilles" min="1" step="1" inputmode="numeric" value="{{ lot.nb_bouteilles }}">
           <span class="aide" id="emb-calcul"></span></div>
       </div>
+      <details class="mt"><summary>Embouteiller aussi dans d'autres formats (20 cl, 70 cl…)</summary>
+        <p class="aide">Chaque format supplémentaire devient un lot rattaché ({{ lot.numero }}-20 pour les 20 cl…), vendu et suivi séparément. Le nombre ci-dessus ne compte alors que les {{ lot.volume_cl }} cl.</p>
+        {% for i in range(2) %}
+        <div class="champs" style="margin-top:8px">
+          <div><label>Contenance (cl)</label><input type="number" name="format_cl" min="1" step="1" inputmode="numeric" placeholder="ex. 20"></div>
+          <div><label>Bouteilles</label><input type="number" name="format_nb" min="0" step="1" inputmode="numeric"></div>
+        </div>
+        {% endfor %}
+      </details>
     {% endif %}
   </div>
   <button class="btn" type="submit">Passer à « {{ STATUTS[suivant[lot.statut]] }} »</button>
@@ -51,6 +60,8 @@
       <dt>Embouteillage</dt><dd>{{ lot.date_embouteillage|datefr }}</dd>
       <dt>DLC / DDM</dt><dd>{{ lot.dlc|datefr }}</dd>
       <dt>Production</dt><dd>{{ lot.nb_bouteilles }} bouteilles × {{ lot.volume_cl }} cl</dd>
+      {% if famille|length > 1 %}<dt>Formats</dt><dd>{% for f in famille %}<a href="{{ url_for('lot_detail', lot_id=f.id) }}">{{ f.volume_cl }} cl</a> ({{ f.nb_bouteilles }}){{ ' · ' if not loop.last }}{% endfor %}</dd>{% endif %}
+      {% if lot.parent_id %}<dt>Lot d'origine</dt><dd><a class="code" href="{{ url_for('lot_detail', lot_id=lot.parent_id) }}">{{ famille[0].numero }}</a> (ingrédients et macération)</dd>{% endif %}
       {% if lot.volume_macere_l %}<dt>Mis en macération</dt><dd>{{ lot.volume_macere_l|nombre(1) }} L</dd>{% endif %}
       {% if lot.volume_obtenu_l is not none %}<dt>Obtenu</dt><dd>{{ lot.volume_obtenu_l|nombre(1) }} L{% if perte is not none %} · perte réelle {{ perte|nombre(0) }} %{% endif %}</dd>
       {% elif lot.volume_macere_l %}<dt>Perte prévue</dt><dd>{{ (lot.perte_pct if lot.perte_pct is not none else 15)|nombre(0) }} %</dd>{% endif %}
@@ -68,7 +79,7 @@
     <div class="carte-tete"><h2>Coût de revient</h2><a href="{{ url_for('calculateur', lot_id=lot.id) }}">Calculer le prix →</a></div>
     {% if cout.calculable %}
     <table class="decompte">
-      <tr><td>Ingrédients <small>({{ cout.ingredients_total|euro }} ÷ {{ lot.nb_bouteilles }})</small></td><td class="num">{{ cout.ingredients_bouteille|euro }}</td></tr>
+      <tr><td>Ingrédients <small>{% if cout.multi_formats %}(part de {{ cout.ingredients_total|euro }} au prorata du volume){% else %}({{ cout.ingredients_total|euro }} ÷ {{ lot.nb_bouteilles }}){% endif %}</small></td><td class="num">{{ cout.ingredients_bouteille|euro }}</td></tr>
       {% for m in cout.materiaux %}<tr><td>{{ m.nom }}</td><td class="num">{{ m.cout_unitaire|euro }}</td></tr>{% endfor %}
       {% if cout.droits_bouteille %}<tr><td>Droits sur l'alcool</td><td class="num">{{ cout.droits_bouteille|euro }}</td></tr>{% endif %}
       <tr class="total"><td>Coût par bouteille</td><td class="num">{{ cout.total|euro }}</td></tr>
@@ -80,6 +91,9 @@
   </section>
 </div>
 
+{% if lot.parent_id %}
+<section class="carte mt" id="ingredients"><p class="mb0">Ce lot est un format ({{ lot.volume_cl }} cl) du lot <a class="code" href="{{ url_for('lot_detail', lot_id=lot.parent_id) }}#ingredients">{{ famille[0].numero }}</a> : ingrédients et macération y sont enregistrés.</p></section>
+{% else %}
 <section class="carte mt" id="ingredients">
   <div class="carte-tete"><h2>Ingrédients utilisés</h2><strong class="num">Total : {{ cout.ingredients_total|euro }}</strong></div>
   {% if ingredients %}
@@ -131,6 +145,7 @@
     </form>
   </details>
 </section>
+{% endif %}
 
 <section class="carte mt">
   <div class="carte-tete"><h2>Ventes de ce lot</h2>{% if ventes %}<small>{{ lot.vendu }} bouteille{{ 's' if lot.vendu > 1 }}</small>{% endif %}</div>

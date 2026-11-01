@@ -237,6 +237,25 @@ CREATE TABLE IF NOT EXISTS sorties (
     created_at TEXT NOT NULL
 );
 
+-- Coffrets : composition (recette + contenance + quantité), vendus en un geste à la caisse
+CREATE TABLE IF NOT EXISTS coffrets (
+    id INTEGER PRIMARY KEY,
+    nom TEXT NOT NULL,
+    prix_ttc REAL NOT NULL DEFAULT 0,
+    prix_revendeur_ht REAL,
+    materiau_id INTEGER REFERENCES materiaux(id) ON DELETE SET NULL,
+    actif INTEGER NOT NULL DEFAULT 1,
+    notes TEXT
+);
+
+CREATE TABLE IF NOT EXISTS coffret_elements (
+    id INTEGER PRIMARY KEY,
+    coffret_id INTEGER NOT NULL REFERENCES coffrets(id) ON DELETE CASCADE,
+    recette_id INTEGER REFERENCES recettes(id) ON DELETE CASCADE,
+    volume_cl INTEGER NOT NULL DEFAULT 50,
+    quantite INTEGER NOT NULL DEFAULT 1
+);
+
 CREATE TABLE IF NOT EXISTS declarations (
     periode TEXT PRIMARY KEY,
     declare_le TEXT NOT NULL,
@@ -297,6 +316,8 @@ MIGRATIONS = [
     ("lots", "volume_obtenu_l", "REAL"),
     ("matieres_premieres", "degre", "REAL"),
     ("bons", "origine", "TEXT"),
+    ("lots", "parent_id", "INTEGER REFERENCES lots(id) ON DELETE CASCADE"),
+    ("materiaux", "format_cl", "INTEGER"),
 ]
 
 
@@ -371,7 +392,7 @@ def init_db(app):
 
 def clear_data(conn):
     """Supprime toutes les données métier (garde le compte et les réglages)."""
-    for table in ("sorties", "consignes", "bons", "ventes", "tickets", "messages", "declarations",
+    for table in ("coffret_elements", "coffrets", "sorties", "consignes", "bons", "ventes", "tickets", "messages", "declarations",
                   "evenements", "clients", "mouvements_mp", "achat_lignes", "achats",
                   "lot_ingredients", "lots", "recette_ingredients", "recettes",
                   "matieres_premieres", "materiaux"):
@@ -749,6 +770,7 @@ def seed_matieres(conn, d):
         ("Citron vert (zestes)", "zestes de citron vert"), ("Sucre de canne roux", "sucre de canne"),
     ]:
         conn.execute("UPDATE matieres_premieres SET nom_etiquette = ? WHERE nom = ?", (etiquette, nom))
+    conn.execute("UPDATE materiaux SET format_cl = 50 WHERE type = 'bouteille'")
     conn.execute("UPDATE matieres_premieres SET degre = 50 WHERE nom = 'Rhum agricole blanc 50°'")
     conn.execute("UPDATE matieres_premieres SET degre = 45 WHERE nom = 'Rhum ambré 45°'")
     # Un écart d'inventaire corrigé, pour l'exemple

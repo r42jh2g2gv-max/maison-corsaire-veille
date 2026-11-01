@@ -8,6 +8,7 @@ from noyau import app  # noqa: F401  (crée l'application et la base)
 import vues_accueil  # noqa: F401,E402
 import vues_agenda  # noqa: F401,E402
 import vues_clients  # noqa: F401,E402
+import vues_coffrets  # noqa: F401,E402
 import vues_compte  # noqa: F401,E402
 import vues_etiquettes  # noqa: F401,E402
 import vues_logo  # noqa: F401,E402

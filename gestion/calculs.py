@@ -46,17 +46,36 @@ def droits_par_bouteille(volume_cl, degre, settings):
     return hl_alcool_pur * tarif
 
 
+def famille_lot(conn, lot):
+    """Un lot réparti en plusieurs formats : le lot principal et ses formats (sous-lots)."""
+    racine = lot["parent_id"] if "parent_id" in lot.keys() and lot["parent_id"] else lot["id"]
+    return conn.execute("SELECT * FROM lots WHERE id = ? OR parent_id = ? ORDER BY id",
+                        (racine, racine)).fetchall(), racine
+
+
+def materiaux_du_format(conn, volume_cl):
+    """Matières consommées par bouteille : communes à tous les formats ou propres à celui-ci."""
+    return conn.execute(
+        """SELECT nom, type, cout_unitaire FROM materiaux WHERE par_bouteille = 1
+           AND (format_cl IS NULL OR format_cl = ?) ORDER BY type, nom""", (volume_cl,)).fetchall()
+
+
 def cout_revient(conn, lot, settings):
-    """Détail du coût de revient d'une bouteille pour un lot."""
+    """Détail du coût de revient d'une bouteille pour un lot.
+
+    Pour un lot réparti en plusieurs formats, le coût des ingrédients est partagé
+    au prorata du volume : une bouteille de 20 cl coûte 2/5 d'une bouteille de 50 cl."""
+    famille, racine = famille_lot(conn, lot)
     ingredients = conn.execute(
-        "SELECT COALESCE(SUM(cout), 0) FROM lot_ingredients WHERE lot_id = ?",
-        (lot["id"],),
+        "SELECT COALESCE(SUM(cout), 0) FROM lot_ingredients WHERE lot_id = ?", (racine,)
     ).fetchone()[0]
     nb = lot["nb_bouteilles"] or 0
-    materiaux = conn.execute(
-        "SELECT nom, type, cout_unitaire FROM materiaux WHERE par_bouteille = 1 ORDER BY type, nom"
-    ).fetchall()
-    ing_btl = ingredients / nb if nb else 0.0
+    if len(famille) > 1:
+        litres = sum((l["nb_bouteilles"] or 0) * l["volume_cl"] / 100 for l in famille)
+        ing_btl = ingredients * (lot["volume_cl"] / 100) / litres if litres else 0.0
+    else:
+        ing_btl = ingredients / nb if nb else 0.0
+    materiaux = materiaux_du_format(conn, lot["volume_cl"])
     mat_btl = sum(m["cout_unitaire"] for m in materiaux)
     droits = droits_par_bouteille(lot["volume_cl"], lot["degre"], settings)
     return {
@@ -67,6 +86,7 @@ def cout_revient(conn, lot, settings):
         "droits_bouteille": droits,
         "total": ing_btl + mat_btl + droits,
         "calculable": nb > 0,
+        "multi_formats": len(famille) > 1,
     }
 
 

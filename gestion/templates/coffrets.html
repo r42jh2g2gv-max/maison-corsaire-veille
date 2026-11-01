@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% from "_icones.html" import icone %}
+{% block titre %}Coffrets{% endblock %}
+{% block contenu %}
+{% macro element(e) %}
+<div class="champs c3 el-coffret" style="margin-bottom:8px">
+  <div><label>Recette</label><select name="el_recette"><option value="">—</option>{% for r in recettes %}<option value="{{ r.id }}" {{ 'selected' if e and e.recette_id == r.id }}>{{ r.nom }}</option>{% endfor %}</select></div>
+  <div><label>Contenance (cl)</label><select name="el_cl">{% for f in formats %}<option value="{{ f }}" {{ 'selected' if (e.volume_cl if e else 20) == f }}>{{ f }} cl</option>{% endfor %}</select></div>
+  <div><label>Quantité</label><input type="number" name="el_qte" min="0" step="1" inputmode="numeric" value="{{ e.quantite if e else 1 }}"></div>
+</div>
+{% endmacro %}
+{% macro champs(c) %}
+<div class="champs c3">
+  <div class="large" style="grid-column:1/-1"><label>Nom</label><input type="text" name="nom" value="{{ c.nom if c else '' }}" required placeholder="Coffret découverte 3 × 20 cl"></div>
+  <div><label>Prix de vente TTC (€)</label><input type="number" name="prix_ttc" step="0.5" min="0" inputmode="decimal" value="{{ c.prix_ttc if c else '' }}" required></div>
+  <div><label>Prix revendeur HT (€) <span class="aide">facultatif</span></label><input type="number" name="prix_revendeur_ht" step="0.5" min="0" inputmode="decimal" value="{{ c.prix_revendeur_ht if c and c.prix_revendeur_ht is not none else '' }}"></div>
+  <div><label>Emballage du coffret <span class="aide">déduit du stock</span></label><select name="materiau_id"><option value="">— aucun —</option>{% for m in emballages %}<option value="{{ m.id }}" {{ 'selected' if c and c.materiau_id == m.id }}>{{ m.nom }} ({{ m.stock }})</option>{% endfor %}</select></div>
+</div>
+{% endmacro %}
+<div class="titre-page">
+  <div><div class="surtitre">Vente</div><h1>Coffrets</h1><div class="filet"></div>
+    <div class="sous-titre">Plusieurs bouteilles vendues en un geste à la caisse ; les bouteilles sont prises dans les lots les plus anciens.</div></div>
+</div>
+
+<div class="grille-cartes">
+  {% for x in coffrets %}{% set c = x.c %}
+  <details class="carte {{ 'bois' if c.actif }}" id="coffret-{{ c.id }}">
+    <summary style="display:flex;justify-content:space-between;gap:10px;align-items:center;list-style:none">
+      <span><span class="nom-carte" style="display:block">{{ c.nom }}</span>
+        <small>{% for e in x.elements %}{{ e.quantite }} × {{ e.recette_nom }} {{ e.volume_cl }} cl{{ ' · ' if not loop.last }}{% endfor %}</small></span>
+      <span style="text-align:right"><strong class="prix-grand" style="font-size:1.5rem">{{ c.prix_ttc|euro }}</strong><br>
+        {% if not c.actif %}<span class="badge badge-neutre">Désactivé</span>{% elif x.dispo %}<span class="badge badge-ok">{{ x.dispo }} réalisable(s)</span>{% else %}<span class="badge badge-retard">Stock insuffisant</span>{% endif %}</span>
+    </summary>
+    <form method="post" action="{{ url_for('coffret_modifier', coffret_id=c.id) }}" class="mt">
+      <input type="hidden" name="csrf" value="{{ csrf_token }}">
+      {{ champs(c) }}
+      <h3 class="mt">Composition</h3>
+      {% for e in x.elements %}{{ element(e) }}{% endfor %}{{ element(None) }}
+      <label class="case mt"><input type="checkbox" name="actif" value="1" {{ 'checked' if c.actif }}> Proposé à la caisse</label>
+      <div class="form-actions">
+        <button class="btn btn-or" name="action" value="maj">Enregistrer</button>
+        <button class="btn btn-danger" name="action" value="supprimer" onclick="return confirm('Supprimer ce coffret ?')">{{ icone('poubelle') }}</button>
+      </div>
+    </form>
+  </details>
+  {% else %}
+  <div class="carte"><p class="vide mb0">Aucun coffret pour l'instant.</p></div>
+  {% endfor %}
+</div>
+
+<details class="carte mt" id="nouveau" {{ 'open' if not coffrets }}>
+  <summary>+ Créer un coffret</summary>
+  <form method="post" action="{{ url_for('coffret_creer') }}" class="mt">
+    <input type="hidden" name="csrf" value="{{ csrf_token }}">
+    {{ champs(None) }}
+    <h3 class="mt">Composition</h3>
+    {{ element(None) }}{{ element(None) }}{{ element(None) }}
+    <div class="form-actions"><button class="btn btn-or">{{ icone('plus') }}Créer le coffret</button></div>
+  </form>
+</details>
+{% endblock %}

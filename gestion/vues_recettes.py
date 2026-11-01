@@ -37,6 +37,7 @@ def details_recette(conn, recette):
 def cout_materiaux_bouteille(conn):
     return conn.execute(
         "SELECT COALESCE(SUM(cout_unitaire), 0) FROM materiaux WHERE par_bouteille = 1"
+        " AND (format_cl IS NULL OR format_cl = 50)"
     ).fetchone()[0]
 
 

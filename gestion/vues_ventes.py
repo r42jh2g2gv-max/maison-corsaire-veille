@@ -12,6 +12,7 @@ from noyau import (MODES_PAIEMENT, app, couts_par_lot, euro, get_db, get_or_404,
                    lots_avec_stock, maj_statut_epuise, mois_label, parse_date,
                    redirection_sure, settings, stock_lot, to_int, today)
 from fidelite import attribuer_bons, bons_actifs, carte
+from vues_coffrets import composer, disponibles
 from pdfs import facture_pdf, ticket_pdf
 
 
@@ -90,6 +91,12 @@ def caisse():
                       WHERE k.client_id = c.id), 0) AS consignes
                FROM clients c ORDER BY c.nom""")
     ]
+    coffrets_caisse = [
+        {"id": f"c{c['id']}", "coffret_id": c["id"], "nom": c["nom"], "numero": "Coffret",
+         "volume": None, "stock": disponibles(conn, c["id"]), "prix": c["prix_ttc"],
+         "prix_rev": round((c["prix_revendeur_ht"] or 0) * (1 + tva), 2)}
+        for c in conn.execute("SELECT * FROM coffrets WHERE actif = 1 ORDER BY nom")]
+    coffrets_caisse = [c for c in coffrets_caisse if c["stock"] > 0]
     debut = (date.today() - timedelta(days=3)).isoformat()
     evenements = conn.execute(
         """SELECT * FROM evenements WHERE COALESCE(date_fin, date_debut) >= ?
@@ -97,7 +104,7 @@ def caisse():
     evt_du_jour = next((e["id"] for e in evenements
                         if e["date_debut"] <= today() <= (e["date_fin"] or e["date_debut"])), "")
     return render_template(
-        "caisse.html", produits=produits, clients=clients, evenements=evenements,
+        "caisse.html", produits=produits, coffrets=coffrets_caisse, clients=clients, evenements=evenements,
         evt_du_jour=evt_du_jour, consigne_montant=to_float(conf.get("consigne_montant"), 1),
         form=request.form, lot_preselect=to_int(request.args.get("lot_id")),
         client_preselect=to_int(request.args.get("client_id")),
@@ -113,17 +120,32 @@ def encaisser(conn, conf, form, hors_ligne=False, avertissements=None):
         panier = json.loads(form.get("panier") or "[]")
     except ValueError:
         panier = []
-    lignes = []
+    lignes = []      # (lot, quantité, prix unitaire, note)
+    coffrets = []    # (coffret, nombre) : pour l'emballage
     for item in panier:
-        lot_id, qte = to_int(item.get("lot_id")), to_int(item.get("quantite"))
+        qte = to_int(item.get("quantite"))
         prix = round(to_float(item.get("prix"), -1), 2)
-        if qte > 0:
-            lignes.append((lot_id, qte, prix))
+        if qte <= 0:
+            continue
+        if item.get("coffret_id"):
+            coffret = conn.execute("SELECT * FROM coffrets WHERE id = ?",
+                                   (to_int(item.get("coffret_id")),)).fetchone()
+            if not coffret:
+                erreurs.append("Un coffret du panier n'existe plus.")
+                continue
+            detail, erreur = composer(conn, coffret["id"], qte, max(prix, 0), forcer=hors_ligne)
+            if erreur:
+                erreurs.append(f"{coffret['nom']} : {erreur}")
+                continue
+            lignes += [(l, q, p, f"Coffret {coffret['nom']}") for l, q, p in detail]
+            coffrets.append((coffret, qte))
+        else:
+            lignes.append((to_int(item.get("lot_id")), qte, prix, None))
     if not lignes:
         erreurs.append("Le panier est vide.")
 
     demande = {}
-    for lot_id, qte, prix in lignes:
+    for lot_id, qte, prix, _ in lignes:
         demande[lot_id] = demande.get(lot_id, 0) + qte
         if prix < 0:
             erreurs.append("Un prix est manquant ou négatif.")
@@ -149,7 +171,7 @@ def encaisser(conn, conf, form, hors_ligne=False, avertissements=None):
     mode = form.get("mode_paiement") if form.get("mode_paiement") in MODES_PAIEMENT else "especes"
     evenement_id = to_int(form.get("evenement_id")) or None
 
-    sous_total = round(sum(q * p for _, q, p in lignes), 2)
+    sous_total = round(sum(q * p for _, q, p, _ in lignes), 2)
     bon = None
     if form.get("bon_code", "").strip():
         bon, err = verifier_bon(conn, form["bon_code"], client_id, jour)
@@ -180,12 +202,16 @@ def encaisser(conn, conf, form, hors_ligne=False, avertissements=None):
          form.get("uuid") or None),
     )
     ticket_id = cur.lastrowid
-    for lot_id, qte, prix in lignes:
+    for lot_id, qte, prix, note in lignes:
         conn.execute(
             "INSERT INTO ventes (ticket_id, date_vente, client, lot_id, quantite,"
-            " prix_unitaire_ttc, canal) VALUES (?, ?, ?, ?, ?, ?, ?)",
-            (ticket_id, jour, client_nom, lot_id, qte, prix, canal),
+            " prix_unitaire_ttc, canal, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            (ticket_id, jour, client_nom, lot_id, qte, prix, canal, note),
         )
+    for coffret, nombre in coffrets:  # un emballage de coffret par coffret vendu
+        if coffret["materiau_id"]:
+            conn.execute("UPDATE materiaux SET stock = stock - ? WHERE id = ?",
+                         (nombre, coffret["materiau_id"]))
     for lot_id in demande:
         maj_statut_epuise(conn, lot_id)
     if bon:

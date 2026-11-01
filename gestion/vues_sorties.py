@@ -3,6 +3,7 @@ from datetime import date, datetime
 
 from flask import flash, redirect, render_template, request, url_for
 
+from vues_coffrets import composer
 from noyau import (app, couts_par_lot, get_db, get_or_404, lots_avec_stock,
                    maj_statut_epuise, parse_date, redirection_sure, settings, stock_lot,
                    to_int, today)
@@ -26,6 +27,31 @@ def sorties():
         lot_id = to_int(request.form.get("lot_id"))
         quantite = to_int(request.form.get("quantite"))
         motif = request.form.get("motif") if request.form.get("motif") in MOTIFS else "autre"
+        coffret_id = to_int(request.form.get("coffret_id"))
+        if coffret_id:  # un coffret entier (ex. lot d'un concours) : une sortie par bouteille
+            coffret = get_or_404("coffrets", coffret_id)
+            detail, erreur = composer(conn, coffret_id, max(quantite, 1), 0)
+            if erreur:
+                flash(f"{coffret['nom']} : {erreur}", "erreur")
+                return redirect(url_for("sorties"))
+            note = " · ".join(filter(None, [f"Coffret {coffret['nom']}",
+                                            request.form.get("notes", "").strip()]))
+            for l_id, q, _ in detail:
+                conn.execute(
+                    "INSERT INTO sorties (date_sortie, lot_id, quantite, motif, beneficiaire,"
+                    " evenement_id, notes, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                    (parse_date(request.form.get("date_sortie")) or today(), l_id, q, motif,
+                     request.form.get("beneficiaire", "").strip() or None,
+                     to_int(request.form.get("evenement_id")) or None, note,
+                     datetime.now().isoformat(timespec="seconds")))
+                maj_statut_epuise(conn, l_id)
+            if coffret["materiau_id"]:
+                conn.execute("UPDATE materiaux SET stock = stock - ? WHERE id = ?",
+                             (max(quantite, 1), coffret["materiau_id"]))
+            conn.commit()
+            flash(f"{coffret['nom']} sorti du stock ({MOTIFS[motif].lower()}) : "
+                  f"{sum(q for _, q, _ in detail)} bouteille(s).", "succes")
+            return redirect(url_for("sorties"))
         lot = lots_avec_stock("WHERE l.id = ?", (lot_id,))
         if not lot or lot[0]["statut"] not in ("embouteille", "epuise"):
             flash("Choisissez un lot embouteillé.", "erreur")
@@ -69,8 +95,11 @@ def sorties():
     evenements = conn.execute(
         "SELECT id, nom, date_debut FROM evenements WHERE date_debut >= ? ORDER BY date_debut",
         ((date.today().replace(day=1)).isoformat(),)).fetchall()
+    from vues_coffrets import disponibles
+    coffrets = [c for c in conn.execute("SELECT * FROM coffrets WHERE actif = 1 ORDER BY nom")
+                if disponibles(conn, c["id"]) > 0]
     return render_template(
-        "sorties.html", sorties=rows, couts=couts, par_motif=par_motif, annee=annee,
+        "sorties.html", coffrets=coffrets, sorties=rows, couts=couts, par_motif=par_motif, annee=annee,
         annees=annees, lots=lots, evenements=evenements, stock_lot=stock_lot,
         total_btl=sum(m["btl"] for m in par_motif.values()),
         total_cout=sum(m["cout"] for m in par_motif.values()),

@@ -4,7 +4,8 @@ from datetime import date, datetime
 from flask import abort, flash, redirect, render_template, request, url_for
 
 from calculs import (CATEGORIES_INGREDIENTS, PERTE_DEFAUT, STATUTS, STATUTS_EMBOUTEILLES,
-                     TYPES_MATERIAUX, bouteilles_estimees, cout_revient, perte_reelle,
+                     TYPES_MATERIAUX, bouteilles_estimees, cout_revient, famille_lot,
+                     perte_reelle,
                      taux_tva, to_float)
 from vues_matieres import (cout_depuis_stock, matieres_avec_stock, synchroniser_utilisation,
                            trouver_mp)
@@ -33,7 +34,8 @@ def synchroniser_materiaux(conn, lot_id):
     voulu = lot["nb_bouteilles"] if lot["statut"] in STATUTS_EMBOUTEILLES else 0
     delta = voulu - lot["materiaux_deduits"]
     if delta:
-        conn.execute("UPDATE materiaux SET stock = stock - ? WHERE par_bouteille = 1", (delta,))
+        conn.execute("UPDATE materiaux SET stock = stock - ? WHERE par_bouteille = 1"
+                     " AND (format_cl IS NULL OR format_cl = ?)", (delta, lot["volume_cl"]))
         conn.execute("UPDATE lots SET materiaux_deduits = ? WHERE id = ?", (voulu, lot_id))
     return delta
 
@@ -162,6 +164,7 @@ def lot_detail(lot_id):
         cout=cout_revient(conn, lot, conf), stock=stock_lot(lot),
         duree=duree, jours_maceration=jours_maceration,
         perte=perte_reelle(lot["volume_macere_l"], lot["volume_obtenu_l"]),
+        famille=famille_lot(conn, lot)[0],
     )
 
 
@@ -245,10 +248,38 @@ def lot_statut(lot_id):
     conn.execute("UPDATE lots SET statut = ? WHERE id = ?", (statut, lot_id))
     if statut == "embouteille" and not lot["date_embouteillage"]:
         conn.execute("UPDATE lots SET date_embouteillage = ? WHERE id = ?", (today(), lot_id))
+    if statut == "embouteille":
+        for numero in creer_formats(conn, get_lot(lot_id), request.form):
+            flash(f"Format supplémentaire créé : lot {numero}.", "info")
     alerte_materiaux(conn, lot_id)
     conn.commit()
     flash(f"Statut du lot : {STATUTS[statut]}.", "succes")
     return redirect(url_for("lot_detail", lot_id=lot_id))
+
+
+def creer_formats(conn, lot, form):
+    """Embouteillage en plusieurs contenances : chaque format supplémentaire devient un
+    sous-lot (ex. MC-2026-004-20 pour les 20 cl), vendu et suivi séparément, avec le même
+    numéro de lot d'origine pour la traçabilité."""
+    crees = []
+    for cl, nb in zip(form.getlist("format_cl"), form.getlist("format_nb")):
+        cl, nb = to_int(cl), to_int(nb)
+        if cl <= 0 or nb <= 0:
+            continue
+        numero = f"{lot['numero']}-{cl}"
+        while conn.execute("SELECT 1 FROM lots WHERE numero = ?", (numero,)).fetchone():
+            numero += "b"
+        cur = conn.execute(
+            """INSERT INTO lots (numero, recette_id, recette_nom, date_maceration,
+               date_embouteillage, dlc, nb_bouteilles, volume_cl, degre, statut, notes,
+               created_at, parent_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'embouteille', ?, ?, ?)""",
+            (numero, lot["recette_id"], lot["recette_nom"], lot["date_maceration"],
+             lot["date_embouteillage"] or today(), lot["dlc"], nb, cl, lot["degre"],
+             f"Format {cl} cl du lot {lot['numero']}", datetime.now().isoformat(timespec="seconds"),
+             lot["id"]))
+        alerte_materiaux(conn, cur.lastrowid)
+        crees.append(numero)
+    return crees
 
 
 @app.route("/lots/<int:lot_id>/supprimer", methods=["POST"])
@@ -258,6 +289,9 @@ def lot_supprimer(lot_id):
     if lot["vendu"]:
         flash("Ce lot a des ventes enregistrées : supprimez-les d'abord "
               "(la traçabilité doit être conservée).", "erreur")
+        return redirect(url_for("lot_detail", lot_id=lot_id))
+    if conn.execute("SELECT 1 FROM lots WHERE parent_id = ?", (lot_id,)).fetchone():
+        flash("Ce lot a d'autres formats rattachés : supprimez-les d'abord.", "erreur")
         return redirect(url_for("lot_detail", lot_id=lot_id))
     conn.execute("UPDATE lots SET statut = 'maceration' WHERE id = ?", (lot_id,))
     synchroniser_materiaux(conn, lot_id)
@@ -323,7 +357,7 @@ def lot_fiche(lot_id):
     lot = get_lot(lot_id)
     conf = settings()
     ingredients = conn.execute(
-        "SELECT * FROM lot_ingredients WHERE lot_id = ? ORDER BY id", (lot_id,)
+        "SELECT * FROM lot_ingredients WHERE lot_id = ? ORDER BY id", (lot["parent_id"] or lot_id,)
     ).fetchall()
     ventes = conn.execute(
         "SELECT * FROM ventes WHERE lot_id = ? ORDER BY date_vente", (lot_id,)
@@ -400,6 +434,7 @@ def lire_formulaire_materiau(form):
         max(to_int(form.get("seuil_alerte")), 0),
         max(to_float(form.get("cout_unitaire")), 0),
         1 if form.get("par_bouteille") else 0,
+        to_int(form.get("format_cl")) or None,
     )
 
 
@@ -410,8 +445,8 @@ def materiau_ajouter():
         flash("Le nom de la matière est obligatoire.", "erreur")
     else:
         get_db().execute(
-            "INSERT INTO materiaux (nom, type, stock, seuil_alerte, cout_unitaire, par_bouteille)"
-            " VALUES (?, ?, ?, ?, ?, ?)", data)
+            "INSERT INTO materiaux (nom, type, stock, seuil_alerte, cout_unitaire, par_bouteille,"
+            " format_cl) VALUES (?, ?, ?, ?, ?, ?, ?)", data)
         get_db().commit()
         flash(f"Matière « {data[0]} » ajoutée.", "succes")
     return redirect(url_for("stock") + "#materiaux")
@@ -438,7 +473,7 @@ def materiau_modifier(mat_id):
         else:
             conn.execute(
                 "UPDATE materiaux SET nom = ?, type = ?, stock = ?, seuil_alerte = ?,"
-                " cout_unitaire = ?, par_bouteille = ? WHERE id = ?", (*data, mat_id))
+                " cout_unitaire = ?, par_bouteille = ?, format_cl = ? WHERE id = ?", (*data, mat_id))
             flash(f"« {data[0]} » mis à jour.", "succes")
     conn.commit()
     return redirect(url_for("stock") + "#materiaux")

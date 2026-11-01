@@ -64,3 +64,57 @@ assert c.get('/parametres/sauvegardes/..%2Fcorsaire.db').status_code == 404
 z = c.get('/parametres/sauvegarde-complete.zip'); assert z.data[:2] == b'PK'
 assert 'Sauvegardes' in c.get('/parametres').get_data(as_text=True)
 print('sauvegardes OK')
+
+# --- 3a. Plusieurs formats : le lot 4 (prêt) embouteillé en 50 cl et en 20 cl
+cur = db.execute("INSERT INTO materiaux (nom, type, stock, seuil_alerte, cout_unitaire, par_bouteille, format_cl) VALUES ('Flasque 20 cl','bouteille',50,10,0.8,1,20)")
+db.commit()
+flasque20 = cur.lastrowid
+stock50 = db.execute("select stock from materiaux where nom='Bouteille flasque 50 cl'").fetchone()[0]
+bouchons = db.execute("select stock from materiaux where nom='Bouchon liège tête bois'").fetchone()[0]
+r = c.post('/lots/4/statut', data={'csrf': csrf(), 'statut': 'embouteille', 'volume_obtenu_l': '12',
+                                  'nb_bouteilles': '16', 'format_cl': ['20', ''], 'format_nb': ['20', '']},
+           follow_redirects=True)
+assert 'Format supplémentaire créé' in r.get_data(as_text=True)
+enfant = db.execute("select * from lots where parent_id=4").fetchone()
+assert enfant['volume_cl'] == 20 and enfant['nb_bouteilles'] == 20 and enfant['statut'] == 'embouteille'
+assert enfant['numero'].endswith('-004-20'), enfant['numero']
+assert db.execute("select stock from materiaux where id=?", (flasque20,)).fetchone()[0] == 30
+assert db.execute("select stock from materiaux where nom='Bouteille flasque 50 cl'").fetchone()[0] == stock50 - 16
+assert db.execute("select stock from materiaux where nom='Bouchon liège tête bois'").fetchone()[0] == bouchons - 36
+from calculs import cout_revient
+from noyau import settings as _settings
+with app.test_request_context():
+    from noyau import get_db, get_lot
+    parent, fils = get_lot(4), get_lot(enfant['id'])
+    total_ing = get_db().execute('select sum(cout) from lot_ingredients where lot_id=4').fetchone()[0]
+    c50 = cout_revient(get_db(), parent, _settings())['ingredients_bouteille']
+    c20 = cout_revient(get_db(), fils, _settings())['ingredients_bouteille']
+assert abs(c50 * 16 + c20 * 20 - total_ing) < 0.01 and abs(c20 / c50 - 0.4) < 0.001, (c50, c20)
+for u in ['/lots/4', f'/lots/{enfant["id"]}', f'/lots/{enfant["id"]}/fiche', f'/etiquettes/lot/{enfant["id"]}.pdf']:
+    assert c.get(u).status_code == 200, u
+assert "Lot d'origine" in c.get(f'/lots/{enfant["id"]}').get_data(as_text=True)
+print('formats OK')
+
+# --- 3b. Coffret : 1 × Ananas 20 cl + 1 × Café 50 cl, vendu 45 €
+c.post('/coffrets', data={'csrf': csrf(), 'nom': 'Coffret découverte', 'prix_ttc': '45',
+                          'materiau_id': str(db.execute("select id from materiaux where nom='Étui kraft + calage'").fetchone()[0]),
+                          'el_recette': ['1', '3', ''], 'el_cl': ['20', '50', '20'], 'el_qte': ['1', '1', '1']})
+cof = db.execute("select * from coffrets where nom='Coffret découverte'").fetchone()
+assert db.execute('select count(*) from coffret_elements where coffret_id=?', (cof['id'],)).fetchone()[0] == 2
+assert 'Coffret découverte' in c.get('/caisse').get_data(as_text=True)
+etuis = db.execute("select stock from materiaux where nom='Étui kraft + calage'").fetchone()[0]
+r = c.post('/caisse', data={'csrf': csrf(), 'panier': json.dumps([{'coffret_id': cof['id'], 'quantite': 1, 'prix': 45}]),
+                            'mode_paiement': 'especes'})
+assert r.status_code == 302, r.get_data(as_text=True)[:400]
+t = db.execute('select * from tickets order by id desc limit 1').fetchone()
+lignes = db.execute('select v.*, l.volume_cl, l.recette_id from ventes v join lots l on l.id=v.lot_id where ticket_id=?', (t['id'],)).fetchall()
+assert t['sous_total'] == 45 and abs(sum(l['quantite'] * l['prix_unitaire_ttc'] for l in lignes) - 45) < 0.001
+assert sorted((l['recette_id'], l['volume_cl']) for l in lignes) == [(1, 20), (3, 50)]
+assert all(l['notes'] == 'Coffret Coffret découverte' for l in lignes)
+assert db.execute("select stock from materiaux where nom='Étui kraft + calage'").fetchone()[0] == etuis - 1
+# Coffret offert pour un concours (sortie hors vente)
+r = c.post('/sorties', data={'csrf': csrf(), 'coffret_id': str(cof['id']), 'quantite': '1', 'motif': 'concours', 'beneficiaire': 'Gagnant'}, follow_redirects=True)
+assert 'sorti du stock' in r.get_data(as_text=True)
+assert db.execute("select count(*) from sorties where beneficiaire='Gagnant'").fetchone()[0] == 2
+assert c.get('/coffrets').status_code == 200
+print('coffrets OK')

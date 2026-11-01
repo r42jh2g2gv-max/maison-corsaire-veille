@@ -74,7 +74,7 @@ def donnees_etiquette(conn, recette=None, lot=None):
     de lot, ceux de la recette sinon (sauf liste personnalisée sur la recette)."""
     conf = settings()
     nom = (recette["nom"] if recette else None) or (lot["recette_nom"] if lot else "")
-    texte, allergenes = ingredients_lot(conn, lot["id"]) if lot else ("", [])
+    texte, allergenes = ingredients_lot(conn, lot["parent_id"] or lot["id"]) if lot else ("", [])
     if not texte and recette:
         texte, allergenes = ingredients_recette(conn, recette["id"])
         if recette["etiquette_ingredients"]:
