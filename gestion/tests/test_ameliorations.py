@@ -152,3 +152,76 @@ html = c.get('/matieres/2').get_data(as_text=True)
 assert 'Historique des prix' in html and '+15 %' in html, 'variation'
 assert 'Hausse du prix : Rhum ambré 45° +15 %' in c.get('/').get_data(as_text=True)
 print('prix OK')
+
+# --- 9. Factures en attente, paiement, avoirs
+from datetime import date as _date
+import rappels as _rappels
+from noyau import lots_avec_stock as _las, stock_lot as _sl
+def stock(lid):
+    with app.app_context():
+        return _sl(_las("WHERE l.id = ?", (lid,))[0])
+pro = db.execute("select id from clients where type='revendeur' order by id limit 1").fetchone()[0]
+db.execute('update lots set nb_bouteilles = nb_bouteilles + 30 where id = 2'); db.commit()
+s0 = stock(2)
+c.post('/caisse', data={'csrf': csrf(), 'panier': json.dumps([{'lot_id': 2, 'quantite': 2, 'prix': 30}]),
+                        'client_id': pro, 'mode_paiement': 'a_regler'})
+t = db.execute('select * from tickets order by id desc limit 1').fetchone()
+assert t['paye'] == 0 and t['echeance'] and stock(2) == s0 - 2
+with app.app_context():
+    ca_avant = _rappels.ca_periode(db, _date.today().replace(day=1), _date.today())
+assert 'À régler' in c.get('/ventes?statut=attente').get_data(as_text=True) or 'À régler' in c.get('/ventes').get_data(as_text=True)
+assert 'Marquer comme payée' in c.get(f'/tickets/{t["id"]}').get_data(as_text=True)
+c.post(f'/tickets/{t["id"]}/paiement', data={'csrf': csrf(), 'mode_paiement': 'virement', 'date_paiement': _date.today().isoformat()})
+t = db.execute('select * from tickets where id=?', (t['id'],)).fetchone()
+assert t['paye'] == 1 and t['mode_paiement'] == 'virement'
+with app.app_context():
+    assert round(_rappels.ca_periode(db, _date.today().replace(day=1), _date.today()) - ca_avant, 2) == round(t['sous_total'] - t['remise'], 2)
+# avoir : impossible sans facture, puis avoir partiel avec remise en stock
+r = c.post(f'/tickets/{t["id"]}/avoir', data={'csrf': csrf(), 'montant': '10'}, follow_redirects=True)
+assert 'établissez-la' in r.get_data(as_text=True)
+c.post(f'/tickets/{t["id"]}/facture', data={'csrf': csrf()})
+r = c.post(f'/tickets/{t["id"]}/avoir', data={'csrf': csrf(), 'montant': '9999'}, follow_redirects=True)
+assert 'invalide' in r.get_data(as_text=True)
+c.post(f'/tickets/{t["id"]}/avoir', data={'csrf': csrf(), 'montant': '60', 'motif': 'Retour', 'remise_stock': '1'})
+a = db.execute('select * from avoirs order by id desc limit 1').fetchone()
+assert a['numero'].startswith('A-') and a['montant'] == 60 and stock(2) == s0
+assert c.get(f'/avoirs/{a["id"]}.pdf').data[:4] == b'%PDF'
+assert a['numero'] in c.get(f'/tickets/{t["id"]}').get_data(as_text=True)
+print('factures et avoirs OK')
+
+# --- 8. Dépôt-vente
+s0 = stock(2)
+for u in ['/depots', f'/clients/{pro}/depot']:
+    assert c.get(u).status_code == 200, u
+c.post(f'/clients/{pro}/depot', data={'csrf': csrf(), 'action': 'deposer', 'lot_id': '2', 'quantite': '4', 'prix_ht': '22'})
+assert stock(2) == s0 - 4
+r = c.post(f'/clients/{pro}/depot', data={'csrf': csrf(), 'action': 'releve', 'q_2': '99'}, follow_redirects=True)
+assert 'seulement' in r.get_data(as_text=True)
+r = c.post(f'/clients/{pro}/depot', data={'csrf': csrf(), 'action': 'releve', 'q_2': '3'})
+tid = int(r.headers['Location'].split('/')[-1])
+t = db.execute('select * from tickets where id=?', (tid,)).fetchone()
+assert t['paye'] == 0 and t['facture_numero'] and t['total'] == 66, dict(t)
+assert stock(2) == s0 - 4, 'vente du dépôt : pas de double décompte'
+c.post(f'/clients/{pro}/depot', data={'csrf': csrf(), 'action': 'retour', 'q_2': '1'})
+assert stock(2) == s0 - 3
+assert 'Dépôt-vente' in c.get('/stock').get_data(as_text=True) or 'En dépôt' in c.get('/stock').get_data(as_text=True)
+print('dépôt-vente OK')
+
+# --- 10. Clôture de marché
+evt = db.execute("select e.id from evenements e join tickets t on t.evenement_id = e.id limit 1").fetchone()[0]
+html = c.get(f'/agenda/{evt}/cloture').get_data(as_text=True)
+assert 'Ventes par produit' in html and 'Espèces attendues' in html
+with app.app_context():
+    from vues_cloture import resume_evenement
+    res = resume_evenement(db, evt)
+lot_v = res['produits'][0]['lot_id']; nv = res['produits'][0]['quantite']
+c.post(f'/agenda/{evt}/cloture', data={'csrf': csrf(), 'fond_caisse': '50', 'especes_comptees': str(50 + res['especes'] - 2),
+                                       f'emp_{lot_v}': str(nv + 5), f'rap_{lot_v}': '4', 'notes': 'Beau temps'})
+clo = db.execute('select * from clotures where evenement_id=?', (evt,)).fetchone()
+assert clo['especes_attendues'] == round(50 + res['especes'], 2)
+html = c.get(f'/agenda/{evt}/cloture').get_data(as_text=True)
+assert '1 manquante(s)' in html and 'Beau temps' in html and '-2,00' in html, html[html.find('Écart'):][:200]
+assert 'Caisse -2,00' in c.get('/agenda').get_data(as_text=True)
+c.post(f'/agenda/{evt}/cloture', data={'csrf': csrf(), 'fond_caisse': '50', 'especes_comptees': ''})
+assert db.execute('select count(*) from clotures where evenement_id=?', (evt,)).fetchone()[0] == 1
+print('clôture OK')

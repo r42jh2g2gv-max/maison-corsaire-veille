@@ -17,7 +17,8 @@ MOIS = ["janv.", "févr.", "mars", "avr.", "mai", "juin", "juil.", "août",
 MOIS_LONGS = ["janvier", "février", "mars", "avril", "mai", "juin", "juillet", "août",
               "septembre", "octobre", "novembre", "décembre"]
 MODES_PAIEMENT = {"especes": "Espèces", "carte": "Carte", "virement": "Virement",
-                  "cheque": "Chèque"}
+                  "cheque": "Chèque", "a_regler": "À régler"}
+MODES_REGLES = {k: v for k, v in MODES_PAIEMENT.items() if k != "a_regler"}
 TYPES_CLIENTS = {"particulier": "Particulier", "revendeur": "Revendeur",
                  "professionnel": "Professionnel"}
 TYPES_EVENEMENTS = {"marche": "Marché", "salon": "Salon", "degustation": "Dégustation",
@@ -96,7 +97,9 @@ def lots_avec_stock(where="", params=()):
     return get_db().execute(
         f"""SELECT l.*,
                    COALESCE((SELECT SUM(quantite) FROM ventes v WHERE v.lot_id = l.id), 0) AS vendu,
-                   COALESCE((SELECT SUM(quantite) FROM sorties s WHERE s.lot_id = l.id), 0) AS sorti
+                   COALESCE((SELECT SUM(quantite) FROM sorties s WHERE s.lot_id = l.id), 0) AS sorti,
+                   COALESCE((SELECT SUM(CASE type WHEN 'depot' THEN quantite ELSE -quantite END)
+                             FROM depots d WHERE d.lot_id = l.id), 0) AS en_depot
             FROM lots l {where}""",
         params,
     ).fetchall()
@@ -119,7 +122,7 @@ def get_or_404(table, ident):
 def stock_lot(lot):
     if lot["statut"] not in STATUTS_EMBOUTEILLES:
         return 0
-    return max(lot["nb_bouteilles"] - lot["vendu"] - lot["sorti"], 0)
+    return max(lot["nb_bouteilles"] - lot["vendu"] - lot["sorti"] - lot["en_depot"], 0)
 
 
 def couts_par_lot(conn, conf):
@@ -130,7 +133,7 @@ def couts_par_lot(conn, conf):
 def maj_statut_epuise(conn, lot_id, reouvrir=False):
     """Passe le lot en « épuisé » quand tout est vendu ou sorti (et l'inverse si reouvrir)."""
     lot = get_lot(lot_id)
-    reste = lot["nb_bouteilles"] - lot["vendu"] - lot["sorti"]
+    reste = lot["nb_bouteilles"] - lot["vendu"] - lot["sorti"] - lot["en_depot"]
     if lot["statut"] == "embouteille" and reste <= 0:
         conn.execute("UPDATE lots SET statut = 'epuise' WHERE id = ?", (lot_id,))
     elif reouvrir and lot["statut"] == "epuise" and reste > 0:
@@ -215,6 +218,7 @@ def inject_globals():
         "CATEGORIES": CATEGORIES_INGREDIENTS,
         "TYPES_MATERIAUX": TYPES_MATERIAUX,
         "MODES_PAIEMENT": MODES_PAIEMENT,
+        "MODES_REGLES": MODES_REGLES,
         "TYPES_CLIENTS": TYPES_CLIENTS,
         "TYPES_EVENEMENTS": TYPES_EVENEMENTS,
         "today": today(),

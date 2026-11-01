@@ -44,7 +44,7 @@
       {% if ticket.remise %}<div class="ligne-detail"><span>Bon d'achat <span class="code">{{ bon }}</span></span><span class="num">− {{ ticket.remise|euro }}</span></div>{% endif %}
       {% if ticket.consigne %}<div class="ligne-detail"><span>Consigne</span><span class="num">{{ ticket.consigne|euro }}</span></div>{% endif %}
       <div class="total-caisse"><span>Total</span><strong>{{ ticket.total|euro }}</strong></div>
-      <div class="ligne-detail"><span>Réglé par</span><span>{{ MODES_PAIEMENT[ticket.mode_paiement] }}</span></div>
+      <div class="ligne-detail"><span>{{ 'Réglé par' if ticket.paye else 'Paiement' }}</span><span>{% if ticket.paye %}{{ MODES_PAIEMENT[ticket.mode_paiement] }}{% if ticket.date_paiement and ticket.date_paiement != ticket.date_vente %} le {{ ticket.date_paiement|datefr }}{% endif %}{% else %}<span class="badge badge-{{ 'retard' if ticket.echeance and ticket.echeance < today else 'urgent' }}">En attente · échéance {{ ticket.echeance|datefr }}</span>{% endif %}</span></div>
       <div class="ligne-detail"><span>Canal</span><span>{{ 'Revendeur' if ticket.canal == 'revendeur' else 'Vente directe' }}</span></div>
     </div>
     {% if ticket.notes %}<p class="mt mb0 doux">Note : {{ ticket.notes }}</p>{% endif %}
@@ -52,6 +52,19 @@
   </section>
 
   <div class="grille">
+    {% if not ticket.paye %}
+    <section class="carte rappel-urgent" style="border-left-width:4px">
+      <h2>Paiement attendu : {{ ticket.total|euro }}</h2>
+      <form method="post" action="{{ url_for('ticket_paiement', ticket_id=ticket.id) }}">
+        <input type="hidden" name="csrf" value="{{ csrf_token }}">
+        <div class="champs">
+          <div><label for="date_paiement">Reçu le</label><input id="date_paiement" type="date" name="date_paiement" value="{{ today }}"></div>
+          <div><label for="mode-paye">Par</label><select id="mode-paye" name="mode_paiement">{% for k, v in MODES_REGLES.items() %}<option value="{{ k }}" {{ 'selected' if k == 'virement' }}>{{ v }}</option>{% endfor %}</select></div>
+        </div>
+        <div class="form-actions"><button class="btn btn-or">{{ icone('check') }}Marquer comme payée</button></div>
+      </form>
+    </section>
+    {% endif %}
     <section class="carte">
       <h2>Ticket</h2>
       <div class="grille" style="gap:8px">
@@ -100,6 +113,26 @@
       {% if not smtp_ok %}<p class="aide mt mb0">Pour envoyer directement par email depuis l'application, configurez l'envoi dans <a href="{{ url_for('parametres') }}#emails">Paramètres → Emails</a>. Sinon, « Partager le PDF » ouvre Mail, Messages ou WhatsApp sur le téléphone.</p>{% endif %}
     </section>
 
+    {% if ticket.facture_numero %}
+    <section class="carte">
+      <h2>Avoirs</h2>
+      {% if avoirs %}
+      <ul class="liste">{% for a in avoirs %}<li><div><a class="code" href="{{ url_for('avoir_pdf_vue', avoir_id=a.id) }}" target="_blank">{{ a.numero }}</a> · {{ a.date_avoir|datefr }}{% if a.motif %}<br><small>{{ a.motif }}</small>{% endif %}</div><strong class="num">− {{ a.montant|euro }}</strong></li>{% endfor %}</ul>
+      {% endif %}
+      <details {{ 'class=mt' if avoirs }}><summary>+ Faire un avoir (remboursement, retour, erreur)</summary>
+        <form method="post" action="{{ url_for('avoir_creer', ticket_id=ticket.id) }}" class="mt">
+          <input type="hidden" name="csrf" value="{{ csrf_token }}">
+          <div class="champs">
+            <div><label for="av-montant">Montant TTC (€)</label><input id="av-montant" type="number" name="montant" step="0.01" min="0.01" inputmode="decimal" value="{{ '%.2f'|format(ticket.sous_total - ticket.remise - (avoirs|sum(attribute='montant'))) }}"></div>
+            <div><label for="av-motif">Motif</label><input id="av-motif" type="text" name="motif" placeholder="Bouteille cassée, erreur de prix…"></div>
+            <div class="large"><label class="case"><input type="checkbox" name="remise_stock" value="1"> Les bouteilles sont revenues (remise en stock de toute la vente)</label></div>
+          </div>
+          <div class="form-actions"><button class="btn btn-danger">Établir l'avoir</button></div>
+          <p class="aide mb0">La facture n'est jamais modifiée : l'avoir (numéroté A-{{ today[:4] }}-…) vient en déduction du chiffre d'affaires.</p>
+        </form>
+      </details>
+    </section>
+    {% endif %}
     {% if not ticket.facture_numero %}
     <form method="post" action="{{ url_for('ticket_supprimer', ticket_id=ticket.id) }}" onsubmit="return confirm('Annuler cette vente ? Les bouteilles seront remises en stock.')">
       <input type="hidden" name="csrf" value="{{ csrf_token }}">

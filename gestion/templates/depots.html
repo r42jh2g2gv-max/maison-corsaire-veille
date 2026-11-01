@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% from "_icones.html" import icone %}
+{% block titre %}Dépôt-vente{% endblock %}
+{% block contenu %}
+<div class="titre-page">
+  <div><div class="surtitre">Revendeurs</div><h1>Dépôt-vente</h1><div class="filet"></div>
+    <div class="sous-titre">Bouteilles confiées aux caves et épiceries : elles restent à vous jusqu'à leur vente, puis vous les facturez sur relevé.</div></div>
+</div>
+{% if resume %}
+<div class="grille-cartes c3">
+  {% for r in resume %}
+  <a class="carte carte-lien {{ 'bois' if r.reste }}" href="{{ url_for('depot_client', client_id=r.c.id) }}">
+    <div class="nom-carte">{{ r.c.nom }}</div>
+    <div class="stats-3">
+      <div><strong>{{ r.reste }}</strong><span>en dépôt</span></div>
+      <div><strong class="or">{{ r.valeur|euro }}</strong><span>valeur HT</span></div>
+      <div><strong>{{ r.dernier|datecourte if r.dernier else '—' }}</strong><span>dernier relevé</span></div>
+    </div>
+  </a>
+  {% endfor %}
+</div>
+{% else %}<div class="carte"><p class="vide mb0">Aucun revendeur. Créez un client de type « Revendeur ».</p></div>{% endif %}
+{% endblock %}

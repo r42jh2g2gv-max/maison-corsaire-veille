@@ -11,6 +11,8 @@ import vues_clients  # noqa: F401,E402
 import vues_coffrets  # noqa: F401,E402
 import vues_compte  # noqa: F401,E402
 import vues_degustations  # noqa: F401,E402
+import vues_depots  # noqa: F401,E402
+import vues_cloture  # noqa: F401,E402
 import vues_etiquettes  # noqa: F401,E402
 import vues_logo  # noqa: F401,E402
 import vues_lots  # noqa: F401,E402

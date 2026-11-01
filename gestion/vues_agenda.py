@@ -43,7 +43,11 @@ def agenda():
             (e["id"],)).fetchone()[0]
         btl = sum(l["quantite"] for l in lignes)
         cout = sum(l["quantite"] * couts.get(l["lot_id"], 0) for l in lignes)
-        bilans.append({"e": e, "btl": btl, "ca": ca, "cout": cout,
+        clo = conn.execute("SELECT * FROM clotures WHERE evenement_id = ? ORDER BY id DESC",
+                           (e["id"],)).fetchone()
+        ecart = (round(clo["especes_comptees"] - clo["especes_attendues"], 2)
+                 if clo and clo["especes_comptees"] is not None else None)
+        bilans.append({"e": e, "btl": btl, "ca": ca, "cout": cout, "cloture": clo, "ecart": ecart,
                        "benefice": ca - cout - e["cout_place"]})
     rappels = [r for r in calculer_rappels(conn, settings())
                if r["icone"] in ("calendrier", "caisse")]

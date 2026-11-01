@@ -127,7 +127,7 @@ print('perte OK')
 for u in ['/sorties', '/sorties?lot_id=3&motif=concours', '/stock', '/lots/3', '/lots/3/fiche', '/chiffres', '/statistiques']:
     assert c.get(u).status_code == 200, u
 def stock_lot3():
-    return db.execute("select nb_bouteilles - (select coalesce(sum(quantite),0) from ventes where lot_id=3) - (select coalesce(sum(quantite),0) from sorties where lot_id=3) from lots where id=3").fetchone()[0]
+    return db.execute("select nb_bouteilles - (select coalesce(sum(quantite),0) from ventes where lot_id=3) - (select coalesce(sum(quantite),0) from sorties where lot_id=3) - (select coalesce(sum(case type when 'depot' then quantite else -quantite end),0) from depots where lot_id=3) from lots where id=3").fetchone()[0]
 s0 = stock_lot3()
 r = c.post('/sorties', data={'csrf':csrf(),'lot_id':'3','quantite':'1','motif':'concours','beneficiaire':'Gagnant Instagram','notes':'Coffret lancement'}, follow_redirects=True)
 assert 'sortie(s) du stock' in r.get_data(as_text=True) and stock_lot3() == s0 - 1

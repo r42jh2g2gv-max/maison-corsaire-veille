@@ -13,7 +13,7 @@ from noyau import (MODES_PAIEMENT, app, couts_par_lot, euro, get_db, get_or_404,
                    redirection_sure, settings, stock_lot, to_int, today)
 from fidelite import attribuer_bons, bons_actifs, carte
 from vues_coffrets import composer, disponibles
-from pdfs import facture_pdf, ticket_pdf
+from pdfs import avoir_pdf, facture_pdf, ticket_pdf
 
 
 def lignes_ticket(conn, ticket_id):
@@ -101,7 +101,7 @@ def caisse():
     evenements = conn.execute(
         """SELECT * FROM evenements WHERE COALESCE(date_fin, date_debut) >= ?
            ORDER BY date_debut LIMIT 10""", (debut,)).fetchall()
-    evt_du_jour = next((e["id"] for e in evenements
+    evt_du_jour = to_int(request.args.get("evenement_id")) or next((e["id"] for e in evenements
                         if e["date_debut"] <= today() <= (e["date_fin"] or e["date_debut"])), "")
     return render_template(
         "caisse.html", produits=produits, coffrets=coffrets_caisse, clients=clients, evenements=evenements,
@@ -194,12 +194,16 @@ def encaisser(conn, conf, form, hors_ligne=False, avertissements=None):
     cur = conn.execute(
         """INSERT INTO tickets (numero, date_vente, client_id, client_nom, canal, mode_paiement,
            evenement_id, sous_total, remise, consigne, total, client_adresse, notes, created_at,
-           uuid) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+           uuid, paye, date_paiement, echeance)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
         (database.prochain_numero(conn, "tickets", "numero", "T", jour[:4], 4), jour, client_id,
          client_nom, canal, mode, evenement_id, sous_total, remise, consigne,
          round(sous_total - remise + consigne, 2), client["adresse"] if client else None,
          form.get("notes", "").strip(), datetime.now().isoformat(timespec="seconds"),
-         form.get("uuid") or None),
+         form.get("uuid") or None, 0 if mode == "a_regler" else 1,
+         None if mode == "a_regler" else jour,
+         (date.fromisoformat(jour) + timedelta(days=int(to_float(conf.get("delai_paiement"), 30))))
+         .isoformat() if mode == "a_regler" else None),
     )
     ticket_id = cur.lastrowid
     for lot_id, qte, prix, note in lignes:
@@ -293,6 +297,8 @@ def ticket_detail(ticket_id):
         smtp_ok=smtp_configure(settings()), conf=settings(),
         carte=carte(conn, client["id"], settings()) if client and client["type"] != "revendeur"
         else None,
+        avoirs=conn.execute("SELECT * FROM avoirs WHERE ticket_id = ? ORDER BY id",
+                            (ticket_id,)).fetchall(),
     )
 
 
@@ -377,6 +383,67 @@ def ticket_envoyer(ticket_id):
     return redirect(url_for("ticket_detail", ticket_id=ticket_id))
 
 
+@app.route("/tickets/<int:ticket_id>/paiement", methods=["POST"])
+def ticket_paiement(ticket_id):
+    conn = get_db()
+    ticket = get_or_404("tickets", ticket_id)
+    mode = request.form.get("mode_paiement")
+    if mode not in MODES_PAIEMENT or mode == "a_regler":
+        mode = "virement"
+    jour = parse_date(request.form.get("date_paiement")) or today()
+    conn.execute("UPDATE tickets SET paye = 1, date_paiement = ?, mode_paiement = ? WHERE id = ?",
+                 (jour, mode, ticket_id))
+    conn.commit()
+    flash(f"Paiement de {euro(ticket['total'])} enregistré ({MODES_PAIEMENT[mode].lower()}). "
+          "Il compte dans le CA du mois d'encaissement.", "succes")
+    return redirect(url_for("ticket_detail", ticket_id=ticket_id))
+
+
+@app.route("/tickets/<int:ticket_id>/avoir", methods=["POST"])
+def avoir_creer(ticket_id):
+    """Avoir : annulation totale ou partielle d'une facture (remboursement, retour, geste)."""
+    conn = get_db()
+    ticket = get_or_404("tickets", ticket_id)
+    if not ticket["facture_numero"]:
+        flash("Un avoir se fait sur une facture : établissez-la d'abord.", "erreur")
+        return redirect(url_for("ticket_detail", ticket_id=ticket_id))
+    deja = conn.execute("SELECT COALESCE(SUM(montant), 0) FROM avoirs WHERE ticket_id = ?",
+                        (ticket_id,)).fetchone()[0]
+    maximum = round(ticket["sous_total"] - ticket["remise"] - deja, 2)
+    montant = round(to_float(request.form.get("montant")), 2)
+    if montant <= 0 or montant > maximum:
+        flash(f"Montant de l'avoir invalide (maximum {euro(maximum)}).", "erreur")
+        return redirect(url_for("ticket_detail", ticket_id=ticket_id))
+    jour = today()
+    numero = database.prochain_numero(conn, "avoirs", "numero", "A", jour[:4], 4)
+    remise_stock = 1 if request.form.get("remise_stock") else 0
+    conn.execute(
+        "INSERT INTO avoirs (numero, ticket_id, date_avoir, montant, motif, remise_stock,"
+        " created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+        (numero, ticket_id, jour, montant, request.form.get("motif", "").strip() or None,
+         remise_stock, datetime.now().isoformat(timespec="seconds")))
+    if remise_stock:  # bouteilles rapportées : lignes négatives, le stock remonte
+        for v in lignes_ticket(conn, ticket_id):
+            if v["quantite"] > 0:
+                conn.execute(
+                    "INSERT INTO ventes (ticket_id, date_vente, client, lot_id, quantite,"
+                    " prix_unitaire_ttc, canal, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                    (ticket_id, jour, v["client"], v["lot_id"], -v["quantite"],
+                     v["prix_unitaire_ttc"], v["canal"], f"Retour (avoir {numero})"))
+                maj_statut_epuise(conn, v["lot_id"], reouvrir=True)
+    conn.commit()
+    flash(f"Avoir {numero} de {euro(montant)} établi.", "succes")
+    return redirect(url_for("ticket_detail", ticket_id=ticket_id))
+
+
+@app.route("/avoirs/<int:avoir_id>.pdf")
+def avoir_pdf_vue(avoir_id):
+    conn = get_db()
+    avoir = get_or_404("avoirs", avoir_id)
+    ticket = get_or_404("tickets", avoir["ticket_id"])
+    return _pdf(avoir_pdf(avoir, ticket, settings()), f"Avoir-{avoir['numero']}.pdf")
+
+
 @app.route("/tickets/<int:ticket_id>/supprimer", methods=["POST"])
 def ticket_supprimer(ticket_id):
     conn = get_db()
@@ -410,6 +477,7 @@ def ventes():
     if mois not in mois_dispo:
         mois = "tout"
     recherche = request.args.get("q", "").strip()
+    attente = request.args.get("attente") == "1"
     sql = """SELECT t.*, (SELECT SUM(quantite) FROM ventes v WHERE v.ticket_id = t.id) AS btl,
                     (SELECT group_concat(l.recette_nom, ', ') FROM ventes v JOIN lots l
                      ON l.id = v.lot_id WHERE v.ticket_id = t.id) AS produits
@@ -418,6 +486,8 @@ def ventes():
     if mois != "tout":
         sql += " AND t.date_vente LIKE ?"
         params.append(mois + "%")
+    if attente:
+        sql += " AND t.paye = 0"
     if recherche:
         sql += " AND (t.client_nom LIKE ? OR t.numero LIKE ? OR t.facture_numero LIKE ?)"
         params += [f"%{recherche}%"] * 3
@@ -436,5 +506,6 @@ def ventes():
     return render_template(
         "ventes.html", tickets=tickets, mois=mois, mois_dispo=mois_dispo, mois_label=mois_label,
         ca=ca, marge=marge_pct(ca / (1 + tva), cout_total) if ca else None,
-        bouteilles=sum(t["btl"] or 0 for t in tickets), recherche=recherche,
+        bouteilles=sum(t["btl"] or 0 for t in tickets), recherche=recherche, attente=attente,
+        nb_attente=conn.execute("SELECT COUNT(*) FROM tickets WHERE paye = 0").fetchone()[0],
     )

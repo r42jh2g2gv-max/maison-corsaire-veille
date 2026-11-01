@@ -41,10 +41,17 @@ def periodes_urssaf(periodicite, nombre=12, reference=None):
 
 
 def ca_periode(conn, debut, fin):
-    return conn.execute(
+    """Chiffre d'affaires encaissé sur la période (micro-entreprise : à la date du paiement),
+    moins les avoirs remboursés."""
+    d, f = debut.isoformat(), fin.isoformat()
+    encaisse = conn.execute(
         "SELECT COALESCE(SUM(sous_total - remise), 0) FROM tickets"
-        " WHERE date_vente BETWEEN ? AND ?", (debut.isoformat(), fin.isoformat())
+        " WHERE paye = 1 AND COALESCE(date_paiement, date_vente) BETWEEN ? AND ?", (d, f)
     ).fetchone()[0]
+    avoirs = conn.execute(
+        "SELECT COALESCE(SUM(montant), 0) FROM avoirs WHERE date_avoir BETWEEN ? AND ?", (d, f)
+    ).fetchone()[0]
+    return encaisse - avoirs
 
 
 def calculer_rappels(conn, conf):
@@ -59,7 +66,9 @@ def calculer_rappels(conn, conf):
     stock_total = conn.execute(
         """SELECT COALESCE(SUM(l.nb_bouteilles - COALESCE((SELECT SUM(quantite) FROM ventes v
              WHERE v.lot_id = l.id), 0) - COALESCE((SELECT SUM(quantite) FROM sorties s
-             WHERE s.lot_id = l.id), 0)), 0) FROM lots l WHERE l.statut = 'embouteille'"""
+             WHERE s.lot_id = l.id), 0) - COALESCE((SELECT SUM(CASE type WHEN 'depot' THEN quantite
+             ELSE -quantite END) FROM depots dp WHERE dp.lot_id = l.id), 0)), 0)
+             FROM lots l WHERE l.statut = 'embouteille'"""
     ).fetchone()[0]
     for e in conn.execute("SELECT * FROM evenements WHERE date_debut >= ? ORDER BY date_debut",
                           (ajd.isoformat(),)):
@@ -172,6 +181,27 @@ def calculer_rappels(conn, conf):
                 date.fromisoformat(b["date_expiration"]),
                 url_for("client_detail", client_id=b["client_id"]) if b["client_id"]
                 else url_for("bons"))
+
+    # Factures en attente de paiement
+    for t in conn.execute(
+            "SELECT * FROM tickets WHERE paye = 0 AND echeance IS NOT NULL ORDER BY echeance"):
+        ech = date.fromisoformat(t["echeance"])
+        if (ech - ajd).days <= 7:
+            ajouter("retard" if ech < ajd else "urgent", "declaration",
+                    f"Paiement attendu : {t['client_nom']}",
+                    f"{euro(t['total'])} · {t['facture_numero'] or t['numero']}", ech,
+                    url_for("ticket_detail", ticket_id=t["id"]))
+
+    # Dépôt-vente : faire le point tous les 2 mois
+    for dp in conn.execute(
+            """SELECT c.id, c.nom, MAX(d.date_mouvement) AS dernier,
+                      SUM(CASE d.type WHEN 'depot' THEN d.quantite ELSE -d.quantite END) AS reste
+               FROM depots d JOIN clients c ON c.id = d.client_id GROUP BY c.id"""):
+        if dp["reste"] > 0 and (ajd - date.fromisoformat(dp["dernier"])).days >= 45:
+            ajouter("info", "client", f"Faire le point du dépôt chez {dp['nom']}",
+                    f"{dp['reste']} bouteille(s) en dépôt · dernier relevé il y a "
+                    f"{(ajd - date.fromisoformat(dp['dernier'])).days} jours", None,
+                    url_for("depot_client", client_id=dp["id"]))
 
     # Revendeurs sans commande depuis 45 jours
     for c in conn.execute(

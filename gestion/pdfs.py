@@ -406,3 +406,109 @@ def bon_pdf(bon, conf):
     c.showPage()
     c.save()
     return buf.getvalue()
+
+
+# --------------------------------------------------------------------------
+# Avoir A4 (annulation totale ou partielle d'une facture)
+# --------------------------------------------------------------------------
+
+def avoir_pdf(avoir, ticket, conf):
+    buf = BytesIO()
+    c = canvas.Canvas(buf, pagesize=A4)
+    c.setTitle(f"Avoir {avoir['numero']}")
+    L, H = A4
+    m = 18 * mm
+    tva = _tva(conf)
+    c.setFillColor(NUIT)
+    c.rect(0, H - 8 * mm, L, 8 * mm, fill=1, stroke=0)
+    c.setFillColor(OR)
+    c.rect(0, H - 9 * mm, L, 1 * mm, fill=1, stroke=0)
+    y = H - 24 * mm
+    logo = _logo()
+    if logo:
+        _dessiner_logo(c, logo, m, H - 33 * mm, 20 * mm)
+        y = H - 40 * mm
+    c.setFillColor(NUIT)
+    c.setFont("Times-Bold", 22)
+    c.drawString(m, y, conf.get("producteur_nom") or "Maison Corsaire")
+    c.setFont("Helvetica", 9)
+    c.setFillColor(GRIS)
+    y -= 6 * mm
+    for info in filter(None, [conf.get("producteur_adresse"), conf.get("producteur_telephone"),
+                              conf.get("producteur_email"),
+                              f"SIRET : {conf['siret']}" if conf.get("siret") else None]):
+        c.drawString(m, y, info)
+        y -= 4.5 * mm
+    c.setFillColor(NUIT)
+    c.setFont("Helvetica-Bold", 20)
+    c.drawRightString(L - m, H - 24 * mm, "AVOIR")
+    c.setFont("Helvetica", 10)
+    c.drawRightString(L - m, H - 31 * mm, f"N° {avoir['numero']}")
+    c.setFillColor(GRIS)
+    c.drawRightString(L - m, H - 36.5 * mm, f"Date : {_date(avoir['date_avoir'])}")
+    c.drawRightString(L - m, H - 41.5 * mm,
+                      f"Sur la facture {ticket['facture_numero']} du {_date(ticket['facture_date'])}")
+
+    y = min(y, H - 56 * mm) - 6 * mm
+    c.setFillColor(OR)
+    c.setFont("Helvetica-Bold", 8)
+    c.drawString(L / 2 + 5 * mm, y, "CLIENT")
+    c.setFillColor(NUIT)
+    c.setFont("Helvetica-Bold", 11)
+    c.drawString(L / 2 + 5 * mm, y - 6 * mm, ticket["client_nom"][:45])
+    c.setFont("Helvetica", 9)
+    yy = y - 11 * mm
+    for ligne in _decouper(c, ticket["client_adresse"] or "", "Helvetica", 9, L / 2 - m - 10 * mm)[:3]:
+        c.drawString(L / 2 + 5 * mm, yy, ligne)
+        yy -= 4.5 * mm
+    y -= 34 * mm
+
+    fin = L - m
+    c.setFillColor(NUIT)
+    c.rect(m, y - 2.5 * mm, fin - m, 8 * mm, fill=1, stroke=0)
+    c.setFillColor(colors.white)
+    c.setFont("Helvetica-Bold", 9)
+    c.drawString(m + 3 * mm, y, "Désignation")
+    c.drawRightString(fin - 3 * mm, y, "Montant HT" if tva else "Montant")
+    y -= 10 * mm
+    c.setFillColor(NUIT)
+    c.setFont("Helvetica", 9.5)
+    texte = f"Avoir sur la facture {ticket['facture_numero']}"
+    if avoir["motif"]:
+        texte += f" : {avoir['motif']}"
+    lignes = _decouper(c, texte, "Helvetica", 9.5, fin - m - 45 * mm)
+    c.drawRightString(fin - 3 * mm, y, "- " + _euro(avoir["montant"] / (1 + tva)))
+    for ligne in lignes:
+        c.drawString(m + 3 * mm, y, ligne)
+        y -= 5 * mm
+    if avoir["remise_stock"]:
+        c.setFillColor(GRIS)
+        c.setFont("Helvetica", 8.5)
+        c.drawString(m + 3 * mm, y, "Marchandises retournées.")
+        y -= 5 * mm
+    c.setStrokeColor(LIGNE)
+    c.line(m, y, fin, y)
+    y -= 9 * mm
+    x_label = L - m - 75 * mm
+    if tva:
+        c.setFont("Helvetica", 9.5)
+        c.drawString(x_label, y, f"TVA {tva * 100:g} %")
+        c.drawRightString(fin - 3 * mm, y, "- " + _euro(avoir["montant"] - avoir["montant"] / (1 + tva)))
+        y -= 7 * mm
+    c.setStrokeColor(OR)
+    c.line(x_label, y + 4 * mm, fin, y + 4 * mm)
+    c.setFillColor(NUIT)
+    c.setFont("Helvetica-Bold", 11)
+    c.drawString(x_label, y - 1 * mm, "TOTAL DE L'AVOIR")
+    c.drawRightString(fin - 3 * mm, y - 1 * mm, "- " + _euro(avoir["montant"]))
+    y -= 8 * mm
+    if not tva:
+        c.setFont("Helvetica-Oblique", 8.5)
+        c.setFillColor(GRIS)
+        c.drawRightString(fin - 3 * mm, y, "TVA non applicable, art. 293 B du CGI")
+    c.setFont("Helvetica", 7.5)
+    c.setFillColor(GRIS)
+    c.drawCentredString(L / 2, 8 * mm, f"{conf.get('producteur_nom') or ''} · Avoir {avoir['numero']}")
+    c.showPage()
+    c.save()
+    return buf.getvalue()

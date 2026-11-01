@@ -39,6 +39,7 @@
           <button class="btn btn-petit {{ 'btn-or' if e[champ] else 'btn-ligne' }}" aria-pressed="{{ 'true' if e[champ] else 'false' }}">{{ icone('check' if e[champ] else 'rond') }}{{ label }}</button>
         </form>
         {% endfor %}
+        {% if e.date_debut <= today %}<a class="btn btn-or btn-petit" href="{{ url_for('cloture', evt_id=e.id) }}">{{ icone('caisse') }}Clôturer</a>{% endif %}
         <a class="btn btn-ligne btn-petit" href="{{ url_for('evenement_modifier', evt_id=e.id) }}" aria-label="Modifier">{{ icone('crayon') }}</a>
         <form method="post" action="{{ url_for('evenement_supprimer', evt_id=e.id) }}" class="inline" onsubmit="return confirm('Supprimer cet événement ?')">
           <input type="hidden" name="csrf" value="{{ csrf_token }}">
@@ -65,7 +66,7 @@
   {% if bilans %}
   <div class="table-wrap">
   <table class="empile">
-    <thead><tr><th>Événement</th><th class="droite">Btl</th><th class="droite">CA</th><th class="droite">Coût btl</th><th class="droite">Place</th><th class="droite">Bénéfice</th></tr></thead>
+    <thead><tr><th>Événement</th><th class="droite">Btl</th><th class="droite">CA</th><th class="droite">Coût btl</th><th class="droite">Place</th><th class="droite">Bénéfice</th><th>Clôture</th></tr></thead>
     <tbody>
       {% for b in bilans %}
       <tr>
@@ -75,6 +76,7 @@
         <td class="droite num" data-label="Coût des bouteilles">{{ b.cout|euro }}</td>
         <td class="droite num" data-label="Place">{{ b.e.cout_place|euro }}</td>
         <td class="droite num {{ 'positif' if b.benefice >= 0 else 'negatif' }}" data-label="Bénéfice">{{ b.benefice|euro }}</td>
+        <td data-label="Clôture"><a class="btn btn-ligne btn-petit" href="{{ url_for('cloture', evt_id=b.e.id) }}">{% if b.cloture %}{{ icone('check') }}{% if b.cloture.especes_comptees is not none %}Caisse {{ '+' if b.ecart > 0 }}{{ b.ecart|euro }}{% else %}Voir{% endif %}{% else %}Clôturer{% endif %}</a></td>
       </tr>
       {% endfor %}
     </tbody>

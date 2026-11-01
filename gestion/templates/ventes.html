@@ -19,6 +19,7 @@
       {% for m in mois_dispo %}<option value="{{ m }}" {{ 'selected' if m == mois }}>{{ mois_label(m)|capitalize }}</option>{% endfor %}
     </select></div>
   <button class="btn">Filtrer</button>
+  <a class="btn {{ 'btn-or' if attente else 'btn-ligne' }}" href="{{ url_for('ventes', attente=None if attente else 1) }}">En attente de paiement{% if nb_attente %} ({{ nb_attente }}){% endif %}</a>
 </form>
 
 <div class="grille-kpi">
@@ -40,7 +41,7 @@
         <td class="titre-ligne" data-label="Client"><a href="{{ url_for('ticket_detail', ticket_id=t.id) }}">{{ t.client_nom }}</a>
           {% if t.canal == 'revendeur' %} <span class="badge badge-revendeur">Revendeur</span>{% endif %}</td>
         <td data-label="Produits"><span style="overflow-wrap:anywhere">{{ t.btl or 0 }} × {{ t.produits or '' }}</span></td>
-        <td data-label="Paiement">{{ MODES_PAIEMENT[t.mode_paiement] }}</td>
+        <td data-label="Paiement">{% if t.paye %}{{ MODES_PAIEMENT[t.mode_paiement] }}{% else %}<span class="badge badge-{{ 'retard' if t.echeance and t.echeance < today else 'urgent' }}">À régler</span>{% endif %}</td>
         <td data-label="Référence"><a class="code" href="{{ url_for('ticket_detail', ticket_id=t.id) }}">{{ t.facture_numero or t.numero }}</a></td>
         <td class="droite num" data-label="Total"><strong>{{ t.total|euro }}</strong></td>
       </tr>

@@ -1,0 +1,109 @@
+{% extends "base.html" %}
+{% from "_icones.html" import icone %}
+{% block titre %}Clôture — {{ e.nom }}{% endblock %}
+{% block contenu %}
+<div class="titre-page">
+  <div><div class="surtitre"><a href="{{ url_for('agenda') }}">Agenda</a> · {{ e.date_debut|datefr }}</div><h1>Clôture : {{ e.nom }}</h1><div class="filet"></div></div>
+  <div class="actions"><a class="btn btn-or" href="{{ url_for('caisse', evenement_id=e.id) }}">{{ icone('caisse') }}Caisse</a></div>
+</div>
+
+<section class="carte bois">
+  <div class="stats-3">
+    <div><strong class="or">{{ r.ca|euro }}</strong><span>chiffre d'affaires</span></div>
+    <div><strong>{{ r.nb }}</strong><span>ticket(s)</span></div>
+    <div><strong>{{ r.panier|euro }}</strong><span>panier moyen</span></div>
+  </div>
+  {% if c %}<p class="aide mb0 mt">Clôture enregistrée le {{ c.date_cloture|datefr }}.</p>{% endif %}
+</section>
+
+<div class="grille-2-1 mt">
+  <section class="carte">
+    <h2>Ventes par produit</h2>
+    {% if r.produits %}
+    <div class="table-wrap">
+    <table class="empile">
+      <thead><tr><th>Produit</th><th class="droite">Btl</th><th class="droite">Montant</th></tr></thead>
+      <tbody>
+        {% for p in r.produits %}
+        <tr>
+          <td class="titre-ligne" data-label="Produit">{{ p.recette_nom }} <small>{{ p.volume_cl }} cl · <span class="code">{{ p.numero }}</span></small></td>
+          <td class="droite num" data-label="Bouteilles">{{ p.quantite }}</td>
+          <td class="droite num" data-label="Montant">{{ p.montant|euro }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    </div>
+    {% else %}<p class="vide mb0">Aucune vente rattachée à cet événement. À la caisse, choisissez l'événement « {{ e.nom }} ».</p>{% endif %}
+  </section>
+
+  <section class="carte">
+    <h2>Par mode de paiement</h2>
+    {% if r.modes %}
+    <div>
+      {% for m in r.modes %}
+      <div style="display:flex;justify-content:space-between;gap:8px;padding:8px 0;border-bottom:1px solid var(--bord)"><span>{{ MODES.get(m.mode_paiement, m.mode_paiement) }} <small class="doux">({{ m.nb }})</small></span><strong class="num">{{ m.total|euro }}</strong></div>
+      {% endfor %}
+    </div>
+    <p class="aide mb0 mt">Montants encaissés, consignes comprises.</p>
+    {% else %}<p class="vide mb0">—</p>{% endif %}
+  </section>
+</div>
+
+<form method="post" class="mt">
+  <input type="hidden" name="csrf" value="{{ csrf_token }}">
+  <section class="carte">
+    <h2>Caisse espèces</h2>
+    <div class="champs">
+      <div><label for="fond">Fond de caisse au départ (€)</label><input id="fond" type="number" name="fond_caisse" step="0.01" min="0" inputmode="decimal" value="{{ '%.2f'|format(fond) }}"></div>
+      <div><label for="comptees">Espèces comptées à la fin (€)</label><input id="comptees" type="number" name="especes_comptees" step="0.01" min="0" inputmode="decimal" value="{{ '%.2f'|format(c.especes_comptees) if c and c.especes_comptees is not none else '' }}"></div>
+    </div>
+    <p class="mb0 mt">Espèces attendues : <strong class="num" id="attendu" data-especes="{{ r.especes }}">{{ attendu|euro }}</strong>
+      <small class="doux">(fond + {{ r.especes|euro }} de ventes en espèces)</small></p>
+    <p class="mb0" id="ecart-caisse">{% if ecart_caisse is not none %}Écart : <strong class="num {{ 'positif' if ecart_caisse >= 0 else 'negatif' }}">{{ '+' if ecart_caisse > 0 }}{{ ecart_caisse|euro }}</strong>{% if ecart_caisse == 0 %} — caisse juste{% endif %}{% endif %}</p>
+  </section>
+
+  <section class="carte mt">
+    <h2>Bouteilles</h2>
+    <p class="aide">Comptez ce que vous avez emporté et ce que vous rapportez : l'écart révèle une vente oubliée en caisse, une casse ou une dégustation.</p>
+    <div class="table-wrap">
+    <table class="empile">
+      <thead><tr><th>Lot</th><th>Emportées</th><th class="droite">Vendues</th><th>Rapportées</th><th class="droite">Écart</th></tr></thead>
+      <tbody>
+        {% for x in comptage %}
+        <tr>
+          <td class="titre-ligne" data-label="Lot">{{ x.l.recette_nom }} <small>{{ x.l.volume_cl }} cl · <span class="code">{{ x.l.numero }}</span></small></td>
+          <td data-label="Emportées"><input type="number" name="emp_{{ x.l.id }}" min="0" step="1" inputmode="numeric" style="max-width:90px" value="{{ x.emportees if x.emportees is not none else '' }}" aria-label="Emportées {{ x.l.recette_nom }}"></td>
+          <td class="droite num" data-label="Vendues">{{ x.vendues }}</td>
+          <td data-label="Rapportées"><input type="number" name="rap_{{ x.l.id }}" min="0" step="1" inputmode="numeric" style="max-width:90px" value="{{ x.rapportees if x.rapportees is not none else '' }}" aria-label="Rapportées {{ x.l.recette_nom }}"></td>
+          <td class="droite num" data-label="Écart">{% if x.ecart is none %}—{% elif x.ecart == 0 %}<span class="positif">OK</span>{% else %}<strong class="negatif">{{ x.ecart }} manquante(s)</strong>{% endif %}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    </div>
+    <div class="mt"><label for="notes">Notes (météo, affluence, idées…)</label><textarea id="notes" name="notes" rows="3">{{ c.notes if c and c.notes else '' }}</textarea></div>
+    <div class="form-actions">
+      <button class="btn btn-or">{{ icone('check') }}Enregistrer la clôture</button>
+      <a class="btn btn-ligne" href="{{ url_for('sorties') }}">{{ icone('stock') }}Déclarer une casse / dégustation</a>
+    </div>
+  </section>
+</form>
+{% endblock %}
+{% block scripts %}
+<script>
+(function () {
+  var fond = document.getElementById('fond'), compte = document.getElementById('comptees'),
+      att = document.getElementById('attendu'), ec = document.getElementById('ecart-caisse');
+  var fmt = function (n) { return n.toLocaleString('fr-FR', {style: 'currency', currency: 'EUR'}); };
+  function maj() {
+    var a = (parseFloat(fond.value) || 0) + parseFloat(att.dataset.especes);
+    att.textContent = fmt(a);
+    if (compte.value === '') { ec.textContent = ''; return; }
+    var d = Math.round(((parseFloat(compte.value) || 0) - a) * 100) / 100;
+    ec.innerHTML = 'Écart : <strong class="num ' + (d >= 0 ? 'positif' : 'negatif') + '">' + (d > 0 ? '+' : '') + fmt(d) + '</strong>' + (d === 0 ? ' — caisse juste' : '');
+  }
+  fond.addEventListener('input', maj); compte.addEventListener('input', maj);
+})();
+</script>
+{% endblock %}

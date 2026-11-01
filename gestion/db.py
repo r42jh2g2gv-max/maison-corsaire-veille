@@ -266,6 +266,42 @@ CREATE TABLE IF NOT EXISTS degustations (
     photo TEXT
 );
 
+-- Avoir : annule tout ou partie d'une facture (la facture elle-même n'est jamais modifiée)
+CREATE TABLE IF NOT EXISTS avoirs (
+    id INTEGER PRIMARY KEY,
+    numero TEXT UNIQUE NOT NULL,
+    ticket_id INTEGER NOT NULL REFERENCES tickets(id) ON DELETE RESTRICT,
+    date_avoir TEXT NOT NULL,
+    montant REAL NOT NULL,
+    motif TEXT,
+    remise_stock INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT NOT NULL
+);
+
+-- Dépôt-vente chez un revendeur : dépôt, vente constatée (relevé), retour
+CREATE TABLE IF NOT EXISTS depots (
+    id INTEGER PRIMARY KEY,
+    client_id INTEGER NOT NULL REFERENCES clients(id) ON DELETE CASCADE,
+    lot_id INTEGER NOT NULL REFERENCES lots(id) ON DELETE CASCADE,
+    date_mouvement TEXT NOT NULL,
+    type TEXT NOT NULL,
+    quantite INTEGER NOT NULL,
+    prix_unitaire_ht REAL,
+    ticket_id INTEGER REFERENCES tickets(id) ON DELETE SET NULL,
+    notes TEXT
+);
+
+-- Clôture de caisse d'un marché
+CREATE TABLE IF NOT EXISTS clotures (
+    id INTEGER PRIMARY KEY,
+    evenement_id INTEGER NOT NULL REFERENCES evenements(id) ON DELETE CASCADE,
+    date_cloture TEXT NOT NULL,
+    fond_caisse REAL NOT NULL DEFAULT 0,
+    especes_comptees REAL,
+    especes_attendues REAL,
+    notes TEXT
+);
+
 CREATE TABLE IF NOT EXISTS declarations (
     periode TEXT PRIMARY KEY,
     declare_le TEXT NOT NULL,
@@ -302,6 +338,7 @@ DEFAULT_SETTINGS = {
     "fidelite_montant": "5",
     "fidelite_validite": "365",
     "fidelite_bonus_consigne": "1",
+    "delai_paiement": "30",
     "etiquette_largeur": "70",
     "etiquette_hauteur": "75",
     "etiquette_tri": "Bouteille en verre et bouchon : à déposer dans le bac de tri.",
@@ -329,6 +366,10 @@ MIGRATIONS = [
     ("lots", "parent_id", "INTEGER REFERENCES lots(id) ON DELETE CASCADE"),
     ("materiaux", "format_cl", "INTEGER"),
     ("lots", "essai", "INTEGER NOT NULL DEFAULT 0"),
+    ("tickets", "paye", "INTEGER NOT NULL DEFAULT 1"),
+    ("tickets", "date_paiement", "TEXT"),
+    ("tickets", "echeance", "TEXT"),
+    ("clotures", "bouteilles", "TEXT"),
 ]
 
 
@@ -403,7 +444,7 @@ def init_db(app):
 
 def clear_data(conn):
     """Supprime toutes les données métier (garde le compte et les réglages)."""
-    for table in ("degustations", "coffret_elements", "coffrets", "sorties", "consignes", "bons", "ventes", "tickets", "messages", "declarations",
+    for table in ("clotures", "depots", "avoirs", "degustations", "coffret_elements", "coffrets", "sorties", "consignes", "bons", "ventes", "tickets", "messages", "declarations",
                   "evenements", "clients", "mouvements_mp", "achat_lignes", "achats",
                   "lot_ingredients", "lots", "recette_ingredients", "recettes",
                   "matieres_premieres", "materiaux"):
@@ -658,6 +699,14 @@ def seed_demo(conn):
         [(lot_ids[3], d(-32), 3, "Ananas encore timide, vanille présente."),
          (lot_ids[3], d(-10), 4, "Bel équilibre, sucre à ajuster légèrement."),
          (lot_ids[4], d(-15), 3, "Coco agréable, citron vert un peu fort : retirer les zestes à J+30.")])
+    conn.execute("UPDATE tickets SET date_paiement = date_vente WHERE paye = 1")
+    conn.execute(
+        """UPDATE tickets SET paye = 0, date_paiement = NULL, mode_paiement = 'a_regler',
+           echeance = date(date_vente, '+30 days') WHERE client_nom = 'Comité d''entreprise Atlantique'""")
+    conn.executemany(
+        "INSERT INTO depots (client_id, lot_id, date_mouvement, type, quantite, prix_unitaire_ht)"
+        " VALUES (?, ?, ?, 'depot', ?, ?)",
+        [(client_ids[1], lot_ids[2], d(-50), 3, 24.0)])
     seed_matieres(conn, d)
     conn.execute("UPDATE recettes SET perte_pct = 15")
     for numero, macere, obtenu in [(1, 14, 12.1), (2, 13, 11.1), (3, 11.8, 10.2), (4, 14, None),

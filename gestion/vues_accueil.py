@@ -196,20 +196,36 @@ def _feuille(wb, titre, colonnes, lignes, formats=None):
 
 
 def feuille_livre(wb, conn, debut, fin):
+    """Livre des recettes : les encaissements à leur date, les avoirs en négatif."""
     rows = conn.execute(
-        """SELECT t.*, (SELECT group_concat(v.quantite || ' × ' || l.recette_nom, ' ; ')
-                        FROM ventes v JOIN lots l ON l.id = v.lot_id WHERE v.ticket_id = t.id)
-                       AS detail
-           FROM tickets t WHERE t.date_vente BETWEEN ? AND ? ORDER BY t.date_vente, t.numero""",
-        (debut, fin)).fetchall()
-    _feuille(wb, "Livre des recettes",
-             [("Date", 12), ("N° ticket", 14), ("N° facture", 14), ("Client", 28),
-              ("Nature de la vente", 46), ("Mode de règlement", 16), ("Montant encaissé", 16),
-              ("dont consigne", 13), ("CA (hors consigne)", 17)],
-             [(t["date_vente"], t["numero"], t["facture_numero"] or "", t["client_nom"],
+        """SELECT t.*, COALESCE(t.date_paiement, t.date_vente) AS encaisse_le,
+                  (SELECT group_concat(v.quantite || ' × ' || l.recette_nom, ' ; ')
+                   FROM ventes v JOIN lots l ON l.id = v.lot_id
+                   WHERE v.ticket_id = t.id AND v.quantite > 0) AS detail
+           FROM tickets t WHERE t.paye = 1 AND COALESCE(t.date_paiement, t.date_vente) BETWEEN ? AND ?
+           ORDER BY encaisse_le, t.numero""", (debut, fin)).fetchall()
+    lignes = [(t["encaisse_le"], t["numero"], t["facture_numero"] or "", t["client_nom"],
                t["detail"] or "", MODES_PAIEMENT.get(t["mode_paiement"], ""), t["total"],
-               t["consigne"], t["sous_total"] - t["remise"]) for t in rows],
-             {7: EURO, 8: EURO, 9: EURO})
+               t["consigne"], t["sous_total"] - t["remise"]) for t in rows]
+    for a in conn.execute(
+            """SELECT a.*, t.client_nom, t.facture_numero FROM avoirs a JOIN tickets t ON t.id = a.ticket_id
+               WHERE a.date_avoir BETWEEN ? AND ? ORDER BY a.date_avoir""", (debut, fin)):
+        lignes.append((a["date_avoir"], a["numero"], a["facture_numero"], a["client_nom"],
+                       f"Avoir : {a['motif'] or ''}", "", -a["montant"], 0, -a["montant"]))
+    lignes.sort(key=lambda l: l[0])
+    _feuille(wb, "Livre des recettes",
+             [("Date d'encaissement", 14), ("N° ticket / avoir", 16), ("N° facture", 14),
+              ("Client", 28), ("Nature", 46), ("Mode de règlement", 16), ("Montant encaissé", 16),
+              ("dont consigne", 13), ("CA (hors consigne)", 17)],
+             lignes, {7: EURO, 8: EURO, 9: EURO})
+    attente = conn.execute(
+        "SELECT * FROM tickets WHERE paye = 0 ORDER BY echeance").fetchall()
+    if attente:
+        _feuille(wb, "Factures en attente",
+                 [("Date de vente", 13), ("N° facture", 14), ("Client", 28), ("Montant", 13),
+                  ("Échéance", 12)],
+                 [(t["date_vente"], t["facture_numero"] or t["numero"], t["client_nom"], t["total"],
+                   t["echeance"]) for t in attente], {4: EURO})
 
 
 def feuille_ventes(wb, conn, debut, fin, couts):

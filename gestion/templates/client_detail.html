@@ -6,6 +6,7 @@
   <div><div class="surtitre">{{ TYPES_CLIENTS[client.type] }}</div><h1>{{ client.nom }}</h1><div class="filet"></div></div>
   <div class="actions">
     <a class="btn btn-or" href="{{ url_for('caisse', client_id=client.id) }}">{{ icone('caisse') }}Encaisser</a>
+    {% if client.type == 'revendeur' %}<a class="btn btn-ligne" href="{{ url_for('depot_client', client_id=client.id) }}">{{ icone('stock') }}Dépôt-vente</a>{% endif %}
     <a class="btn btn-ligne" href="{{ url_for('client_modifier', client_id=client.id) }}">{{ icone('crayon') }}Modifier</a>
   </div>
 </div>
