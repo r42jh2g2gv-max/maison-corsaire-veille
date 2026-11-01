@@ -1,0 +1,12 @@
+[
+  {
+    "name": "Nom du concurrent",
+    "instagram": "https://www.instagram.com/compte_du_concurrent/",
+    "website": "https://www.site-du-concurrent.fr/",
+    "pages": [
+      "https://www.site-du-concurrent.fr/nouveautes",
+      "https://www.site-du-concurrent.fr/boutique"
+    ],
+    "notes": "Pourquoi on le surveille : même clientèle, mêmes prix, etc."
+  }
+]
