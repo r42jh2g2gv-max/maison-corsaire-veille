@@ -268,6 +268,11 @@ DEFAULT_SETTINGS = {
     "smtp_user": "",
     "smtp_password": "",
     "smtp_expediteur": "",
+    "fidelite_active": "1",
+    "fidelite_seuil": "10",
+    "fidelite_montant": "5",
+    "fidelite_validite": "365",
+    "fidelite_bonus_consigne": "1",
     "etiquette_largeur": "70",
     "etiquette_hauteur": "75",
     "etiquette_tri": "Bouteille en verre et bouchon : à déposer dans le bac de tri.",
@@ -291,6 +296,7 @@ MIGRATIONS = [
     ("lots", "perte_pct", "REAL"),
     ("lots", "volume_obtenu_l", "REAL"),
     ("matieres_premieres", "degre", "REAL"),
+    ("bons", "origine", "TEXT"),
 ]
 
 

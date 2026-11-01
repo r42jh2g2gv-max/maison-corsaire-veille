@@ -11,6 +11,7 @@ from emails import envoyer, smtp_configure
 from noyau import (MODES_PAIEMENT, app, couts_par_lot, euro, get_db, get_or_404,
                    lots_avec_stock, maj_statut_epuise, mois_label, parse_date,
                    redirection_sure, settings, stock_lot, to_int, today)
+from fidelite import attribuer_bons, bons_actifs, carte
 from pdfs import facture_pdf, ticket_pdf
 
 
@@ -51,7 +52,10 @@ def caisse():
     conn = get_db()
     conf = settings()
     if request.method == "POST":
-        ticket_id, erreurs = encaisser(conn, conf, request.form)
+        avertissements = []
+        ticket_id, erreurs = encaisser(conn, conf, request.form, avertissements=avertissements)
+        for a in avertissements:
+            flash(a, "succes")
         if request.headers.get("X-Requested-With") == "fetch":
             if erreurs:
                 return jsonify({"ok": False, "erreurs": erreurs})
@@ -77,7 +81,10 @@ def caisse():
     clients = [
         {"id": c["id"], "nom": c["nom"], "type": c["type"],
          "prix_rev": round((c["prix_revendeur_ht"] or 0) * (1 + tva), 2),
-         "consignes": c["consignes"]}
+         "consignes": c["consignes"],
+         "carte": {k: v for k, v in carte(conn, c["id"], conf).items()
+                   if k in ("tampons", "seuil", "active")},
+         "bons": [{"code": b["code"], "montant": b["montant"]} for b in bons_actifs(conn, c["id"])]}
         for c in conn.execute(
             """SELECT c.*, COALESCE((SELECT SUM(quantite) FROM consignes k
                       WHERE k.client_id = c.id), 0) AS consignes
@@ -190,6 +197,8 @@ def encaisser(conn, conf, form, hors_ligne=False, avertissements=None):
                 " montant_unitaire, ticket_id, notes) VALUES (?, ?, ?, ?, ?, ?, ?)",
                 (client_id, client_nom, jour, qte, montant_consigne, ticket_id, note),
             )
+    for code in attribuer_bons(conn, client_id, conf, jour):
+        avertissements.append(f"Carte de fidélité complète : bon {code} créé pour {client_nom}.")
     return ticket_id, []
 
 
@@ -256,6 +265,8 @@ def ticket_detail(ticket_id):
         "ticket.html", ticket=ticket, lignes=lignes_ticket(conn, ticket_id), client=client,
         evenement=evenement, bon=bon_du_ticket(conn, ticket_id), nouveau=request.args.get("nouveau"),
         smtp_ok=smtp_configure(settings()), conf=settings(),
+        carte=carte(conn, client["id"], settings()) if client and client["type"] != "revendeur"
+        else None,
     )
 
 

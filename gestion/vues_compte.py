@@ -74,6 +74,12 @@ def parametres():
         for key in CHAMPS_NOMBRE:
             set_setting(key, str(max(to_float(request.form.get(key)), 0)))
         set_setting("tva_applicable", "1" if request.form.get("tva_applicable") else "0")
+        for key in ("fidelite_seuil", "fidelite_montant", "fidelite_validite"):
+            if request.form.get(key):
+                set_setting(key, str(max(to_float(request.form.get(key)), 1)))
+        set_setting("fidelite_active", "1" if request.form.get("fidelite_active") else "0")
+        set_setting("fidelite_bonus_consigne",
+                    "1" if request.form.get("fidelite_bonus_consigne") else "0")
         periodicite = request.form.get("urssaf_periodicite")
         set_setting("urssaf_periodicite",
                     "trimestrielle" if periodicite == "trimestrielle" else "mensuelle")

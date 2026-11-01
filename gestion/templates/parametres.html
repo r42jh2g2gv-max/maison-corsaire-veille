@@ -39,6 +39,18 @@
     <p class="aide mt mb0">Vérifiez chaque année les taux sur autoentrepreneur.urssaf.fr (vente de marchandises, BIC) et les tarifs des droits sur douane.gouv.fr. Les droits sont ajoutés au coût de chaque bouteille selon son volume et son degré ; laissez 0 s'ils sont déjà compris dans le prix d'achat de votre rhum.</p>
   </section>
 
+  <section class="carte" id="fidelite">
+    <h2>Carte de fidélité</h2>
+    <div class="champs">
+      <div class="large"><label class="case"><input type="checkbox" name="fidelite_active" value="1" {{ 'checked' if conf.fidelite_active != '0' }}> Activer la carte de fidélité (clients avec fiche, hors revendeurs)</label></div>
+      <div><label for="fidelite_seuil">Tampons pour un bon <span class="aide">(1 bouteille = 1 tampon)</span></label><input id="fidelite_seuil" type="number" name="fidelite_seuil" min="1" step="1" inputmode="numeric" value="{{ conf.fidelite_seuil|float|int }}"></div>
+      <div><label for="fidelite_montant">Montant du bon (€)</label><input id="fidelite_montant" type="number" name="fidelite_montant" min="1" step="0.5" inputmode="decimal" value="{{ '%g'|format(conf.fidelite_montant|float) }}"></div>
+      <div><label for="fidelite_validite">Validité du bon (jours)</label><input id="fidelite_validite" type="number" name="fidelite_validite" min="1" step="1" inputmode="numeric" value="{{ conf.fidelite_validite|float|int }}"></div>
+      <div><label class="case" style="margin-top:34px"><input type="checkbox" name="fidelite_bonus_consigne" value="1" {{ 'checked' if conf.fidelite_bonus_consigne != '0' }}> +1 tampon par bouteille consignée rapportée</label></div>
+    </div>
+    <p class="aide mt mb0">Le bon est créé automatiquement dès que la carte est complète. À la caisse, en choisissant le client, un bouton « Utiliser son bon » l'applique en un geste.</p>
+  </section>
+
   <section class="carte" id="emails">
     <h2>Envoi d'emails <span class="badge {{ 'badge-ok' if smtp_ok else 'badge-neutre' }}">{{ 'Configuré' if smtp_ok else 'Non configuré' }}</span></h2>
     <p class="aide">Facultatif. Sans réglage, utilisez « Partager le PDF » : le téléphone ouvre Mail, Messages ou WhatsApp avec le document joint.

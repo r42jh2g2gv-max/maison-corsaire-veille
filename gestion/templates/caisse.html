@@ -235,7 +235,18 @@
     var info = $('info-client');
     if (c) {
       info.textContent = (c.type === 'revendeur' ? 'Revendeur' : c.type === 'professionnel' ? 'Professionnel' : 'Client fidèle')
-        + (c.consignes > 0 ? ' · ' + c.consignes + ' bouteille(s) consignée(s) chez lui' : '');
+        + (c.consignes > 0 ? ' · ' + c.consignes + ' bouteille(s) consignée(s) chez lui' : '')
+        + (c.carte && c.carte.active && c.type !== 'revendeur' ? ' · carte de fidélité ' + c.carte.tampons + '/' + c.carte.seuil : '');
+      (c.bons || []).forEach(function (b) {
+        var bouton = document.createElement('button');
+        bouton.type = 'button'; bouton.className = 'btn btn-or btn-petit'; bouton.style.margin = '8px 8px 0 0';
+        bouton.textContent = 'Utiliser son bon de ' + eur(b.montant);
+        bouton.addEventListener('click', function () {
+          $('bon_code').value = b.code; $('options-plus').open = true; $('verifier-bon').click();
+          bouton.remove();
+        });
+        info.appendChild(document.createElement('br')); info.appendChild(bouton);
+      });
       if (c.type === 'revendeur') document.querySelector('input[name=canal][value=revendeur]').checked = true;
     } else {
       info.textContent = nom ? 'Nouveau nom : la vente sera enregistrée sans fiche client.' : '';

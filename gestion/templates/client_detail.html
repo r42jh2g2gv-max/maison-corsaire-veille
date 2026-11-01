@@ -47,6 +47,16 @@
   </div>
 
   <div class="grille">
+    {% if carte and carte.active %}
+    <section class="carte bois" id="fidelite">
+      <h2>Carte de fidélité</h2>
+      <div style="display:grid;grid-template-columns:repeat(5, 1fr);gap:8px;max-width:300px">
+        {% for n in range(carte.seuil) %}<span style="aspect-ratio:1;border-radius:50%;border:2px solid var(--or);display:grid;place-items:center;{{ 'background:var(--or);color:#1a0d06' if n < carte.tampons }}">{% if n < carte.tampons %}★{% endif %}</span>{% endfor %}
+      </div>
+      <p class="mt mb0"><strong>{{ carte.tampons }}/{{ carte.seuil }}</strong> : encore {{ carte.seuil - carte.tampons }} bouteille(s) avant un bon de {{ carte.montant|euro }}.
+        <br><small>{{ carte.achetees }} bouteille(s) achetée(s){% if carte.rapportees %} · {{ carte.rapportees }} rapportée(s){% endif %} · {{ carte.bons }} bon(s) gagné(s)</small></p>
+    </section>
+    {% endif %}
     <section class="carte" id="bons">
       <h2>Bons d'achat</h2>
       {% if bons %}

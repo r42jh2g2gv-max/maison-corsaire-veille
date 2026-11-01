@@ -48,6 +48,7 @@
       <div class="ligne-detail"><span>Canal</span><span>{{ 'Revendeur' if ticket.canal == 'revendeur' else 'Vente directe' }}</span></div>
     </div>
     {% if ticket.notes %}<p class="mt mb0 doux">Note : {{ ticket.notes }}</p>{% endif %}
+    {% if carte and carte.active %}<p class="mt mb0">Carte de fidélité de {{ ticket.client_nom }} : <strong>{{ carte.tampons }}/{{ carte.seuil }}</strong> tampons{% if carte.bons %} · {{ carte.bons }} bon(s) déjà gagné(s){% endif %}.</p>{% endif %}
   </section>
 
   <div class="grille">

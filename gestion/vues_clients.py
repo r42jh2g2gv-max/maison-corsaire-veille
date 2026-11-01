@@ -9,6 +9,7 @@ from db import code_bon
 from emails import envoyer, smtp_configure
 from noyau import (TYPES_CLIENTS, app, euro, get_db, get_or_404, parse_date,
                    redirection_sure, settings, to_int, today)
+from fidelite import attribuer_bons, carte
 from pdfs import bon_pdf
 
 STATS_CLIENTS = """
@@ -127,6 +128,7 @@ def client_detail(client_id):
         consigne_montant=to_float(conf.get("consigne_montant"), 1),
         expiration_defaut=(date.today() + timedelta(days=365)).isoformat(),
         smtp_ok=smtp_configure(conf),
+        carte=carte(conn, client_id, conf) if client["type"] != "revendeur" else None,
     )
 
 
@@ -161,6 +163,8 @@ def client_consigne(client_id):
         (client_id, client["nom"], parse_date(request.form.get("date")) or today(),
          signe * qte, montant, request.form.get("notes", "").strip() or None),
     )
+    for code in attribuer_bons(conn, client_id, conf):
+        flash(f"Carte de fidélité complète : bon {code} créé.", "succes")
     if sens == "retour" and request.form.get("remettre_en_stock"):
         mat = conn.execute(
             "SELECT id, nom FROM materiaux WHERE type = 'bouteille' ORDER BY id LIMIT 1").fetchone()
