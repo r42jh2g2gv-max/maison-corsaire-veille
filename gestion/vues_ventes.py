@@ -11,7 +11,8 @@ from emails import envoyer, smtp_configure
 from noyau import (MODES_PAIEMENT, app, couts_par_lot, euro, get_db, get_or_404,
                    lots_avec_stock, maj_statut_epuise, mois_label, parse_date,
                    redirection_sure, settings, stock_lot, to_int, today)
-from fidelite import attribuer_bons, bons_actifs, carte
+from fidelite import (bon_gagne, fidelite_caisse, bons_actifs, carte, creer_bon_fidelite, merite_bon, remise_bon,
+                      valeur_bon)
 from vues_coffrets import composer, disponibles
 from pdfs import avoir_pdf, facture_pdf, ticket_pdf
 
@@ -83,9 +84,7 @@ def caisse():
         {"id": c["id"], "nom": c["nom"], "type": c["type"],
          "prix_rev": round((c["prix_revendeur_ht"] or 0) * (1 + tva), 2),
          "consignes": c["consignes"],
-         "carte": {k: v for k, v in carte(conn, c["id"], conf).items()
-                   if k in ("tampons", "seuil", "active")},
-         "bons": [{"code": b["code"], "montant": b["montant"]} for b in bons_actifs(conn, c["id"])]}
+         "bons": [{"code": b["code"], "valeur": valeur_bon(b)} for b in bons_actifs(conn, c["id"])]}
         for c in conn.execute(
             """SELECT c.*, COALESCE((SELECT SUM(quantite) FROM consignes k
                       WHERE k.client_id = c.id), 0) AS consignes
@@ -105,7 +104,7 @@ def caisse():
                         if e["date_debut"] <= today() <= (e["date_fin"] or e["date_debut"])), "")
     return render_template(
         "caisse.html", produits=produits, coffrets=coffrets_caisse, clients=clients, evenements=evenements,
-        evt_du_jour=evt_du_jour, consigne_montant=to_float(conf.get("consigne_montant"), 1),
+        evt_du_jour=evt_du_jour, fidelite=fidelite_caisse(conf), consigne_montant=to_float(conf.get("consigne_montant"), 1),
         form=request.form, lot_preselect=to_int(request.args.get("lot_id")),
         client_preselect=to_int(request.args.get("client_id")),
     )
@@ -179,7 +178,7 @@ def encaisser(conn, conf, form, hors_ligne=False, avertissements=None):
             avertissements.append(f"Bon d'achat non appliqué : {err}")
         elif err:
             erreurs.append(err)
-    remise = round(min(bon["montant"], sous_total), 2) if bon else 0.0
+    remise = remise_bon(bon, sous_total) if bon else 0.0
 
     montant_consigne = to_float(conf.get("consigne_montant"), 1)
     sorties = max(to_int(form.get("consigne_btl")), 0)
@@ -227,8 +226,13 @@ def encaisser(conn, conf, form, hors_ligne=False, avertissements=None):
                 " montant_unitaire, ticket_id, notes) VALUES (?, ?, ?, ?, ?, ?, ?)",
                 (client_id, client_nom, jour, qte, montant_consigne, ticket_id, note),
             )
-    for code in attribuer_bons(conn, client_id, conf, jour):
-        avertissements.append(f"Carte de fidélité complète : bon {code} créé pour {client_nom}.")
+    if client and client["type"] == "revendeur":
+        canal = "revendeur"
+    if merite_bon(conf, sum(q for _, q, _, _ in lignes), bool(coffrets), canal):
+        code = creer_bon_fidelite(conn, conf, ticket_id, client, jour)
+        gagne = bon_gagne(conn, ticket_id)
+        avertissements.append(f"Fidélité : bon {code} ({valeur_bon(gagne)}) offert pour le prochain "
+                              "passage" + ("." if client else " — il est imprimé sur le ticket."))
     return ticket_id, []
 
 
@@ -273,8 +277,9 @@ def api_bon():
                             to_int(request.args.get("client_id")) or None, today())
     if err:
         return jsonify({"ok": False, "message": err})
-    return jsonify({"ok": True, "montant": bon["montant"],
-                    "message": f"Bon de {euro(bon['montant'])} valable"
+    return jsonify({"ok": True, "montant": 0 if bon["pourcentage"] else bon["montant"],
+                    "pourcentage": bon["pourcentage"] or 0,
+                    "message": f"Bon de {valeur_bon(bon)} valable"
                                + (f" ({bon['beneficiaire']})" if bon["beneficiaire"] else "")})
 
 
@@ -295,8 +300,7 @@ def ticket_detail(ticket_id):
         "ticket.html", ticket=ticket, lignes=lignes_ticket(conn, ticket_id), client=client,
         evenement=evenement, bon=bon_du_ticket(conn, ticket_id), nouveau=request.args.get("nouveau"),
         smtp_ok=smtp_configure(settings()), conf=settings(),
-        carte=carte(conn, client["id"], settings()) if client and client["type"] != "revendeur"
-        else None,
+        offert=bon_gagne(conn, ticket_id),
         avoirs=conn.execute("SELECT * FROM avoirs WHERE ticket_id = ? ORDER BY id",
                             (ticket_id,)).fetchall(),
     )
@@ -313,7 +317,8 @@ def ticket_pdf_vue(ticket_id):
     conn = get_db()
     ticket = get_or_404("tickets", ticket_id)
     return _pdf(ticket_pdf(ticket, lignes_ticket(conn, ticket_id), settings(),
-                           bon_du_ticket(conn, ticket_id)), f"Ticket-{ticket['numero']}.pdf")
+                           bon_du_ticket(conn, ticket_id), bon_gagne(conn, ticket_id)),
+                f"Ticket-{ticket['numero']}.pdf")
 
 
 @app.route("/tickets/<int:ticket_id>/facture.pdf")
@@ -367,7 +372,7 @@ def ticket_envoyer(ticket_id):
         sujet = f"Votre facture {ticket['facture_numero']} – {nom_prod}"
         quoi = "votre facture"
     else:
-        piece = (f"Ticket-{ticket['numero']}.pdf", ticket_pdf(ticket, lignes, conf, bon),
+        piece = (f"Ticket-{ticket['numero']}.pdf", ticket_pdf(ticket, lignes, conf, bon, bon_gagne(conn, ticket_id)),
                  "application/pdf")
         sujet = f"Votre ticket de caisse – {nom_prod}"
         quoi = "votre ticket de caisse"

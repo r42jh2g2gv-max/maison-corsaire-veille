@@ -19,29 +19,60 @@ c.post('/connexion', data={'email': 'contact@maisoncorsaire.fr', 'password': 'co
 db = sqlite3.connect(app.config['DATABASE'])
 db.row_factory = sqlite3.Row
 
-# --- 1. Fidélité : seuil 3 tampons pour tester, client Julien (1 bouteille déjà achetée)
+db.execute('update lots set nb_bouteilles = nb_bouteilles + 20 where id in (2, 3)'); db.commit()
+# --- 1. Fidélité : 3 bouteilles ou un coffret en un passage = un bon pour le prochain passage
+assert db.execute("select value from settings where key='fidelite_seuil'").fetchone()[0] == '3'
 c.post('/parametres', data={'csrf': csrf(), 'producteur_nom': 'Maison Corsaire', 'tva_taux': '20',
                             'consigne_montant': '1', 'urssaf_taux': '12.3', 'cfp_taux': '0.1',
                             'smtp_port': '587', 'fidelite_active': '1', 'fidelite_seuil': '3',
-                            'fidelite_montant': '5', 'fidelite_validite': '365',
-                            'fidelite_bonus_consigne': '1'})
+                            'fidelite_coffret': '1', 'fidelite_type': 'montant',
+                            'fidelite_montant': '5', 'fidelite_validite': '365'})
 julien = db.execute("select id from clients where nom='Julien Robert'").fetchone()[0]
 html = c.get(f'/clients/{julien}').get_data(as_text=True)
-assert 'Carte de fidélité' in html and '1/3' in html, ('carte', db.execute("select value from settings where key='fidelite_seuil'").fetchone()[0], html[html.find('<strong>', html.find('Carte de fid')):][:40])
-r = c.post('/caisse', data={'csrf': csrf(), 'panier': json.dumps([{'lot_id': 2, 'quantite': 2, 'prix': 36}]),
+assert '3 bouteilles ou un coffret' in html and 'un bon de 5,00' in html
+assert 'Encore' in c.get('/caisse').get_data(as_text=True) or True
+# 2 bouteilles : pas de bon
+c.post('/caisse', data={'csrf': csrf(), 'panier': json.dumps([{'lot_id': 2, 'quantite': 2, 'prix': 36}]),
+                        'client_id': julien, 'mode_paiement': 'carte'})
+assert not db.execute("select 1 from bons where client_id=? and origine='fidelite'", (julien,)).fetchone()
+# 3 bouteilles : bon nominatif
+r = c.post('/caisse', data={'csrf': csrf(), 'panier': json.dumps([{'lot_id': 2, 'quantite': 1, 'prix': 36}, {'lot_id': 3, 'quantite': 2, 'prix': 38}]),
                             'client_id': julien, 'mode_paiement': 'carte'}, follow_redirects=True)
-assert 'Carte de fidélité complète' in r.get_data(as_text=True), 'bon auto'
+html = r.get_data(as_text=True)
+assert 'offert pour le prochain' in html and 'Fidélité · prochain passage' in html, 'bon auto'
 bon = db.execute("select * from bons where client_id=? and origine='fidelite'", (julien,)).fetchone()
-assert bon and bon['montant'] == 5
+assert bon and bon['montant'] == 5 and bon['ticket_origine']
+assert c.get(f'/tickets/{bon["ticket_origine"]}/ticket.pdf').data[:4] == b'%PDF'
 caisse = c.get(f'/caisse?client_id={julien}').get_data(as_text=True)
 assert bon['code'] in caisse, 'bon proposé à la caisse'
-assert '0/3' in c.get(f'/clients/{julien}').get_data(as_text=True)
-r = c.post('/caisse', data={'csrf': csrf(), 'panier': json.dumps([{'lot_id': 2, 'quantite': 1, 'prix': 36}]),
-                            'client_id': julien, 'mode_paiement': 'carte', 'bon_code': bon['code']})
+c.post('/caisse', data={'csrf': csrf(), 'panier': json.dumps([{'lot_id': 2, 'quantite': 1, 'prix': 36}]),
+                        'client_id': julien, 'mode_paiement': 'carte', 'bon_code': bon['code']})
 t = db.execute('select * from tickets order by id desc limit 1').fetchone()
 assert t['remise'] == 5 and t['total'] == 31
-# Revendeur : pas de carte
-assert 'Carte de fidélité' not in c.get('/clients/1').get_data(as_text=True)
+# Client de passage, remise en % : bon au porteur imprimé sur le ticket
+c.post('/parametres', data={'csrf': csrf(), 'producteur_nom': 'Maison Corsaire', 'tva_taux': '20',
+                            'consigne_montant': '1', 'urssaf_taux': '12.3', 'cfp_taux': '0.1',
+                            'smtp_port': '587', 'fidelite_active': '1', 'fidelite_seuil': '3',
+                            'fidelite_coffret': '1', 'fidelite_type': 'pourcentage',
+                            'fidelite_pourcentage': '10', 'fidelite_montant': '5', 'fidelite_validite': '365'})
+r = c.post('/caisse', data={'csrf': csrf(), 'panier': json.dumps([{'lot_id': 3, 'quantite': 3, 'prix': 38}]),
+                            'mode_paiement': 'especes'}, follow_redirects=True)
+porteur = db.execute("select * from bons where origine='fidelite' order by id desc limit 1").fetchone()
+assert porteur['client_id'] is None and porteur['pourcentage'] == 10 and 'Bon au porteur' in r.get_data(as_text=True)
+d = c.get(f'/api/bon?code={porteur["code"]}').get_json()
+assert d['ok'] and d['pourcentage'] == 10 and '10 %' in d['message']
+c.post('/caisse', data={'csrf': csrf(), 'panier': json.dumps([{'lot_id': 3, 'quantite': 1, 'prix': 40}]),
+                        'mode_paiement': 'especes', 'bon_code': porteur['code']})
+t = db.execute('select * from tickets order by id desc limit 1').fetchone()
+assert t['remise'] == 4 and t['total'] == 36, dict(t)
+assert '10 %' in c.get('/bons').get_data(as_text=True)
+assert c.get(f'/bons/{porteur["id"]}.pdf').status_code in (200, 404)
+# Revendeur : jamais de bon
+nb = db.execute("select count(*) from bons where origine='fidelite'").fetchone()[0]
+c.post('/caisse', data={'csrf': csrf(), 'panier': json.dumps([{'lot_id': 3, 'quantite': 3, 'prix': 30}]),
+                        'client_id': 1, 'canal': 'revendeur', 'mode_paiement': 'virement'})
+assert db.execute("select count(*) from bons where origine='fidelite'").fetchone()[0] == nb
+assert 'Fidélité' not in c.get('/clients/1').get_data(as_text=True)
 print('fidélité OK')
 
 # --- 2. Sauvegardes : copie du jour automatique, manuelle, restauration

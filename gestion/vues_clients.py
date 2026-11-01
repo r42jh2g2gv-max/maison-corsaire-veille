@@ -9,7 +9,7 @@ from db import code_bon
 from emails import envoyer, smtp_configure
 from noyau import (TYPES_CLIENTS, app, euro, get_db, get_or_404, parse_date,
                    redirection_sure, settings, to_int, today)
-from fidelite import attribuer_bons, carte
+from fidelite import carte, valeur_bon
 from pdfs import bon_pdf
 
 STATS_CLIENTS = """
@@ -163,8 +163,6 @@ def client_consigne(client_id):
         (client_id, client["nom"], parse_date(request.form.get("date")) or today(),
          signe * qte, montant, request.form.get("notes", "").strip() or None),
     )
-    for code in attribuer_bons(conn, client_id, conf):
-        flash(f"Carte de fidélité complète : bon {code} créé.", "succes")
     if sens == "retour" and request.form.get("remettre_en_stock"):
         mat = conn.execute(
             "SELECT id, nom FROM materiaux WHERE type = 'bouteille' ORDER BY id LIMIT 1").fetchone()
@@ -254,14 +252,14 @@ def bon_envoyer(bon_id):
     expiration = (f" Il est valable jusqu'au {date.fromisoformat(bon['date_expiration']):%d/%m/%Y}."
                   if bon["date_expiration"] else "")
     texte = (f"Bonjour{' ' + bon['beneficiaire'] if bon['beneficiaire'] else ''},\n\n"
-             f"{nom_prod} vous offre un bon d'achat de {euro(bon['montant'])} "
+             f"{nom_prod} vous offre un bon d'achat de {valeur_bon(bon)} "
              f"(code {bon['code']}).{expiration}\n"
              f"{bon['motif'] + chr(10) if bon['motif'] else ''}"
              "Présentez-le (imprimé ou sur votre téléphone) lors de votre prochain achat.\n\n"
              f"À bientôt,\n{nom_prod}\n\n"
              "L'abus d'alcool est dangereux pour la santé, à consommer avec modération.")
     try:
-        envoyer(conf, email, f"Un bon d'achat de {euro(bon['montant'])} vous attend – {nom_prod}",
+        envoyer(conf, email, f"Un bon d'achat de {valeur_bon(bon)} vous attend – {nom_prod}",
                 texte, [(f"Bon-achat-{bon['code']}.pdf", bon_pdf(bon, conf), "application/pdf")])
         conn.execute("UPDATE bons SET envoye_le = ? WHERE id = ?", (today(), bon_id))
         conn.commit()

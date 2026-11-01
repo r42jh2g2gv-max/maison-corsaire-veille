@@ -95,7 +95,7 @@ def donnees_etiquette(conn, recette=None, lot=None):
         "producteur_nom": conf.get("producteur_nom") or "",
         "producteur_adresse": conf.get("producteur_adresse") or "",
         "tri": conf.get("etiquette_tri") or "",
-        "lot": lot["numero"] if lot and request.args.get("lot_imprime") else None,
+        "lot": None,  # la case LOT reste vierge : le numéro est apposé au tampon
         "qr": lien_fiche(recette, lot) if request.args.get("qr") and (recette or lot) else None,
     }
 

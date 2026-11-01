@@ -75,11 +75,12 @@ def _designation(l):
 # Ticket de caisse (format 80 mm)
 # --------------------------------------------------------------------------
 
-def ticket_pdf(ticket, lignes, conf, bon_code=None):
+def ticket_pdf(ticket, lignes, conf, bon_code=None, offert=None):
+    """offert : bon de fidélité gagné par ce ticket, imprimé en bas pour le prochain passage."""
     largeur = 80 * mm
     marge = 5 * mm
     logo = _logo()
-    hauteur = (104 + 11 * len(lignes) + (6 if ticket["remise"] else 0)
+    hauteur = (104 + 11 * len(lignes) + (6 if ticket["remise"] else 0) + (26 if offert else 0)
                + (6 if ticket["consigne"] else 0) + ((17 if logo[2] else 18) if logo else 0)) * mm
     buf = BytesIO()
     c = canvas.Canvas(buf, pagesize=(largeur, hauteur))
@@ -176,6 +177,31 @@ def ticket_pdf(ticket, lignes, conf, bon_code=None):
     else:
         c.drawString(marge, y, "TVA non applicable, art. 293 B du CGI")
     y -= 7 * mm
+
+    if offert:  # bon de fidélité à découper / montrer au prochain passage
+        haut_cadre = 21 * mm
+        c.setStrokeColor(OR)
+        c.setLineWidth(0.9)
+        c.setDash(3, 2)
+        c.rect(marge, y - haut_cadre + 4 * mm, largeur - 2 * marge, haut_cadre)
+        c.setDash()
+        c.setFillColor(NUIT)
+        c.setFont("Helvetica-Bold", 8)
+        c.drawCentredString(centre, y, "FIDÉLITÉ · POUR VOTRE PROCHAIN PASSAGE")
+        y -= 6 * mm
+        valeur = (f"- {offert['pourcentage']:g} %" if offert["pourcentage"]
+                  else _euro(offert["montant"]) + " offerts")
+        c.setFont("Times-Bold", 15)
+        c.drawCentredString(centre, y, valeur)
+        y -= 5 * mm
+        c.setFont("Courier-Bold", 9)
+        c.drawCentredString(centre, y, offert["code"])
+        y -= 3.6 * mm
+        c.setFont("Helvetica", 6.5)
+        c.setFillColor(GRIS)
+        if offert["date_expiration"]:
+            c.drawCentredString(centre, y, f"Valable jusqu'au {_date(offert['date_expiration'])}")
+        y -= 9 * mm
 
     c.setFillColor(NUIT)
     c.setFont("Times-Italic", 10)
@@ -387,7 +413,8 @@ def bon_pdf(bon, conf):
     c.setFont("Helvetica", 7.5)
     c.drawCentredString(L / 2, H - 24 * mm - decalage, "BON D'ACHAT", charSpace=2.5)
     c.setFont("Times-Bold", 38)
-    c.drawCentredString(L / 2, H / 2 - 6 * mm, _euro(bon["montant"]))
+    c.drawCentredString(L / 2, H / 2 - 6 * mm,
+                        f"- {bon['pourcentage']:g} %" if bon["pourcentage"] else _euro(bon["montant"]))
     c.setFillColor(colors.white)
     c.setFont("Helvetica", 9)
     if bon["beneficiaire"]:

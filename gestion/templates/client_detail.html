@@ -50,12 +50,13 @@
   <div class="grille">
     {% if carte and carte.active %}
     <section class="carte bois" id="fidelite">
-      <h2>Carte de fidélité</h2>
-      <div style="display:grid;grid-template-columns:repeat(5, 1fr);gap:8px;max-width:300px">
-        {% for n in range(carte.seuil) %}<span style="aspect-ratio:1;border-radius:50%;border:2px solid var(--or);display:grid;place-items:center;{{ 'background:var(--or);color:#1a0d06' if n < carte.tampons }}">{% if n < carte.tampons %}★{% endif %}</span>{% endfor %}
-      </div>
-      <p class="mt mb0"><strong>{{ carte.tampons }}/{{ carte.seuil }}</strong> : encore {{ carte.seuil - carte.tampons }} bouteille(s) avant un bon de {{ carte.montant|euro }}.
-        <br><small>{{ carte.achetees }} bouteille(s) achetée(s){% if carte.rapportees %} · {{ carte.rapportees }} rapportée(s){% endif %} · {{ carte.bons }} bon(s) gagné(s)</small></p>
+      <h2>Fidélité</h2>
+      <p class="mb0"><strong>{{ carte.condition|capitalize }}</strong> en un passage = <strong>{{ carte.avantage }}</strong> au prochain passage.</p>
+      {% if carte.actifs %}
+      <p class="mt mb0">Bon(s) à utiliser :
+        {% for b in carte.actifs %}<br><span class="code">{{ b.code }}</span> · <strong>{{ valeur_bon(b) }}</strong>{% if b.date_expiration %} <small class="doux">jusqu'au {{ b.date_expiration|datefr }}</small>{% endif %}{% endfor %}</p>
+      {% endif %}
+      <p class="mt mb0"><small>{{ carte.bons }} bon(s) fidélité gagné(s) au total.</small></p>
     </section>
     {% endif %}
     <section class="carte" id="bons">
@@ -64,7 +65,7 @@
       <ul class="liste">
         {% for b in bons %}{% set st = statut_bon(b) %}
         <li style="flex-wrap:wrap">
-          <div><strong class="num">{{ b.montant|euro }}</strong> <span class="badge badge-{{ st }}">{{ {'actif': 'Valable', 'utilise': 'Utilisé', 'expire': 'Expiré'}[st] }}</span><br>
+          <div><strong class="num">{{ valeur_bon(b) }}</strong> <span class="badge badge-{{ st }}">{{ {'actif': 'Valable', 'utilise': 'Utilisé', 'expire': 'Expiré'}[st] }}</span><br>
             <small class="code">{{ b.code }}</small><small> · jusqu'au {{ b.date_expiration|datefr }}</small></div>
           <div class="groupe-boutons">
             <button type="button" class="btn btn-ligne btn-petit" onclick="partagerPdf('{{ url_for('bon_pdf_vue', bon_id=b.id) }}', 'Bon-achat-{{ b.code }}.pdf', 'Un bon d\'achat Maison Corsaire pour vous !')">{{ icone('partager') }}Partager</button>

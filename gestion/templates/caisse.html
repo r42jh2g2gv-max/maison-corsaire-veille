@@ -110,6 +110,7 @@
       <div class="ligne-detail" id="l-remise" hidden><span>Bon d'achat</span><span class="num" id="d-remise"></span></div>
       <div class="ligne-detail" id="l-consigne" hidden><span>Consigne</span><span class="num" id="d-consigne"></span></div>
       <div class="total-caisse"><span>Total</span><strong id="d-total">0,00 €</strong></div>
+      <p class="aide mb0" id="l-fidelite" hidden style="margin-top:6px"></p>
     </div>
 
     <div class="paiements" role="radiogroup" aria-label="Mode de paiement">
@@ -134,6 +135,8 @@
   var PRODUITS = {{ (produits + coffrets)|tojson }};
   var CLIENTS = {{ clients|tojson }};
   var CONSIGNE = {{ consigne_montant|tojson }};
+  var FIDELITE = {{ fidelite|tojson }};
+  var remisePct = 0;
   var parId = {}; PRODUITS.forEach(function (p) { parId[p.id] = p; });
   (window.MC ? MC.attente() : []).forEach(function (v) {
     (v.panier || []).forEach(function (l) { if (parId[l.lot_id]) parId[l.lot_id].stock -= l.quantite; });
@@ -201,7 +204,17 @@
 
   function totaux() {
     var st = panier.reduce(function (s, l) { return s + l.quantite * l.prix; }, 0);
-    var r = Math.min(remise, st);
+    var r = remisePct ? Math.round(st * remisePct) / 100 : Math.min(remise, st);
+    var btl = panier.reduce(function (s, l) { return s + (String(l.id).charAt(0) === 'c' ? 0 : l.quantite); }, 0);
+    var coffret = panier.some(function (l) { return String(l.id).charAt(0) === 'c'; });
+    var fid = FIDELITE.active && canal() === 'direct' && (!client() || client().type !== 'revendeur');
+    if (fid && (btl >= FIDELITE.seuil || (FIDELITE.coffret && coffret))) {
+      $('l-fidelite').hidden = false; $('l-fidelite').style.color = 'var(--vert)';
+      $('l-fidelite').textContent = '★ Fidélité : ' + FIDELITE.avantage + ' offert pour le prochain passage.';
+    } else if (fid && btl > 0) {
+      $('l-fidelite').hidden = false; $('l-fidelite').style.color = '';
+      $('l-fidelite').textContent = 'Encore ' + (FIDELITE.seuil - btl) + ' bouteille(s)' + (FIDELITE.coffret ? ' ou un coffret' : '') + ' pour offrir ' + FIDELITE.avantage + '.';
+    } else { $('l-fidelite').hidden = true; }
     var cons = ((parseInt($('consigne_btl').value, 10) || 0) - (parseInt($('consigne_retour').value, 10) || 0)) * CONSIGNE;
     var total = st - r + cons;
     $('d-sous-total').textContent = eur(st);
@@ -245,11 +258,11 @@
     if (c) {
       info.textContent = (c.type === 'revendeur' ? 'Revendeur' : c.type === 'professionnel' ? 'Professionnel' : 'Client fidèle')
         + (c.consignes > 0 ? ' · ' + c.consignes + ' bouteille(s) consignée(s) chez lui' : '')
-        + (c.carte && c.carte.active && c.type !== 'revendeur' ? ' · carte de fidélité ' + c.carte.tampons + '/' + c.carte.seuil : '');
+        ;
       (c.bons || []).forEach(function (b) {
         var bouton = document.createElement('button');
         bouton.type = 'button'; bouton.className = 'btn btn-or btn-petit'; bouton.style.margin = '8px 8px 0 0';
-        bouton.textContent = 'Utiliser son bon de ' + eur(b.montant);
+        bouton.textContent = 'Utiliser son bon de ' + b.valeur;
         bouton.addEventListener('click', function () {
           $('bon_code').value = b.code; $('options-plus').open = true; $('verifier-bon').click();
           bouton.remove();
@@ -276,13 +289,13 @@
     fetch('{{ url_for("api_bon") }}?code=' + encodeURIComponent(code) + '&client_id=' + ($('client_id').value || ''), { credentials: 'same-origin' })
       .then(function (r) { return r.json(); })
       .then(function (d) {
-        remise = d.ok ? d.montant : 0;
+        remise = d.ok ? d.montant : 0; remisePct = d.ok ? (d.pourcentage || 0) : 0;
         $('info-bon').textContent = d.message;
         $('info-bon').style.color = d.ok ? 'var(--vert)' : 'var(--rouge)';
         totaux();
       });
   });
-  $('bon_code').addEventListener('input', function () { remise = 0; $('info-bon').textContent = ''; totaux(); });
+  $('bon_code').addEventListener('input', function () { remise = 0; remisePct = 0; $('info-bon').textContent = ''; totaux(); });
   $('bon_code').addEventListener('change', function () { $('verifier-bon').click(); });
 
   function lignesPanier() {
@@ -295,7 +308,7 @@
   function totalCourant() { return $('d-total').textContent; }
 
   function reinitialiser() {
-    panier = []; remise = 0;
+    panier = []; remise = 0; remisePct = 0;
     ['consigne_btl', 'consigne_retour'].forEach(function (id) { $(id).value = 0; });
     $('bon_code').value = ''; $('info-bon').textContent = ''; $('recu').value = ''; $('notes').value = '';
     $('client_nom').value = ''; $('client_id').value = ''; $('info-client').textContent = '';

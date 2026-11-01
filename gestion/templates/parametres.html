@@ -40,15 +40,29 @@
   </section>
 
   <section class="carte" id="fidelite">
-    <h2>Carte de fidélité</h2>
+    <h2>Fidélité</h2>
     <div class="champs">
-      <div class="large"><label class="case"><input type="checkbox" name="fidelite_active" value="1" {{ 'checked' if conf.fidelite_active != '0' }}> Activer la carte de fidélité (clients avec fiche, hors revendeurs)</label></div>
-      <div><label for="fidelite_seuil">Tampons pour un bon <span class="aide">(1 bouteille = 1 tampon)</span></label><input id="fidelite_seuil" type="number" name="fidelite_seuil" min="1" step="1" inputmode="numeric" value="{{ conf.fidelite_seuil|float|int }}"></div>
-      <div><label for="fidelite_montant">Montant du bon (€)</label><input id="fidelite_montant" type="number" name="fidelite_montant" min="1" step="0.5" inputmode="decimal" value="{{ '%g'|format(conf.fidelite_montant|float) }}"></div>
-      <div><label for="fidelite_validite">Validité du bon (jours)</label><input id="fidelite_validite" type="number" name="fidelite_validite" min="1" step="1" inputmode="numeric" value="{{ conf.fidelite_validite|float|int }}"></div>
-      <div><label class="case" style="margin-top:34px"><input type="checkbox" name="fidelite_bonus_consigne" value="1" {{ 'checked' if conf.fidelite_bonus_consigne != '0' }}> +1 tampon par bouteille consignée rapportée</label></div>
+      <div class="large"><label class="case"><input type="checkbox" name="fidelite_active" value="1" {{ 'checked' if conf.fidelite_active != '0' }}> Récompenser les beaux achats (vente directe, hors revendeurs)</label></div>
+      <div><label for="fidelite_seuil">Bouteilles achetées en un passage</label><input id="fidelite_seuil" type="number" name="fidelite_seuil" min="1" step="1" inputmode="numeric" value="{{ conf.fidelite_seuil|float|int }}"></div>
+      <div><label class="case" style="margin-top:34px"><input type="checkbox" name="fidelite_coffret" value="1" {{ 'checked' if conf.fidelite_coffret != '0' }}> Ou l'achat d'un coffret</label></div>
+      <div><label for="fidelite_type">Avantage au prochain passage</label>
+        <select id="fidelite_type" name="fidelite_type">
+          <option value="montant" {{ 'selected' if conf.fidelite_type != 'pourcentage' }}>Bon d'achat (montant en €)</option>
+          <option value="pourcentage" {{ 'selected' if conf.fidelite_type == 'pourcentage' }}>Remise (en %)</option>
+        </select></div>
+      <div id="champ-montant"><label for="fidelite_montant">Montant du bon (€)</label><input id="fidelite_montant" type="number" name="fidelite_montant" min="1" step="0.5" inputmode="decimal" value="{{ '%g'|format(conf.fidelite_montant|float) }}"></div>
+      <div id="champ-pct"><label for="fidelite_pourcentage">Remise (%)</label><input id="fidelite_pourcentage" type="number" name="fidelite_pourcentage" min="1" max="100" step="1" inputmode="decimal" value="{{ '%g'|format((conf.fidelite_pourcentage or 10)|float) }}"></div>
+      <div><label for="fidelite_validite">Validité (jours)</label><input id="fidelite_validite" type="number" name="fidelite_validite" min="1" step="1" inputmode="numeric" value="{{ conf.fidelite_validite|float|int }}"></div>
     </div>
-    <p class="aide mt mb0">Le bon est créé automatiquement dès que la carte est complète. À la caisse, en choisissant le client, un bouton « Utiliser son bon » l'applique en un geste.</p>
+    <p class="aide mt mb0">À l'encaissement, si le panier compte assez de bouteilles (ou un coffret), un bon est créé tout seul : rattaché au client s'il a une fiche, sinon « au porteur » et imprimé en bas du ticket. Au passage suivant, la caisse propose « Utiliser son bon ».</p>
+    <script>
+      (function () {
+        var t = document.getElementById('fidelite_type');
+        function maj() { var pct = t.value === 'pourcentage';
+          document.getElementById('champ-pct').hidden = !pct; document.getElementById('champ-montant').hidden = pct; }
+        t.addEventListener('change', maj); maj();
+      })();
+    </script>
   </section>
 
   <section class="carte" id="emails">

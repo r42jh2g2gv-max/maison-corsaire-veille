@@ -334,7 +334,10 @@ DEFAULT_SETTINGS = {
     "smtp_password": "",
     "smtp_expediteur": "",
     "fidelite_active": "1",
-    "fidelite_seuil": "10",
+    "fidelite_seuil": "3",
+    "fidelite_type": "montant",
+    "fidelite_pourcentage": "10",
+    "fidelite_coffret": "1",
     "fidelite_montant": "5",
     "fidelite_validite": "365",
     "fidelite_bonus_consigne": "1",
@@ -370,6 +373,8 @@ MIGRATIONS = [
     ("tickets", "date_paiement", "TEXT"),
     ("tickets", "echeance", "TEXT"),
     ("clotures", "bouteilles", "TEXT"),
+    ("bons", "pourcentage", "REAL"),
+    ("bons", "ticket_origine", "INTEGER REFERENCES tickets(id) ON DELETE SET NULL"),
 ]
 
 
@@ -430,6 +435,10 @@ def init_db(app):
     conn.executescript(SCHEMA)
     migrer(conn)
     conn.execute("CREATE UNIQUE INDEX IF NOT EXISTS tickets_uuid ON tickets(uuid)")
+    # Fidélité : passage de « 10 tampons » à « un achat de 3 bouteilles ou un coffret »
+    if not conn.execute("SELECT 1 FROM settings WHERE key = 'fidelite_regle'").fetchone():
+        conn.execute("DELETE FROM settings WHERE key = 'fidelite_seuil'")
+        conn.execute("INSERT INTO settings (key, value) VALUES ('fidelite_regle', 'achat')")
     for key, value in DEFAULT_SETTINGS.items():
         conn.execute("INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)", (key, value))
     if not conn.execute("SELECT 1 FROM users").fetchone():

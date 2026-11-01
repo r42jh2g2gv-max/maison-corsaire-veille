@@ -41,7 +41,7 @@
         <div><label for="fmt-{{ r.id }}">Format</label>
           <select id="fmt-{{ r.id }}" name="format"><option value="planche">Planche A4 (imprimante de bureau)</option><option value="unite">Une étiquette par page (imprimante d'étiquettes)</option></select></div>
         <label class="case large"><input type="checkbox" name="qr" value="1" checked> QR code vers la fiche produit (<a href="{{ url_for('produit_public', recette_id=r.id) }}" target="_blank">voir</a>)</label>
-        <div class="large"><button class="btn btn-ligne">{{ icone('imprimer') }}Générer le PDF — case lot vierge à tamponner</button></div>
+        <div class="large"><button class="btn btn-ligne">{{ icone('imprimer') }}Générer le PDF</button></div>
       </form>
     </details>
     {% else %}
@@ -59,7 +59,6 @@
           <select id="lot-choisi">{% for l in lots %}<option value="{{ url_for('etiquette_lot_pdf', lot_id=l.id) }}" data-nb="{{ l.nb_bouteilles }}" data-ingredients="{{ apercus_lots[l.id] }}">{{ l.numero }} — {{ l.recette_nom }}</option>{% endfor %}</select>
           <p class="aide" id="apercu-lot" style="margin:8px 0 0"></p></div>
         <div><label for="lot-copies">Nombre d'étiquettes</label><input id="lot-copies" type="number" name="copies" min="1" max="500" inputmode="numeric"></div>
-        <label class="case"><input type="checkbox" name="lot_imprime" value="1"> Imprimer le n° de lot dans la case (sinon case vierge à tamponner)</label>
         <label class="case"><input type="checkbox" name="qr" value="1" checked> QR code vers la fiche produit du lot (composition, dates, prochains marchés)</label>
         <input type="hidden" name="format" value="planche">
         <button class="btn btn-or">{{ icone('etiquette') }}Planche A4 du lot</button>

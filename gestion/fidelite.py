@@ -1,65 +1,104 @@
-"""Carte de fidélité : 1 tampon par bouteille achetée, un bon d'achat automatique au seuil."""
+"""Fidélité : un achat de 3 bouteilles (ou d'un coffret) donne un bon pour le prochain passage.
+Le bon est soit un montant (5 €), soit une remise en pourcentage (10 %)."""
 from datetime import date, timedelta
 
 from calculs import to_float
 from db import code_bon
+from noyau import app, euro
 
 
 def regles(conf):
     return {
         "active": conf.get("fidelite_active", "1") == "1",
-        "seuil": max(int(to_float(conf.get("fidelite_seuil"), 10)), 1),
+        "seuil": max(int(to_float(conf.get("fidelite_seuil"), 3)), 1),
+        "coffret": conf.get("fidelite_coffret", "1") == "1",
+        "type": "pourcentage" if conf.get("fidelite_type") == "pourcentage" else "montant",
         "montant": max(to_float(conf.get("fidelite_montant"), 5), 0),
+        "pourcentage": min(max(to_float(conf.get("fidelite_pourcentage"), 10), 0), 100),
         "validite": max(int(to_float(conf.get("fidelite_validite"), 365)), 1),
-        "bonus_consigne": conf.get("fidelite_bonus_consigne", "1") == "1",
     }
 
 
+def texte_avantage(r):
+    if r["type"] == "pourcentage":
+        return f"{to_float(r['pourcentage']):g} % de remise"
+    return f"un bon de {euro(r['montant'])}"
+
+
+def texte_condition(r):
+    return f"{r['seuil']} bouteilles" + (" ou un coffret" if r["coffret"] else "") + " achetés"
+
+
+def valeur_bon(bon):
+    """« 5,00 € » ou « 10 % » selon le bon."""
+    if bon["pourcentage"]:
+        return f"{to_float(bon['pourcentage']):g} %"
+    return euro(bon["montant"])
+
+
+def remise_bon(bon, sous_total):
+    if bon["pourcentage"]:
+        return round(sous_total * bon["pourcentage"] / 100, 2)
+    return round(min(bon["montant"], sous_total), 2)
+
+
+app.jinja_env.globals["valeur_bon"] = valeur_bon
+
+
+def fidelite_caisse(conf):
+    r = regles(conf)
+    return {"active": r["active"], "seuil": r["seuil"], "coffret": r["coffret"],
+            "avantage": texte_avantage(r)}
+
+
 def carte(conn, client_id, conf):
-    """État de la carte : tampons gagnés, bons déjà générés, tampons en cours."""
+    """Ce que le client sait de son avantage fidélité."""
     r = regles(conf)
-    achetees = conn.execute(
-        """SELECT COALESCE(SUM(v.quantite), 0) FROM ventes v JOIN tickets t ON t.id = v.ticket_id
-           WHERE t.client_id = ? AND t.canal = 'direct'""", (client_id,)).fetchone()[0]
-    rapportees = conn.execute(
-        "SELECT COALESCE(SUM(-quantite), 0) FROM consignes WHERE client_id = ? AND quantite < 0",
-        (client_id,)).fetchone()[0] if r["bonus_consigne"] else 0
-    bons = conn.execute("SELECT COUNT(*) FROM bons WHERE client_id = ? AND origine = 'fidelite'",
-                        (client_id,)).fetchone()[0]
-    total = achetees + rapportees
-    en_cours = max(total - bons * r["seuil"], 0)
-    return {"total": total, "achetees": achetees, "rapportees": rapportees, "bons": bons,
-            "tampons": min(en_cours, r["seuil"]), "a_generer": en_cours // r["seuil"],
-            "seuil": r["seuil"], "montant": r["montant"], "active": r["active"]}
+    gagnes = conn.execute("SELECT COUNT(*) FROM bons WHERE client_id = ? AND origine = 'fidelite'",
+                          (client_id,)).fetchone()[0]
+    return {"active": r["active"], "seuil": r["seuil"], "coffret": r["coffret"],
+            "avantage": texte_avantage(r), "condition": texte_condition(r), "bons": gagnes,
+            "actifs": bons_actifs(conn, client_id) if client_id else []}
 
 
-def attribuer_bons(conn, client_id, conf, jour=None):
-    """Crée les bons gagnés (appelé après chaque vente). Retourne la liste des codes créés."""
-    if not client_id:
-        return []
-    client = conn.execute("SELECT * FROM clients WHERE id = ?", (client_id,)).fetchone()
+def merite_bon(conf, bouteilles, avec_coffret, canal="direct"):
     r = regles(conf)
-    if not client or not r["active"] or client["type"] == "revendeur" or not r["montant"]:
-        return []
-    etat = carte(conn, client_id, conf)
-    crees = []
+    if not r["active"] or canal != "direct":
+        return False
+    if r["type"] == "montant" and not r["montant"]:
+        return False
+    if r["type"] == "pourcentage" and not r["pourcentage"]:
+        return False
+    return bouteilles >= r["seuil"] or (r["coffret"] and avec_coffret)
+
+
+def creer_bon_fidelite(conn, conf, ticket_id, client, jour=None):
+    """Crée le bon gagné par ce ticket (nominatif si le client a une fiche, sinon au porteur)."""
+    r = regles(conf)
     debut = date.fromisoformat(jour) if jour else date.today()
-    for _ in range(etat["a_generer"]):
+    code = code_bon()
+    while conn.execute("SELECT 1 FROM bons WHERE code = ?", (code,)).fetchone():
         code = code_bon()
-        while conn.execute("SELECT 1 FROM bons WHERE code = ?", (code,)).fetchone():
-            code = code_bon()
-        conn.execute(
-            "INSERT INTO bons (code, client_id, beneficiaire, montant, motif, date_emission,"
-            " date_expiration, origine) VALUES (?, ?, ?, ?, ?, ?, ?, 'fidelite')",
-            (code, client_id, client["nom"], r["montant"],
-             f"Carte de fidélité : {r['seuil']} tampons", debut.isoformat(),
-             (debut + timedelta(days=r["validite"])).isoformat()))
-        crees.append(code)
-    return crees
+    conn.execute(
+        "INSERT INTO bons (code, client_id, beneficiaire, montant, pourcentage, motif,"
+        " date_emission, date_expiration, origine, ticket_origine)"
+        " VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'fidelite', ?)",
+        (code, client["id"] if client else None, client["nom"] if client else None,
+         r["montant"] if r["type"] == "montant" else 0,
+         r["pourcentage"] if r["type"] == "pourcentage" else None,
+         "Fidélité : " + texte_condition(r), debut.isoformat(),
+         (debut + timedelta(days=r["validite"])).isoformat(), ticket_id))
+    return code
+
+
+def bon_gagne(conn, ticket_id):
+    return conn.execute("SELECT * FROM bons WHERE ticket_origine = ? AND origine = 'fidelite'",
+                        (ticket_id,)).fetchone()
 
 
 def bons_actifs(conn, client_id):
     return conn.execute(
-        """SELECT code, montant, date_expiration FROM bons WHERE client_id = ? AND ticket_id IS NULL
+        """SELECT code, montant, pourcentage, date_expiration FROM bons
+           WHERE client_id = ? AND ticket_id IS NULL
            AND (date_expiration IS NULL OR date_expiration >= date('now', 'localtime'))
            ORDER BY date_expiration""", (client_id,)).fetchall()

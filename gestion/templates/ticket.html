@@ -48,7 +48,12 @@
       <div class="ligne-detail"><span>Canal</span><span>{{ 'Revendeur' if ticket.canal == 'revendeur' else 'Vente directe' }}</span></div>
     </div>
     {% if ticket.notes %}<p class="mt mb0 doux">Note : {{ ticket.notes }}</p>{% endif %}
-    {% if carte and carte.active %}<p class="mt mb0">Carte de fidélité de {{ ticket.client_nom }} : <strong>{{ carte.tampons }}/{{ carte.seuil }}</strong> tampons{% if carte.bons %} · {{ carte.bons }} bon(s) déjà gagné(s){% endif %}.</p>{% endif %}
+    {% if offert %}<div class="mt" style="border:1.5px dashed var(--or);border-radius:12px;padding:12px;text-align:center">
+      <div class="surtitre" style="margin:0">Fidélité · prochain passage</div>
+      <strong style="font-size:1.4em">{{ valeur_bon(offert) }}</strong> {{ 'de remise' if offert.pourcentage else 'offerts' }}<br>
+      <span class="code">{{ offert.code }}</span>{% if offert.date_expiration %} <small class="doux">· valable jusqu'au {{ offert.date_expiration|datefr }}</small>{% endif %}
+      {% if not ticket.client_id %}<p class="aide mb0" style="margin-top:6px">Bon au porteur : il est imprimé sur le ticket PDF à remettre au client.</p>{% endif %}
+    </div>{% endif %}
   </section>
 
   <div class="grille">

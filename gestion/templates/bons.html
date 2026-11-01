@@ -18,7 +18,7 @@
         <tr id="bon-{{ b.id }}">
           <td class="titre-ligne" data-label="Bénéficiaire">{% if b.client_id %}<a href="{{ url_for('client_detail', client_id=b.client_id) }}">{{ b.beneficiaire }}</a>{% else %}{{ b.beneficiaire or 'Au porteur' }}{% endif %}
             {% if b.motif %}<br><small>{{ b.motif }}</small>{% endif %}</td>
-          <td class="num" data-label="Montant"><strong>{{ b.montant|euro }}</strong></td>
+          <td class="num" data-label="Montant"><strong>{{ valeur_bon(b) }}</strong></td>
           <td data-label="Code"><span class="code">{{ b.code }}</span></td>
           <td data-label="Validité">{{ b.date_expiration|datefr if b.date_expiration else 'Sans limite' }}</td>
           <td data-label="Statut"><span class="badge badge-{{ st }}">{{ {'actif': 'Valable', 'utilise': 'Utilisé', 'expire': 'Expiré'}[st] }}</span>
