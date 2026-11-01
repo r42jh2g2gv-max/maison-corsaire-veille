@@ -77,6 +77,7 @@
       <input id="degre" type="number" name="degre" min="0" max="100" step="0.1" inputmode="decimal" value="{{ lot.degre if lot.degre is not none else '' }}">
     </div>
 
+    <div class="large" style="grid-column:1/-1"><label class="case"><input type="checkbox" name="essai" value="1" {{ 'checked' if lot.essai }}> <span>Lot d'essai <span class="aide">(petit volume pour tester une recette ou une variante : non compté dans la prévision de production)</span></span></label></div>
     <div class="large" style="grid-column:1/-1">
       <label for="notes">Notes</label>
       <textarea id="notes" name="notes" placeholder="Observations, dégustation, fournisseur des fruits…">{{ lot.notes or '' }}</textarea>

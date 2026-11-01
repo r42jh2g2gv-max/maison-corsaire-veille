@@ -71,6 +71,7 @@ def lire_formulaire_lot(form):
         "volume_macere_l": to_float(form.get("litres"), None),
         "perte_pct": to_float(form.get("perte_pct"), None),
         "volume_obtenu_l": to_float(form.get("volume_obtenu_l"), None),
+        "essai": 1 if form.get("essai") else 0,
     }
 
 
@@ -91,10 +92,10 @@ def lot_nouveau():
         cur = conn.execute(
             """INSERT INTO lots (numero, recette_id, recette_nom, date_maceration,
                date_embouteillage, dlc, nb_bouteilles, volume_cl, degre, statut, notes, created_at,
-               volume_macere_l, perte_pct, volume_obtenu_l)
+               volume_macere_l, perte_pct, volume_obtenu_l, essai)
                VALUES (:numero, :recette_id, :recette_nom, :date_maceration, :date_embouteillage,
                :dlc, :nb_bouteilles, :volume_cl, :degre, :statut, :notes, :created_at,
-               :volume_macere_l, :perte_pct, :volume_obtenu_l)""",
+               :volume_macere_l, :perte_pct, :volume_obtenu_l, :essai)""",
             {**data, "numero": numero, "created_at": datetime.now().isoformat(timespec="seconds")},
         )
         lot_id = cur.lastrowid
@@ -130,7 +131,9 @@ def lot_nouveau():
         r = conn.execute("SELECT * FROM recettes WHERE id = ?", (recette_id,)).fetchone()
         if r:
             lot.update(recette_id=r["id"], recette_nom=r["nom"], degre=r["degre"],
-                       perte_pct=r["perte_pct"] if r["perte_pct"] is not None else PERTE_DEFAUT)
+                       perte_pct=r["perte_pct"] if r["perte_pct"] is not None else PERTE_DEFAUT,
+                       volume_macere_l=to_float(request.args.get("litres"), None),
+                       essai=1 if request.args.get("essai") else 0)
     return render_template("lot_form.html", lot=lot, recettes=recettes,
                            numero=numero_lot(conn), nouveau=True)
 
@@ -190,7 +193,7 @@ def lot_modifier(lot_id):
                dlc = :dlc, nb_bouteilles = :nb_bouteilles, volume_cl = :volume_cl,
                degre = :degre, statut = :statut, notes = :notes,
                volume_macere_l = :volume_macere_l, perte_pct = :perte_pct,
-               volume_obtenu_l = :volume_obtenu_l WHERE id = :id""",
+               volume_obtenu_l = :volume_obtenu_l, essai = :essai WHERE id = :id""",
             {**data, "id": lot_id},
         )
         conn.execute(

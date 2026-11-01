@@ -58,6 +58,25 @@
   </section>
 
   <div class="grille">
+    <section class="carte" id="prix">
+      <h2>Historique des prix</h2>
+      {% if prix %}
+      {% set pmax = prix|map(attribute='prix')|max %}
+      <div class="barres" style="grid-template-columns:repeat({{ [prix|length, 1]|max }}, minmax(0, 1fr));height:120px">
+        {% for p in prix[-8:] %}
+        <div class="barre {{ 'courant' if loop.last }}"><span class="v num">{{ '%.2f'|format(p.prix)|replace('.', ',') }}</span><div class="b" style="height: {{ (p.prix / pmax * 100)|round(1) }}%"></div><span class="m" style="font-size:.65rem">{{ p.date_achat|datecourte }}</span></div>
+        {% endfor %}
+      </div>
+      <ul class="liste mt">
+        {% for p in prix|reverse %}
+        <li><div><span class="principal">{{ p.prix|euro }} / {{ mp.unite }}</span>
+          {% if p.variation is not none and p.variation|abs >= 0.5 %}<span class="badge {{ 'badge-retard' if p.variation > 0 else 'badge-ok' }} sans-point">{{ '%+.0f'|format(p.variation) }} %</span>{% endif %}<br>
+          <small>{{ p.date_achat|datefr }} · {{ p.fournisseur }}</small></div>
+          <a href="{{ url_for('achat_modifier', achat_id=p.achat_id) }}" class="doux">achat</a></li>
+        {% endfor %}
+      </ul>
+      {% else %}<p class="vide mb0">Pas encore d'achat avec un prix : les prix s'enregistrent depuis le registre des achats.</p>{% endif %}
+    </section>
     <section class="carte">
       <h2>Inventaire</h2>
       <form method="post" action="{{ url_for('matiere_inventaire', mp_id=mp.id) }}">

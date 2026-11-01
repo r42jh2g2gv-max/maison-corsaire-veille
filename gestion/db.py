@@ -256,6 +256,16 @@ CREATE TABLE IF NOT EXISTS coffret_elements (
     quantite INTEGER NOT NULL DEFAULT 1
 );
 
+-- Carnet de dégustation : notes et photos au fil de la macération
+CREATE TABLE IF NOT EXISTS degustations (
+    id INTEGER PRIMARY KEY,
+    lot_id INTEGER NOT NULL REFERENCES lots(id) ON DELETE CASCADE,
+    date_degustation TEXT NOT NULL,
+    note INTEGER,
+    commentaire TEXT,
+    photo TEXT
+);
+
 CREATE TABLE IF NOT EXISTS declarations (
     periode TEXT PRIMARY KEY,
     declare_le TEXT NOT NULL,
@@ -318,6 +328,7 @@ MIGRATIONS = [
     ("bons", "origine", "TEXT"),
     ("lots", "parent_id", "INTEGER REFERENCES lots(id) ON DELETE CASCADE"),
     ("materiaux", "format_cl", "INTEGER"),
+    ("lots", "essai", "INTEGER NOT NULL DEFAULT 0"),
 ]
 
 
@@ -392,7 +403,7 @@ def init_db(app):
 
 def clear_data(conn):
     """Supprime toutes les données métier (garde le compte et les réglages)."""
-    for table in ("coffret_elements", "coffrets", "sorties", "consignes", "bons", "ventes", "tickets", "messages", "declarations",
+    for table in ("degustations", "coffret_elements", "coffrets", "sorties", "consignes", "bons", "ventes", "tickets", "messages", "declarations",
                   "evenements", "clients", "mouvements_mp", "achat_lignes", "achats",
                   "lot_ingredients", "lots", "recette_ingredients", "recettes",
                   "matieres_premieres", "materiaux"):
@@ -642,6 +653,11 @@ def seed_demo(conn):
         " notes, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
         [(d(-12), lot_ids[2], 1, "degustation", None, evt_ids[2], "Bouteille ouverte au stand", now),
          (d(-30), lot_ids[1], 1, "casse", None, None, "Tombée au déchargement", now)])
+    conn.executemany(
+        "INSERT INTO degustations (lot_id, date_degustation, note, commentaire) VALUES (?, ?, ?, ?)",
+        [(lot_ids[3], d(-32), 3, "Ananas encore timide, vanille présente."),
+         (lot_ids[3], d(-10), 4, "Bel équilibre, sucre à ajuster légèrement."),
+         (lot_ids[4], d(-15), 3, "Coco agréable, citron vert un peu fort : retirer les zestes à J+30.")])
     seed_matieres(conn, d)
     conn.execute("UPDATE recettes SET perte_pct = 15")
     for numero, macere, obtenu in [(1, 14, 12.1), (2, 13, 11.1), (3, 11.8, 10.2), (4, 14, None),

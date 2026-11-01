@@ -7,7 +7,7 @@
   <div>
     <div class="surtitre">Lot <span class="code">{{ lot.numero }}</span></div>
     <h1>{{ lot.recette_nom }}</h1>
-    <div class="sous-titre"><span class="badge badge-{{ lot.statut }}">{{ STATUTS[lot.statut] }}</span></div>
+    <div class="sous-titre"><span class="badge badge-{{ lot.statut }}">{{ STATUTS[lot.statut] }}</span>{% if lot.essai %} <span class="badge badge-revendeur sans-point">Lot d'essai</span>{% endif %}</div>
   </div>
   <div class="actions">
     {% if stock > 0 %}<a class="btn btn-or" href="{{ url_for('caisse', lot_id=lot.id) }}">{{ icone('caisse') }}Vendre</a>
@@ -158,6 +158,40 @@
     {% endfor %}
   </ul>
   {% else %}<p class="vide">Aucune vente pour ce lot.</p>{% endif %}
+</section>
+
+{% set carnet = degustations_du_lot(lot.parent_id or lot.id) %}
+<section class="carte mt" id="carnet">
+  <div class="carte-tete"><h2>Carnet de dégustation</h2><a href="{{ url_for('carnet') }}">Toutes les dégustations</a></div>
+  {% if carnet %}
+  <ul class="liste">
+    {% for d in carnet %}
+    <li style="align-items:flex-start">
+      <div style="min-width:0">
+        <span class="principal">{{ d.date_degustation|datefr }}{% set j = jour_maceration(lot, d.date_degustation) %}{% if j is not none %} · J+{{ j }}{% endif %}</span>
+        {% if d.note %} <span class="texte-or" aria-label="{{ d.note }} sur 5">{{ '★' * d.note }}{{ '☆' * (5 - d.note) }}</span>{% endif %}
+        {% if d.commentaire %}<br><span class="pre">{{ d.commentaire }}</span>{% endif %}
+        {% if d.photo %}<br><a href="{{ url_for('photo', nom=d.photo) }}" target="_blank"><img src="{{ url_for('photo', nom=d.photo) }}" alt="Photo du {{ d.date_degustation|datefr }}" style="margin-top:8px;max-width:180px;border-radius:10px"></a>{% endif %}
+      </div>
+      <form method="post" action="{{ url_for('degustation_supprimer', deg_id=d.id) }}" onsubmit="return confirm('Supprimer cette dégustation ?')">
+        <input type="hidden" name="csrf" value="{{ csrf_token }}"><button class="btn-lien" aria-label="Supprimer">✕</button></form>
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}<p class="vide">Aucune dégustation notée.</p>{% endif %}
+  <details class="mt" {{ 'open' if not carnet }}>
+    <summary>+ Noter une dégustation</summary>
+    <form method="post" action="{{ url_for('degustation_ajouter', lot_id=lot.parent_id or lot.id) }}" enctype="multipart/form-data" class="mt">
+      <input type="hidden" name="csrf" value="{{ csrf_token }}">
+      <div class="champs">
+        <div><label for="deg-date">Date</label><input id="deg-date" type="date" name="date" value="{{ today }}"></div>
+        <div><label for="deg-note">Note</label><select id="deg-note" name="note"><option value="">—</option>{% for n in range(5, 0, -1) %}<option value="{{ n }}">{{ '★' * n }}{{ '☆' * (5 - n) }}</option>{% endfor %}</select></div>
+        <div class="large"><label for="deg-com">Commentaire</label><textarea id="deg-com" name="commentaire" rows="3" placeholder="Nez, bouche, sucre, intensité du fruit, à corriger…"></textarea></div>
+        <div class="large"><label for="deg-photo">Photo <span class="aide">(couleur, dépôt…)</span></label><input id="deg-photo" type="file" name="photo" accept="image/*" style="min-height:auto"></div>
+      </div>
+      <div class="form-actions"><button class="btn">{{ icone('check') }}Ajouter au carnet</button></div>
+    </form>
+  </details>
 </section>
 
 {% set sorties_lot = get_lot_sorties(lot.id) %}

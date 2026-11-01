@@ -118,3 +118,37 @@ assert 'sorti du stock' in r.get_data(as_text=True)
 assert db.execute("select count(*) from sorties where beneficiaire='Gagnant'").fetchone()[0] == 2
 assert c.get('/coffrets').status_code == 200
 print('coffrets OK')
+
+# --- 4. Prévision de production
+html = c.get('/prevision').get_data(as_text=True)
+assert 'Prévision de production' in html and 'Marché de producteurs de Surgères' in html
+c.post('/agenda/nouveau', data={'csrf': csrf(), 'nom': 'Grand marché de Noël', 'type': 'marche', 'date_debut': '2026-12-20', 'btl_prevues': '150'})
+html = c.get('/prevision').get_data(as_text=True)
+assert 'Il manquera' in html and 'Lancer ce lot' in html, 'manque détecté'
+assert 'Lancer ' in c.get('/').get_data(as_text=True)
+r = c.get('/lots/nouveau?recette_id=1&litres=12.5'); assert 'value="12.5"' in r.get_data(as_text=True)
+print('prévision OK')
+
+# --- 5. Lot d'essai et carnet de dégustation (avec photo)
+import io
+from PIL import Image
+r = c.post('/lots/nouveau', data={'csrf': csrf(), 'recette_id': '2', 'recette_nom': '', 'date_maceration': '2026-10-01', 'litres': '1', 'perte_pct': '15', 'volume_cl': '50', 'nb_bouteilles': '1', 'statut': 'maceration', 'essai': '1'})
+essai = int(r.headers['Location'].split('/')[-1])
+assert db.execute('select essai from lots where id=?', (essai,)).fetchone()[0] == 1
+img = io.BytesIO(); Image.new('RGB', (40, 30), (200, 120, 40)).save(img, 'JPEG'); img.seek(0)
+c.post(f'/lots/{essai}/degustations', data={'csrf': csrf(), 'date': '2026-10-31', 'note': '4', 'commentaire': 'Très fruité', 'photo': (img, 'photo.jpg')}, content_type='multipart/form-data')
+d = db.execute('select * from degustations where lot_id=?', (essai,)).fetchone()
+assert d['note'] == 4 and d['photo'] and c.get(f'/photos/{d["photo"]}').status_code == 200
+html = c.get(f'/lots/{essai}').get_data(as_text=True)
+assert 'J+30' in html and 'Lot d&#39;essai' in html or "Lot d'essai" in html
+assert 'Très fruité' in c.get('/degustations').get_data(as_text=True)
+assert 'dégustation(s)' in c.get('/recettes').get_data(as_text=True)
+print('dégustations OK')
+
+# --- 6. Historique des prix et alerte de hausse (rhum ambré : 17 € puis 19,50 €/L)
+c.post('/achats/nouveau', data={'csrf': csrf(), 'fournisseur': 'Distillerie des Alizés', 'date_achat': '2026-10-30', 'mode_paiement': 'virement',
+                                'l_article': ['mp:2'], 'l_designation': [''], 'l_qte': ['10'], 'l_unite': ['L'], 'l_montant': ['195']})
+html = c.get('/matieres/2').get_data(as_text=True)
+assert 'Historique des prix' in html and '+15 %' in html, 'variation'
+assert 'Hausse du prix : Rhum ambré 45° +15 %' in c.get('/').get_data(as_text=True)
+print('prix OK')

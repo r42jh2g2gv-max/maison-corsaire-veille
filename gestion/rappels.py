@@ -85,6 +85,15 @@ def calculer_rappels(conn, conf):
                     + (" — stock insuffisant" if manque else ""),
                     jour - timedelta(days=1), lien)
 
+    # Prévision de production : lots à lancer pour couvrir les prochains marchés
+    from vues_prevision import rappels_prevision
+    for evt, conseil in rappels_prevision(conn):
+        lancer = date.fromisoformat(conseil["lancer_avant"])
+        ajouter("retard" if conseil["trop_tard"] else "urgent", "lot",
+                f"Lancer {conseil['litres']:g} L de {conseil['recette']}",
+                f"≈ {conseil['btl']} bouteilles pour {evt['nom']} ({date.fromisoformat(evt['date_debut']):%d/%m})",
+                lancer, url_for("prevision_vue"))
+
     # Lots
     for l in conn.execute(
             """SELECT l.*, r.duree_maceration_jours AS duree FROM lots l
@@ -116,6 +125,14 @@ def calculer_rappels(conn, conf):
                     f"Reste {m['stock']:g} {m['unite']} · seuil {m['seuil_alerte']:g}"
                     + (f" · {m['fournisseur']}" if m["fournisseur"] else ""), None,
                     url_for("matiere_detail", mp_id=m["id"]))
+
+    # Hausse de prix d'un ingrédient (dernier achat ≥ 10 % plus cher)
+    from vues_matieres import hausses_prix
+    for h in hausses_prix(conn):
+        ajouter("info", "stock", f"Hausse du prix : {h['mp']['nom']} {h['variation']:+.0f} %",
+                f"{euro(h['avant'])} → {euro(h['apres'])} / {h['mp']['unite']}"
+                + (f" · vérifiez le prix de : {', '.join(h['recettes'])}" if h["recettes"] else ""),
+                None, url_for("matiere_detail", mp_id=h["mp"]["id"]) + "#prix")
 
     # DLC / DDM proches pour des bouteilles encore en stock
     for l in conn.execute(

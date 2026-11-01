@@ -193,7 +193,42 @@ def matiere_detail(mp_id):
            LEFT JOIN achat_lignes al ON al.id = v.achat_ligne_id
            LEFT JOIN achats a ON a.id = al.achat_id
            WHERE v.mp_id = ? ORDER BY v.date_mouvement DESC, v.id DESC""", (mp_id,)).fetchall()
-    return render_template("matiere_detail.html", mp=mp, mouvements=mouvements)
+    return render_template("matiere_detail.html", mp=mp, mouvements=mouvements,
+                           prix=historique_prix(conn, mp_id))
+
+
+def historique_prix(conn, mp_id):
+    """Prix unitaire payé à chaque achat (dans l'unité de stock), du plus ancien au plus récent."""
+    mp = conn.execute("SELECT unite FROM matieres_premieres WHERE id = ?", (mp_id,)).fetchone()
+    sortie = []
+    for l in conn.execute(
+            """SELECT al.quantite, al.unite, al.montant, a.date_achat, a.fournisseur, a.id AS achat_id
+               FROM achat_lignes al JOIN achats a ON a.id = al.achat_id
+               WHERE al.mp_id = ? AND al.montant > 0 AND al.quantite > 0
+               ORDER BY a.date_achat, al.id""", (mp_id,)):
+        qte = convertir(l["quantite"], l["unite"], mp["unite"])
+        if qte:
+            prix = l["montant"] / qte
+            precedent = sortie[-1]["prix"] if sortie else None
+            sortie.append({**dict(l), "prix": prix,
+                           "variation": (prix / precedent - 1) * 100 if precedent else None})
+    return sortie
+
+
+def hausses_prix(conn, seuil=10, jours=90):
+    """Matières dont le dernier achat récent est ≥ 10 % plus cher que le précédent."""
+    from datetime import timedelta
+    limite = (date.today() - timedelta(days=jours)).isoformat()
+    hausses = []
+    for mp in conn.execute("SELECT * FROM matieres_premieres"):
+        h = historique_prix(conn, mp["id"])
+        if len(h) >= 2 and h[-1]["date_achat"] >= limite and (h[-1]["variation"] or 0) >= seuil:
+            recettes = [r[0] for r in conn.execute(
+                "SELECT DISTINCT r.nom FROM recette_ingredients i JOIN recettes r ON r.id = i.recette_id"
+                " WHERE i.mp_id = ?", (mp["id"],))]
+            hausses.append({"mp": mp, "avant": h[-2]["prix"], "apres": h[-1]["prix"],
+                            "variation": h[-1]["variation"], "recettes": recettes})
+    return hausses
 
 
 @app.route("/matieres/<int:mp_id>/inventaire", methods=["POST"])

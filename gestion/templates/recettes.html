@@ -36,8 +36,10 @@
       {% endfor %}
     </ul>
     {% if r.notes_degustation %}<p class="mt mb0" style="font-style:italic;color:var(--texte-doux)">« {{ r.notes_degustation }} »</p>{% endif %}
+    {% set rd = resume_degustations(r.id) %}{% if rd %}<p class="mb0 mt"><a href="{{ url_for('carnet') }}#{{ r.nom|replace(' ', '-') }}">{{ rd.n }} dégustation(s)</a>{% if rd.moyenne %} · moyenne <span class="texte-or">{{ '%.1f'|format(rd.moyenne) }}/5</span>{% endif %}{% if rd.essais %} · {{ rd.essais }} sur lots d'essai{% endif %}</p>{% endif %}
     <div class="form-actions">
       <a class="btn btn-or" href="{{ url_for('lot_nouveau', recette_id=r.id) }}">{{ icone('lot') }}Lancer un lot</a>
+      <a class="btn btn-ligne btn-petit" href="{{ url_for('lot_nouveau', recette_id=r.id, essai=1, litres=1) }}">Essai 1 L</a>
       <a class="btn btn-ligne btn-petit" href="{{ url_for('recette_fiche', recette_id=r.id) }}" target="_blank" aria-label="Fiche recette imprimable">{{ icone('imprimer') }}Fiche</a>
       <a class="btn btn-ligne btn-petit" href="{{ url_for('etiquettes', recette=r.id) }}#recette-{{ r.id }}" aria-label="Étiquette">{{ icone('etiquette') }}Étiquette</a>
       <form method="post" action="{{ url_for('recette_dupliquer', recette_id=r.id) }}" class="inline">

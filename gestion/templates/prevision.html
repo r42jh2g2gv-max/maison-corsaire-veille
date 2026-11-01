@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% from "_icones.html" import icone %}
+{% block titre %}Prévision de production{% endblock %}
+{% block contenu %}
+<div class="titre-page">
+  <div><div class="surtitre">Anticiper</div><h1>Prévision de production</h1><div class="filet"></div>
+    <div class="sous-titre">D'après l'agenda (bouteilles prévues par marché), le stock, les lots en macération et vos ventes habituelles.</div></div>
+</div>
+
+<div class="grille-kpi">
+  <div class="kpi bois"><div class="etiquette">En stock</div><div class="valeur">{{ p.stock }}</div><div class="detail">bouteilles prêtes</div></div>
+  <div class="kpi"><div class="etiquette">En préparation</div><div class="valeur">{{ p.en_cours|sum(attribute='btl') }}</div><div class="detail">{{ p.en_cours|length }} lot(s) en cours</div></div>
+  <div class="kpi"><div class="etiquette">Ventes hors marchés</div><div class="valeur">≈ {{ p.par_mois }}</div><div class="detail">bouteilles / mois</div></div>
+  <div class="kpi"><div class="etiquette">Marchés à venir</div><div class="valeur">{{ p.etapes|length }}</div><div class="detail">{{ p.horizon }} prochains jours</div></div>
+</div>
+
+{% if p.en_cours %}
+<section class="carte" style="margin-bottom:16px">
+  <h2>Lots en préparation</h2>
+  <ul class="liste">
+    {% for x in p.en_cours %}
+    <li><div><a class="principal" href="{{ url_for('lot_detail', lot_id=x.lot.id) }}">{{ x.lot.recette_nom }}</a> <small class="code">{{ x.lot.numero }}</small><br>
+      <small>≈ {{ x.btl }} bouteilles · prêt vers le {{ x.date.isoformat()|datefr }}</small></div>
+      <span class="badge badge-{{ x.lot.statut }}">{{ STATUTS[x.lot.statut] }}</span></li>
+    {% endfor %}
+  </ul>
+</section>
+{% endif %}
+
+<h2>Marché par marché</h2>
+{% if p.etapes %}
+<div class="grille" style="gap:12px">
+  {% for et in p.etapes %}
+  <article class="carte {{ 'rappel-urgent' if et.manque }}" style="{{ 'border-left-width:4px' if et.manque }}">
+    <div class="carte-tete" style="margin-bottom:6px">
+      <h3 style="margin:0">{{ et.e.nom }}</h3>
+      {% if et.manque %}<span class="badge badge-retard">Il manquera {{ et.manque }} btl</span>{% else %}<span class="badge badge-ok">Couvert</span>{% endif %}
+    </div>
+    <p class="doux mb0">{{ et.e.date_debut|datefr }} ({{ et.e.date_debut|jours }}) · {{ et.e.btl_prevues }} bouteilles prévues · besoin cumulé {{ et.besoin }} / disponible {{ et.disponible }}</p>
+    {% if et.conseils %}
+    <ul class="liste mt">
+      {% for c in et.conseils %}
+      <li style="flex-wrap:wrap">
+        <div><span class="principal">{{ c.recette }}</span> : ≈ {{ c.btl }} bouteilles, soit <strong>{{ '%g'|format(c.litres) }} L</strong> à mettre en macération<br>
+          {% if c.trop_tard %}<small class="negatif">À lancer avant le {{ c.lancer_avant|datefr }} : trop tard pour une macération complète (macération plus courte, ou lot plus tôt la prochaine fois).</small>
+          {% else %}<small>À lancer avant le <strong>{{ c.lancer_avant|datefr }}</strong> ({{ c.lancer_avant|jours }})</small>{% endif %}</div>
+        <a class="btn btn-or btn-petit" href="{{ url_for('lot_nouveau', recette_id=c.recette_id, litres=c.litres) }}">{{ icone('lot') }}Lancer ce lot</a>
+      </li>
+      {% endfor %}
+    </ul>
+    {% endif %}
+  </article>
+  {% endfor %}
+</div>
+{% else %}
+<div class="carte"><p class="vide mb0">Aucun marché avec des bouteilles prévues. Indiquez « Bouteilles à emporter » sur vos événements dans l'<a href="{{ url_for('agenda') }}">agenda</a>.</p></div>
+{% endif %}
+<p class="aide mt">Les quantités à produire sont réparties entre vos recettes selon leurs ventes des 12 derniers mois, avec la perte de macération de chaque recette, pour des bouteilles de 50 cl. C'est une estimation : ajustez selon votre envie.</p>
+{% endblock %}

@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block titre %}Carnet de dégustation{% endblock %}
+{% block contenu %}
+<div class="titre-page">
+  <div><div class="surtitre">Recettes</div><h1>Carnet de dégustation</h1><div class="filet"></div>
+    <div class="sous-titre">Toutes vos notes, recette par recette, pour comparer les essais et les variantes.</div></div>
+</div>
+{% if groupes %}
+<div class="grille" style="gap:14px">
+  {% for nom, g in groupes.items() %}
+  <section class="carte" id="{{ nom|replace(' ', '-') }}">
+    <div class="carte-tete"><h2 style="margin:0">{{ nom }}</h2>
+      {% if g.notes %}<span class="texte-or">{{ '%.1f'|format(g.notes|sum / g.notes|length) }}/5 · {{ g.notes|length }} note(s)</span>{% endif %}</div>
+    <ul class="liste">
+      {% for d in g.lignes %}
+      <li style="align-items:flex-start">
+        <div style="min-width:0"><a class="code" href="{{ url_for('lot_detail', lot_id=d.lot_id) }}#carnet">{{ d.numero }}</a>{% if d.essai %} <span class="badge badge-revendeur sans-point">essai</span>{% endif %}
+          · {{ d.date_degustation|datefr }}{% set j = jour_maceration(d, d.date_degustation) %}{% if j is not none %} (J+{{ j }}){% endif %}
+          {% if d.note %} <span class="texte-or">{{ '★' * d.note }}{{ '☆' * (5 - d.note) }}</span>{% endif %}
+          {% if d.commentaire %}<br><span class="pre">{{ d.commentaire }}</span>{% endif %}</div>
+        {% if d.photo %}<a href="{{ url_for('photo', nom=d.photo) }}" target="_blank"><img src="{{ url_for('photo', nom=d.photo) }}" alt="" style="width:64px;height:64px;object-fit:cover;border-radius:8px"></a>{% endif %}
+      </li>
+      {% endfor %}
+    </ul>
+  </section>
+  {% endfor %}
+</div>
+{% else %}<div class="carte"><p class="vide mb0">Aucune dégustation notée. Ouvrez un lot, puis « Noter une dégustation ».</p></div>{% endif %}
+{% endblock %}
