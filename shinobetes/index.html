@@ -393,6 +393,7 @@ button.dexc{font:inherit;color:inherit;cursor:pointer;box-shadow:0 3px 0 var(--i
       <button class="big alt" id="bCont" hidden>Continuer</button>
       <button class="tact alt" id="bCode">J'ai un code de sauvegarde</button>
       <p id="bootMsg">Chargement du jeu…</p>
+      <p class="small" style="opacity:.6;margin:4px 0 0;text-align:center">Version 62</p>
       <p class="small" id="newWarn" hidden>Une partie existe déjà. Appuie encore sur « Nouvelle aventure » pour l'effacer et recommencer.</p>
     </div>
     </div>
@@ -2550,6 +2551,7 @@ function envLayer(x0,x1,y0,y1,camX,camY,px,py,t){if(reduced&&false)return;const 
       if(p.y>H+10){p.y=-10;p.x=Math.random()*W*1.2}if(p.x<-10)p.x=W+5}
     if(wt==='rain')ctx.stroke();ctx.restore()}else WX.length=0;
   if(ph==='day')return;
+  if(ph==='eve'){ctx.save();ctx.setTransform(1,0,0,1,0,0);ctx.globalCompositeOperation='source-over';ctx.fillStyle='rgba(255,120,40,.16)';ctx.fillRect(0,0,cv.width,cv.height);ctx.restore();return}
   if(!LC)LC=document.createElement('canvas');if(LC.width!==Math.ceil(W/3)||LC.height!==Math.ceil(H/3)){LC.width=Math.ceil(W/3);LC.height=Math.ceil(H/3)}
   const g=LC.getContext('2d');g.setTransform(1,0,0,1,0,0);g.globalCompositeOperation='source-over';g.clearRect(0,0,LC.width,LC.height);
   g.setTransform(1/1.5,0,0,1/1.5,0,0);g.fillStyle=ph==='night'?'rgba(12,16,60,.52)':'rgba(255,120,40,.16)';g.fillRect(0,0,W,H);
@@ -3254,7 +3256,7 @@ $('titleL').classList.remove('booting');
 <script>
 /* Application installable : fonctionne aussi sans internet */
 if('serviceWorker' in navigator){
-  navigator.serviceWorker.register('sw.js').then(reg=>{
+  navigator.serviceWorker.register('sw.js',{updateViaCache:'none'}).then(reg=>{
     reg.addEventListener('updatefound',()=>{const w=reg.installing;w&&w.addEventListener('statechange',()=>{
       if(w.state==='installed'&&navigator.serviceWorker.controller){const t=document.getElementById('toast');if(t){t.textContent='Nouvelle version du jeu prête ! Ferme et rouvre l’application pour l’avoir.';t.hidden=false;t.classList.add('show');setTimeout(()=>t.hidden=true,6000)}}})});
   }).catch(()=>{});
