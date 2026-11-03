@@ -959,7 +959,9 @@ const renderScale=()=>{const d=window.devicePixelRatio||1,q=S&&S.qual||'auto';re
 let W=0,H=0,TS=48,ZOOM=1,RUN=false,EMOTE=0;
 function resize(){const r=cv.getBoundingClientRect();W=r.width;H=r.height;const dpr=renderScale();RSC=dpr;
   cv.width=Math.round(W*dpr);cv.height=Math.round(H*dpr);ctx.setTransform(dpr,0,0,dpr,0,0);TS=Math.round(clamp(Math.max(Math.min(W,H)/6.8,Math.max(W,H)/13),52,140)*ZOOM);CHC.clear()}
-addEventListener('resize',resize);addEventListener('orientationchange',()=>setTimeout(resize,350));if(window.visualViewport)visualViewport.addEventListener('resize',()=>setTimeout(resize,100));
+addEventListener('resize',resize);
+cv.addEventListener('contextlost',e=>{e.preventDefault();CHC.clear()});cv.addEventListener('contextrestored',()=>{CHC.clear();LC=null;resize()});
+document.addEventListener('visibilitychange',()=>{if(!document.hidden){CHC.clear();LC=null;setTimeout(resize,200)}});addEventListener('orientationchange',()=>setTimeout(resize,350));if(window.visualViewport)visualViewport.addEventListener('resize',()=>setTimeout(resize,100));
 /* la carte est pré-dessinée par morceaux de 6 × 6 cases : beaucoup moins de travail à chaque image */
 const CH=6,CHM=1,CHC=new Map();let CHMAX=14;
 function groundChunk(cx,cy){const k=cx+','+cy;let c=CHC.get(k);if(c){CHC.delete(k);CHC.set(k,c);return c}
@@ -1296,7 +1298,7 @@ function drawMap(t){
   const mw=COLS*TS,mh=ROWS*TS;
   let camX=mw<=W?(mw-W)/2:clamp(px*TS+TS/2-W/2,0,mw-W);
   let camY=mh<=H?(mh-H)/2:clamp(py*TS+TS/2-H/2,0,mh-H);
-  ctx.fillStyle='#2e7d32';ctx.fillRect(0,0,W,H);
+  ctx.fillStyle='#2e7d32';ctx.fillRect(0,0,cv.width/RSC+2,cv.height/RSC+2);
   const x0=Math.max(0,Math.floor(camX/TS)),x1=Math.min(COLS-1,Math.ceil((camX+W)/TS)),y0=Math.max(0,Math.floor(camY/TS)),y1=Math.min(ROWS-1,Math.ceil((camY+H)/TS));
   let done=false;if(USECH){try{drawGround(x0,x1,y0,y1,camX,camY);done=true}catch(e){USECH=false;CHC.clear()}}
   if(!done){for(let y=y0;y<=y1;y++)for(let x=x0;x<=x1;x++)tile(grid[y][x],x,y,Math.round(x*TS-camX),Math.round(y*TS-camY),t);drawEdges(x0,x1,y0,y1,camX,camY)}
@@ -1383,7 +1385,7 @@ function arrive(){
   if(S.repel>0){S.repel--;if(!S.repel)toast('La fumée ninja s’est dissipée.');return}
   if('hg'.includes(ch)&&P.steps>2&&Math.random()<.055){held=null;mode='busy';EMOTE=performance.now();beep(880,.08,'square',.05);setTimeout(()=>encounter(r),550)}
 }
-let last=0,mapDt=0,PF={n:0,slow:0,fast:0,t:0};
+let SZCHK=0;let last=0,mapDt=0,PF={n:0,slow:0,fast:0,t:0};
 function perfTick(ms,dt){if(!S||(S.qual&&S.qual!=='auto'))return;PF.n++;PF.t+=dt;if(dt>.034)PF.slow++;if(dt<.019)PF.fast++;
   if(PF.t>=2.5){const sl=PF.slow/PF.n,fa=PF.fast/PF.n;
     if(sl>.35&&RS>1){RS=Math.max(1,RS-.25);resize()}else if(fa>.9&&RS<Math.min(1.5,window.devicePixelRatio||1)){RS=Math.min(1.5,RS+.25);resize()}
@@ -1397,7 +1399,9 @@ function frame(ts){
     if(mode==='map'&&!INT){updNpcs(dt);updFace()}
   }
   const covered=mode==='battle'||mode==='panel'||!$('mg').hidden||!$('cine').hidden||!$('evo').hidden;
-  if(S&&mode!=='title'&&!covered){const a0=performance.now();try{if(INT)drawInterior();else drawMap(ts/1000)}catch(e){ctx.setTransform(RSC,0,0,RSC,0,0);ctx.globalAlpha=1;ctx.globalCompositeOperation='source-over';if(!DRAWERR){DRAWERR=true;toast("Petit souci d'affichage ("+(e&&e.message||e)+"). Le jeu continue.")}}perfTick(performance.now()-a0,dt)}
+  if(S&&mode!=='title'&&!covered){const a0=performance.now();
+    if(ts-SZCHK>800){SZCHK=ts;const r=cv.getBoundingClientRect(),dpr=renderScale();if(Math.abs(r.width-W)>1||Math.abs(r.height-H)>1||cv.width!==Math.round(r.width*dpr)||cv.height!==Math.round(r.height*dpr))resize()}
+    ctx.setTransform(RSC,0,0,RSC,0,0);ctx.globalAlpha=1;ctx.globalCompositeOperation='source-over';try{if(INT)drawInterior();else drawMap(ts/1000)}catch(e){ctx.setTransform(RSC,0,0,RSC,0,0);ctx.globalAlpha=1;ctx.globalCompositeOperation='source-over';if(!DRAWERR){DRAWERR=true;toast("Petit souci d'affichage ("+(e&&e.message||e)+"). Le jeu continue.")}}perfTick(performance.now()-a0,dt)}
 }
 
 /* contrôles */
@@ -2547,7 +2551,7 @@ function envLayer(x0,x1,y0,y1,camX,camY,px,py,t){if(reduced&&false)return;const 
     if(wt==='rain')ctx.stroke();ctx.restore()}else WX.length=0;
   if(ph==='day')return;
   if(!LC)LC=document.createElement('canvas');if(LC.width!==Math.ceil(W/3)||LC.height!==Math.ceil(H/3)){LC.width=Math.ceil(W/3);LC.height=Math.ceil(H/3)}
-  const g=LC.getContext('2d');g.globalCompositeOperation='source-over';g.clearRect(0,0,LC.width,LC.height);
+  const g=LC.getContext('2d');g.setTransform(1,0,0,1,0,0);g.globalCompositeOperation='source-over';g.clearRect(0,0,LC.width,LC.height);
   g.setTransform(1/1.5,0,0,1/1.5,0,0);g.fillStyle=ph==='night'?'rgba(12,16,60,.52)':'rgba(255,120,40,.16)';g.fillRect(0,0,W,H);
   const lights=[];
   if(ph==='night'){lights.push([px*TS-camX+TS/2,py*TS-camY+TS/2,TS*2.6]);
