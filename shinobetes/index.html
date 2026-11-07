@@ -91,6 +91,17 @@ html.ios #map{filter:saturate(1.08) contrast(1.04)}
 .dbtn{background:rgba(255,255,255,.88);border:3px solid var(--ink);border-radius:16px;font-size:28px;box-shadow:0 3px 0 var(--ink);display:grid;place-items:center}
 .dbtn.on{background:var(--sun)}
 .rbtn.tech{width:68px;height:68px;font-size:32px;background:#ffd23f}.rbtn.tech.on{background:#b9a6ff;box-shadow:0 0 18px #b9a6ff}
+/* rang ninja du joueur et raccourcis */
+.rankp{gap:8px;padding:4px 12px 4px 4px}.rankp .rav{width:38px;height:38px;border-radius:50%;border:3px solid #43c463;background:#fff8e6 center/cover no-repeat;flex:none}
+.rankp .rtx{display:flex;flex-direction:column;gap:3px;min-width:96px}.rankp b{font-size:14px;line-height:1}.rankp .rlv{font-size:12px;color:#c98a00;font-weight:900}
+.rankp .rbar{height:8px;border-radius:6px;background:#2a2740;overflow:hidden;border:1.5px solid var(--ink)}.rankp .rbar i{display:block;height:100%;background:linear-gradient(90deg,#43c463,#ffd23f);width:0;transition:width .4s}
+.tbtn.ic{padding:8px 11px;font-size:20px;line-height:1}
+#menuGrid{grid-template-columns:repeat(auto-fill,minmax(250px,1fr))!important;gap:12px!important}
+#menuGrid .mtile{flex-direction:row!important;justify-content:flex-start;text-align:left;gap:12px;padding:12px 14px!important;border:3px solid var(--ink)!important;box-shadow:0 5px 0 var(--ink)!important;border-radius:18px!important;color:#fff;background:var(--mc,#e05a4e)!important}
+#menuGrid .mtile .mic{flex:none;width:58px;height:58px;border-radius:14px;background:#fff8e6;border:3px solid var(--ink);display:grid;place-items:center;font-size:30px}
+#menuGrid .mtile b{color:#fff;text-shadow:0 2px 0 rgba(0,0,0,.35);font-size:21px;display:block}#menuGrid .mtile small{color:#fff;opacity:.95;font-weight:800;font-size:14px;display:block}
+#menuGrid .mtile .mtx{display:flex;flex-direction:column;gap:2px;min-width:0}
+#menuGrid .mtile:active{transform:translateY(3px);box-shadow:0 2px 0 var(--ink)!important}
 #actL{position:absolute;inset:0;z-index:65;display:grid;place-items:center;background:rgba(10,8,30,.7);padding:12px}
 #actL .abox{background:#fff8e6;border:4px solid var(--ink);border-radius:22px;width:min(760px,100%);max-height:94%;display:flex;flex-direction:column;overflow:hidden}
 #actL .ahead{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:10px 14px;border-bottom:3px solid var(--ink);background:#ffd76a}#actL h2{font-family:var(--display);margin:0;font-size:24px;color:#8a2a2a}
@@ -357,11 +368,14 @@ button.dexc{font:inherit;color:inherit;cursor:pointer;box-shadow:0 3px 0 var(--i
   <div class="tilt top-b"></div><div class="tilt bot-b"></div><div class="grade"></div>
 
   <div class="top" id="top" hidden>
+    <div class="pill rankp" id="rankp"><span class="rav" id="rankAv"></span><span class="rtx"><b id="rankNm">Ninja</b><span class="rlv" id="rankLv">Niveau 1 · Apprenti</span><span class="rbar"><i id="rankBar"></i></span></span></div>
     <div class="pill"><span class="beltbar" id="beltc"></span><span id="beltn">Ceinture blanche</span></div>
     <div class="pill"><span class="ico" data-i="coin">🪙</span> <span id="money">0</span></div>
     <div class="pill"><span class="ico" data-i="i_etoile">🎟</span> <span id="tickets">0</span></div>
     <div class="pill" id="scrollp"><span class="ico" data-i="scroll">📜</span> <span id="scrolln">5</span></div>
     <div class="topbtns">
+      <button class="tbtn ic" id="bMapQ" aria-label="Carte">🗺️</button>
+      <button class="tbtn ic" id="bSndQ" aria-label="Son">🔊</button>
       <button class="tbtn" id="bMenu">Menu</button>
     </div>
   </div>
@@ -393,7 +407,7 @@ button.dexc{font:inherit;color:inherit;cursor:pointer;box-shadow:0 3px 0 var(--i
       <button class="big alt" id="bCont" hidden>Continuer</button>
       <button class="tact alt" id="bCode">J'ai un code de sauvegarde</button>
       <p id="bootMsg">Chargement du jeu…</p>
-      <p class="small" style="opacity:.6;margin:4px 0 0;text-align:center">Version 62</p>
+      <p class="small" style="opacity:.6;margin:4px 0 0;text-align:center">Version 63</p>
       <p class="small" id="newWarn" hidden>Une partie existe déjà. Appuie encore sur « Nouvelle aventure » pour l'effacer et recommencer.</p>
     </div>
     </div>
@@ -850,7 +864,18 @@ function applyBeaten(){CHC.clear();grid=WORLD.map(r=>r.slice());for(const[k,t]of
 const bestLv=()=>Math.max(...S.team.map(c=>c.lv));
 function respawn(){INT=null;document.getElementById('app').classList.remove('inside');const c=TP[S.lastTown||0];P.x=P.fx=c.x-3;P.y=P.fy=c.y-1;P.dir='up';P.moving=false;curReg=-1}
 function updTech(){const b=document.getElementById('bTech');if(b)b.hidden=!S||!TECH.some(T=>hasT(T.k)&&T.use==='map')}
-function updTop(){updTech();dmEnsure();if(S.money!==undefined){$('money').textContent=S.money;$('tickets').textContent=S.tickets||0;checkQuests()}const b=BELTS[S.beaten.length];$('beltn').textContent='Ceinture '+b[0];$('beltc').style.background=b[1];$('scrolln').textContent=S.scrolls}
+const RANKT=['Apprenti','Genin','Chûnin','Jônin','Maître ninja','Légende ninja'];
+const rankTitle=l=>RANKT[Math.min(RANKT.length-1,Math.floor((l-1)/5))];
+function rankPts(){const st=S.st||{},pg=S.pg||{};return (st.catch||0)*15+(st.wins||0)*5+(st.exam||0)*5+S.beaten.length*100+(S.trn||[]).length*10+(S.qc||[]).length*30+(S.ms||[]).length*60+(st.hunts||0)*25+(S.fq||[]).length*20+(st.craft||0)*5+(st.fish||0)*10+(st.eggs||0)*30+(st.arc||0)*5+(st.pet||0)*10+(st.eng||0)*15+((S.tour||{}).best||0)*10+(S.plat?S.plat.done.reduce((a,b)=>a+b,0)*25:0)+(st.giant||0)*40+((pg.calc||[0])[0])*3+(st.league||0)*300+(S.rdef||[]).length*20+(st.spin||0)*20+(st.defi||0)*25}
+const rankNeed=l=>40+l*20;
+function rankOf(p){let l=1;while(l<99&&p>=rankNeed(l)){p-=rankNeed(l);l++}return{l,p,n:rankNeed(l)}}
+function updRank(){if(!S||!S.st)return;const r=rankOf(rankPts());
+  if(S.rkl===undefined)S.rkl=r.l;
+  else if(r.l>S.rkl){for(let l=S.rkl+1;l<=r.l;l++){const m=30+l*10;S.money+=m;if(l%5===0)bagAdd('cristal',1);if(typeof jr==='function'&&l%5===0)jr(`Rang ninja : niveau ${l}, titre « ${rankTitle(l)} » !`)}
+    const l=r.l;S.rkl=l;setTimeout(()=>{toast(`🥷 Niveau ninja ${l} ! +${30+l*10} shinosous${l%5===0?` et un cristal. Nouveau titre : ${rankTitle(l)} !`:''}`);try{tune([523,659,784,1047],.07,'triangle',.06)}catch(e){}},300)}
+  const el=document.getElementById('rankNm');if(!el)return;el.textContent=S.name;$('rankLv').textContent=`Niveau ${r.l} · ${rankTitle(r.l)}`;$('rankBar').style.width=Math.round(r.p/r.n*100)+'%';
+  const av=$('rankAv'),src=(window.HERO_SRC||{}).down;if(src&&!av.style.backgroundImage)av.style.backgroundImage=`url(${src})`}
+function updTop(){updTech();dmEnsure();updRank();if(S.money!==undefined){$('money').textContent=S.money;$('tickets').textContent=S.tickets||0;checkQuests()}const b=BELTS[S.beaten.length];$('beltn').textContent='Ceinture '+b[0];$('beltc').style.background=b[1];$('scrolln').textContent=S.scrolls}
 
 /* ================= DESSIN DES CRÉATURES ================= */
 /*@@DRAW*/
@@ -1937,7 +1962,8 @@ function openMenu(){
   const it=[['dex',ICO('i_livre','📖'),'Shinodex',`${S.caught.length} / ${NSP} capturées`],['team',ICO('i_groupe','🥷'),'Équipe',`${S.team.length} / 6 · Boîte ${S.box.length}`],
     ['bag',ICO('i_sac','🎒'),'Sac',`${S.money} shinosous`],['quest',ICO('i_etoile','⭐'),'Quêtes',cq?`${cq} récompense${cq>1?'s':''} à récupérer !`:`${S.qc.length} / ${QUESTS.length} terminées`],
     ['tech','🥷','Techniques ninja',`${TECH.filter(T=>hasT(T.k)).length} / ${TECH.length} apprises`],['map',ICO('map','🗺️'),'Carte',`Ceinture ${BELTS[S.beaten.length][0]}`],['code','🔑','Code de sauvegarde','Garde ta partie en lieu sûr'],['act','🎒','Activités','Jeux, énigmes, dessin, parents…'],['fs','⛶','Plein écran',document.fullscreenElement?'Activé':'Pour jouer sans les barres'],['qual','⚙️','Qualité graphique',{auto:'Automatique',haute:'Haute (tablettes puissantes)',eco:'Économie (tablettes lentes)'}[S.qual||'auto']],['day',dayPhase()==='night'?'🌙':'☀️','Jour et nuit',S.dayMode==='day'?'Toujours de jour':'Suit l’heure réelle'],['tips',ICO('i_bulle','💡'),'Astuces','Des conseils de sensei'],['music','🎵','Musique',S.music?'Activée':'Coupée'],['save','💾','Sauvegarder','La partie est aussi sauvegardée toute seule']];
-  g.innerHTML=it.map(([k,ic,t,s])=>`<button class="mtile${k==='quest'&&cq?' hot':''}" data-k="${k}"><span class="mic">${ic}</span><b>${t}</b><small>${s}</small></button>`).join('');
+  const MC=['#e05a4e','#f0883a','#3d9be0','#8b5cf6','#43a85c','#d9488f','#c98a00','#2bb3a3','#5468d4','#e0703a','#7a8a99','#6b7f3a','#9b59b6'];
+  g.innerHTML=it.map(([k,ic,t,s],i)=>`<button class="mtile${k==='quest'&&cq?' hot':''}" data-k="${k}" style="--mc:${MC[i%MC.length]}"><span class="mic">${ic}</span><span class="mtx"><b>${t}</b><small>${s}</small></span></button>`).join('');
   g.querySelectorAll('button').forEach(b=>b.onclick=()=>{const k=b.dataset.k;
     if(k==='music'){S.music=!S.music;musicOn(S.music);save();mode='map';openMenu();return}
     if(k==='save'){save();toast('Partie sauvegardée !');return}
@@ -2682,11 +2708,11 @@ function buildLevel(n){const LW=[112,128,140][n],LH=10,g=[...Array(LH)].map(()=>
     ground(0,20);coins(6,9,6);put(12,5,'?');put(13,5,'?');plat(16,19,5);put(18,3,'*');
     ground(23,40);ent('crow',31,5.6);put(36,7,'x');coins(25,28,7);
     ground(44,60);put(46,7,'K');plat(50,53,5);coins(50,53,4);put(57,7,'S');put(57,2,'*');
-    plat(62,64,8);ground(66,90);ent('ninja',73,8);put(70,5,'?');coins(76,79,6);ent('crow',82,5);plat(80,82,6);plat(84,88,4);put(86,2,'*');
+    plat(62,64,8);ground(66,90);ent('ninja',73,8);put(70,5,'?');coins(76,79,6);ent('crow',82,5);plat(80,82,6);plat(84,88,4);put(86,2,'*');put(52,3,'e');
     put(92,7,'x');ground(91,111);coins(95,98,6);put(104,7,'F')}
   if(n===1){
     ground(0,12);coins(4,8,6);put(9,5,'?');
-    ent('mplat',15,7,{w:4,amp:2,sp:.9});ground(23,35);put(27,7,'x');plat(29,31,6);plat(33,35,4);put(34,2,'*');ent('ninja',25,8);
+    ent('mplat',15,7,{w:4,amp:2,sp:.9});ground(23,35);put(27,7,'x');plat(29,31,6);put(30,4,'e');plat(33,35,4);put(34,2,'*');ent('ninja',25,8);
     ent('mplat',38,6,{w:4,amp:2,sp:1});ground(45,57);put(47,7,'K');ent('crow',52,5.5);put(54,5,'?');put(55,5,'?');coins(49,52,6);
     plat(59,61,6);plat(64,66,5);plat(69,71,6);coins(64,66,4);put(65,2,'*');
     ground(74,93);ent('ninja',81,8);ent('ninja',88,8);put(78,7,'S');coins(76,79,3);put(91,7,'x');
@@ -2695,16 +2721,16 @@ function buildLevel(n){const LW=[112,128,140][n],LH=10,g=[...Array(LH)].map(()=>
     ground(0,14);put(6,5,'?');coins(9,12,6);put(12,7,'x');
     plat(17,19,7);plat(22,24,6);plat(27,29,5);put(28,3,'*');ground(32,46);ent('ninja',36,8);ent('crow',41,5.4);put(43,7,'x');put(44,7,'x');
     ent('mplat',50,7,{w:4,amp:2,sp:1.1});ground(57,70);put(59,7,'K');put(60,7,'S');plat(62,66,4);coins(62,66,3);put(64,2,'*');ent('ninja',68,8);
-    plat(73,75,7);plat(78,80,6);ent('crow',79,4);plat(83,85,7);ground(88,105);put(91,7,'x');put(95,7,'x');ent('ninja',99,8);put(101,5,'?');
+    plat(73,75,7);put(74,5,'e');plat(78,80,6);ent('crow',79,4);plat(83,85,7);ground(88,105);put(91,7,'x');put(95,7,'x');ent('ninja',99,8);put(101,5,'?');
     ent('mplat',109,6,{w:4,amp:2,sp:1.2});ground(116,139);put(118,7,'K');ent('ninja',123,8);ent('crow',127,5);plat(129,131,5);plat(133,135,3);put(134,1,'*');put(137,7,'x');put(136,7,'F')}
   return{g,E,LW,LH}}
 async function gamePlat(n){const G=mgOpen('Ninja des Toits · '+PLAT_N[n]),{c,W,H,cv}=G;
-  await mgIntro('Ninja des Toits',`Niveau ${n+1} : ${PLAT_N[n]}. Utilise les flèches pour courir et le gros bouton pour sauter (deux fois pour un double saut). Saute sur les ennemis pour les battre, tape les blocs « ? » par-dessous, rebondis sur les ressorts. Trouve les 3 étoiles cachées et atteins le drapeau !`);
+  await mgIntro('Ninja des Toits',`Niveau ${n+1} : ${PLAT_N[n]}. Utilise les flèches pour courir et le gros bouton pour sauter (deux fois pour un double saut). Saute sur les ennemis pour les battre, tape les blocs « ? » par-dessous, rebondis sur les ressorts. Trouve les 3 étoiles cachées, l'œuf caché, et atteins le drapeau !`);
   const L=buildLevel(n),g=L.g,T=Math.min(H/10,W/11),oy=Math.max(0,H-10*T),bg=HIMG('bg_saut');
   const SOL='#=?!',solid=(x,y)=>x<0||x>=L.LW?true:y<0||y>=L.LH?false:SOL.includes(g[y][x]);
   const stars=[];for(let x=0;x<L.LW;x++)for(let y=0;y<L.LH;y++)if(g[y][x]==='*')stars.push(x);stars.sort((a,b)=>a-b);
   const got=[false,false,false];let fx=0;for(let x=0;x<L.LW;x++)for(let y=0;y<L.LH;y++)if(g[y][x]==='F')fx=x;
-  const P2={x:2,y:6.9,vx:0,vy:0,w:.6,h:.9,on:false,jumps:0,face:1,inv:0,run:0},cp={x:2,y:6.9};let hearts=3,coinsN=0,t=0,parts=[],won=false,lost=false,endT=0,jumpHeld=false;
+  let eggGot=false;const P2={x:2,y:6.9,vx:0,vy:0,w:.6,h:.9,on:false,jumps:0,face:1,inv:0,run:0},cp={x:2,y:6.9};let hearts=3,coinsN=0,t=0,parts=[],won=false,lost=false,endT=0,jumpHeld=false;
   const keys={l:false,r:false};const ptr=new Map();
   const btn=()=>{const r=Math.min(W,H)*.1;return{l:{x:r*1.3,y:H-r*1.3,r},rr:{x:r*3.7,y:H-r*1.3,r},j:{x:W-r*1.5,y:H-r*1.4,r:r*1.2}}};
   const which=(x,y)=>{const B=btn();for(const k of['l','rr','j']){const b=B[k];if(Math.hypot(x-b.x,y-b.y)<b.r*1.35)return k}return x>W*.55?'j':null};
@@ -2739,6 +2765,7 @@ async function gamePlat(n){const G=mgOpen('Ninja des Toits · '+PLAT_N[n]),{c,W,
       const cx0=Math.floor(P2.x),cx1=Math.floor(P2.x+P2.w),cy0=Math.floor(P2.y),cy1=Math.floor(P2.y+P2.h-.01);
       for(let y=cy0;y<=cy1;y++)for(let x=cx0;x<=cx1;x++){const ch=(g[y]||[])[x];
         if(ch==='o'){g[y][x]=' ';coinsN++;beep(1320,.04,'square',.03)}
+        if(ch==='e'){g[y][x]=' ';eggGot=true;tune([659,880,1175],.07,'triangle',.06);parts.push({x:x+.5,y:y+.5,l:.8,k:'star'})}
         if(ch==='*'){g[y][x]=' ';const i=stars.indexOf(x);if(i>=0)got[i]=true;tune([784,988,1319],.06,'triangle',.06);parts.push({x:x+.5,y:y+.5,l:.8,k:'star'})}
         if(ch==='x'){hurt();P2.vy=-9}
         if(ch==='K'&&cp.x!==x){cp.x=x;cp.y=y-.1;tune([523,784],.07);parts.push({x:x+.5,y:y,l:.8,k:'star'})}
@@ -2765,6 +2792,8 @@ async function gamePlat(n){const G=mgOpen('Ninja des Toits · '+PLAT_N[n]),{c,W,
       else if(ch==='?'||ch==='!'){c.fillStyle=ch==='?'?'#f0b232':'#9c7a4a';c.fillRect(X+1,Y+1,T-2,T-2);c.strokeStyle='#5e3816';c.lineWidth=3;c.strokeRect(X+2,Y+2,T-4,T-4);
         if(ch==='?'){c.fillStyle='#fff';c.font=`900 ${T*.6}px sans-serif`;c.textAlign='center';c.textBaseline='middle';c.fillText('?',X+T/2,Y+T/2+Math.sin(t*4)*2)}}
       else if(ch==='o'){const im=HIMG('s_piece'),sx=Math.abs(Math.cos(t*5+x));if(im)c.drawImage(im,X+T/2-T*.3*sx,Y+T*.2,T*.6*sx+1,T*.6)}
+      else if(ch==='e'){c.save();c.translate(X+T/2,Y+T*.55+Math.sin(t*3)*3);c.rotate(Math.sin(t*2)*.15);c.fillStyle='#fffaf0';c.strokeStyle='#1d1b2e';c.lineWidth=3;c.beginPath();c.ellipse(0,0,T*.26,T*.34,0,0,7);c.fill();c.stroke();
+        c.fillStyle='#43c463';c.beginPath();c.arc(-T*.08,-T*.1,T*.06,0,7);c.fill();c.fillStyle='#e63946';c.beginPath();c.arc(T*.09,T*.08,T*.05,0,7);c.fill();c.restore()}
       else if(ch==='*'){c.save();c.fillStyle='#ffd23f';c.strokeStyle='#b8860b';c.lineWidth=3;star(c,X+T/2,Y+T/2+Math.sin(t*3)*3,T*.38,5);c.fill();c.stroke();c.restore()}
       else if(ch==='x')img('s_ronces',X+T/2,Y+T,T*1.05);
       else if(ch==='S'){c.fillStyle='#e63946';c.fillRect(X+T*.15,Y+T*.75,T*.7,T*.25);c.strokeStyle='#555';c.lineWidth=3;c.beginPath();for(let i=0;i<4;i++){c.moveTo(X+T*.25,Y+T*(.75-i*.1));c.lineTo(X+T*.75,Y+T*(.7-i*.1))}c.stroke();c.fillStyle='#ffd23f';c.fillRect(X+T*.1,Y+T*.35,T*.8,T*.12)}
@@ -2778,13 +2807,13 @@ async function gamePlat(n){const G=mgOpen('Ninja des Toits · '+PLAT_N[n]),{c,W,
     c.restore();
     // interface
     c.font='900 22px sans-serif';c.textAlign='left';c.textBaseline='top';c.fillStyle='#fff';c.strokeStyle='#1d1b2e';c.lineWidth=5;
-    const hud=`${'♥'.repeat(Math.max(0,hearts))}   ● ${coinsN}   ${got.map(v=>v?'★':'☆').join('')}`;c.strokeText(hud,14,10);c.fillText(hud,14,10);
+    const hud=`${'♥'.repeat(Math.max(0,hearts))}   ● ${coinsN}   ${got.map(v=>v?'★':'☆').join('')}   ${eggGot||(S.plat&&S.plat.egg&&S.plat.egg[n])?'🥚':'○ œuf caché'}`;c.strokeText(hud,14,10);c.fillText(hud,14,10);
     const B=btn();c.globalAlpha=.75;for(const[k,b]of Object.entries(B)){c.fillStyle=(k==='l'&&keys.l)||(k==='rr'&&keys.r)||(k==='j'&&jumpHeld)?'#ffd23f':'#fff';c.beginPath();c.arc(b.x,b.y,b.r,0,7);c.fill();c.lineWidth=3;c.strokeStyle='#1d1b2e';c.stroke();
       c.fillStyle='#1d1b2e';c.font=`900 ${b.r*.8}px sans-serif`;c.textAlign='center';c.textBaseline='middle';c.fillText(k==='l'?'◀':k==='rr'?'▶':'⤒',b.x,b.y+2)}c.globalAlpha=1;
     if(won||lost){c.font='900 40px sans-serif';c.textAlign='center';c.textBaseline='middle';c.lineWidth=7;const m2=won?'Niveau réussi !':'Oh non…';c.strokeText(m2,W/2,H*.35);c.fillStyle=won?'#ffd23f':'#fff';c.fillText(m2,W/2,H*.35)}
     $('mgScore').textContent=coinsN;$('mgInfo').textContent=got.filter(Boolean).length+' / 3 étoiles'});
   cv.removeEventListener('pointerdown',pd);cv.removeEventListener('pointerup',pu);cv.removeEventListener('pointercancel',pu);cv.removeEventListener('pointermove',pm);removeEventListener('keydown',kd);removeEventListener('keyup',ku);window.__lastHits=HITS;window.__plat=null;
-  return r===-1?{quit:true}:{win:r==='win',coins:coinsN,got,time:Math.round(t)}}
+  return r===-1?{quit:true}:{win:r==='win',coins:coinsN,got,egg:eggGot,time:Math.round(t)}}
 const PLAT_GOLD=[55,75,95];const platMedal=(i,tm)=>tm<=PLAT_GOLD[i]?'🥇':tm<=PLAT_GOLD[i]*1.4?'🥈':'🥉';
 async function platMenu(who){S.plat=S.plat||{u:1,st:[[0,0,0],[0,0,0],[0,0,0]],done:[0,0,0]};const P=S.plat;
   const opts=PLAT_N.map((n2,i)=>i<P.u?`${i+1} · ${n2} ${P.st[i].map(v=>v?'★':'☆').join('')}${P.time&&P.time[i]?` ⏱ ${P.time[i]} s ${platMedal(i,P.time[i])}`:''}`:`${i+1} · 🔒 ${n2}`).concat(['Retour']);
@@ -2792,11 +2821,13 @@ async function platMenu(who){S.plat=S.plat||{u:1,st:[[0,0,0],[0,0,0],[0,0,0]],do
   if(i>=PLAT_N.length){mode='map';return}if(i>=P.u){await talk(who,`Termine d'abord le niveau ${P.u} pour débloquer celui-ci.`);mode='map';return}
   if(S.money<GAME_COST){await talk(who,"Tu n'as pas assez de shinosous.");mode='map';return}
   S.money-=GAME_COST;updTop();const R2=await gamePlat(i);if(R2.quit){mgClose();return}
+  let eggMsg='';P.egg=P.egg||[0,0,0];if(R2.egg&&R2.win&&!P.egg[i]){P.egg[i]=1;const sp=[13,19,22][i]*3,c=mk(sp,8);caught(sp);if(S.team.length<6)S.team.push(c);else S.box.push(c);S.st.eggs=(S.st.eggs||0)+1;if(typeof jr==='function')jr(`Œuf caché de Ninja des Toits : bienvenue à ${spec(sp).name} !`);eggMsg=` 🥚 L'œuf caché éclot : c'est un bébé ${spec(sp).name} ! ${S.team.includes(c)?'Il rejoint ton équipe.':'Il part dans ta Boîte.'}`}
+  else if(R2.egg&&!R2.win&&!P.egg[i])eggMsg=' Tu avais trouvé l’œuf caché, mais il faut atteindre le drapeau pour le garder !';
   let newSt=0;R2.got.forEach((v,k)=>{if(v&&!P.st[i][k]){P.st[i][k]=1;newSt++}});
   let tk=0,msg='';if(R2.win){P.time=P.time||[0,0,0];const med=platMedal(i,R2.time),old=P.time[i]?platMedal(i,P.time[i]):'';if(!P.time[i]||R2.time<P.time[i])P.time[i]=R2.time;
     if(med==='🥇'&&old!=='🥇'){S.tickets+=15;setTimeout(()=>toast('🥇 Médaille d’or au chrono : +15 jetons !'),400)}const first=!P.done[i];if(first)jr(`Ninja des Toits : niveau « ${PLAT_N[i]} » terminé !`);P.done[i]=1;if(i+1<PLAT_N.length)P.u=Math.max(P.u,i+2);tk=Math.floor(R2.coins/2)+newSt*5+(first?10:3);msg=`${first?'Premier passage réussi ! ':''}Temps : ${R2.time} s ${platMedal(i,R2.time)} (or en moins de ${PLAT_GOLD[i]} s). ${R2.coins} pièces, ${newSt} nouvelle${newSt>1?'s':''} étoile${newSt>1?'s':''}.`}
   else{tk=newSt*5;msg=newSt?`Tu gardes ${newSt} étoile${newSt>1?'s':''} trouvée${newSt>1?'s':''}. Réessaie pour atteindre le drapeau !`:'Réessaie pour atteindre le drapeau !'}
-  S.tickets+=tk;S.st.arc++;save();await mgOver(R2.win?'Bravo !':'Perdu…',`${msg} Tu gagnes ${tk} jeton${tk>1?'s':''}.`);mgClose();updTop();save();checkQuests()}
+  S.tickets+=tk;S.st.arc++;save();await mgOver(R2.win?'Bravo !':'Perdu…',`${msg}${eggMsg} Tu gagnes ${tk} jeton${tk>1?'s':''}.`);mgClose();updTop();save();checkQuests()}
 
 /* ================= OUTILS COMMUNS ================= */
 const dHash=(s2,n)=>{let h=0;for(const ch of s2)h=(h*31+ch.charCodeAt(0))>>>0;return h%n};
@@ -3177,6 +3208,9 @@ function openDex(){
 }
 document.querySelectorAll('[data-close]').forEach(b=>b.onclick=()=>{b.closest('.layer').hidden=true;mode='map'});
 $('bMenu').onclick=openMenu;
+$('bMapQ').onclick=()=>{audioOn();openMap()};
+$('bSndQ').onclick=()=>{audioOn();if(!S)return;S.music=!S.music;musicOn(S.music);$('bSndQ').textContent=S.music?'🔊':'🔇';save();toast(S.music?'Musique activée':'Musique coupée')};
+$('rankp').onclick=()=>{if(mode!=='map'||!S)return;const r=rankOf(rankPts());mode='talk';talk('Rang ninja',`Tu es niveau ${r.l} (${rankTitle(r.l)}). Encore ${r.n-r.p} points pour le niveau suivant. Tu gagnes des points en capturant, en combattant, à l'école, avec les quêtes, les missions et les activités. Chaque niveau rapporte des shinosous, et tous les 5 niveaux un cristal et un nouveau titre !`).then(()=>mode='map')};
 const MMC={'P':'#5d9a46','M':'#b38b59','X':'#2b4a36','T':'#2e6b35','w':'#3aa6e8','b':'#b07a3f','.':'#ecd59a','h':'#79c950','g':'#3f9150','c':'#e6cb5c','r':'#8d8a87','f':'#9fdc6b',',':'#9bd87a','G':'#e63946'};
 function openMap(){
   if(mode!=='map')return;mode='panel';held=null;$('mapL').hidden=false;
@@ -3210,7 +3244,7 @@ function enterWorld(){
   ZOOM=S.zoom||1;resize();
   $('titleL').hidden=true;$('startL').hidden=true;$('top').hidden=false;$('pad').hidden=false;$('sideBtns').hidden=false;updTop();mode='map';
   if(navigator.wakeLock)navigator.wakeLock.request('screen').catch(()=>{});
-  musicOn(S.music);music('map');updTech();dmEnsure();eventCheck();if(!TTS.ok)$('ttsB').hidden=true;
+  musicOn(S.music);music('map');updTech();$('bSndQ').textContent=S.music?'🔊':'🔇';dmEnsure();eventCheck();if(!TTS.ok)$('ttsB').hidden=true;
   {const nw=TECH.map((T,i)=>i).filter(i=>S.beaten.includes(i)&&!S.techSeen.includes(i));if(nw.length){S.techSeen.push(...nw);setTimeout(()=>toast(`🥷 Tu connais ${nw.length} technique${nw.length>1?'s':''} ninja ! Regarde Menu › Techniques ninja.`),1500)}}
 }
 let armed=false;
@@ -3241,7 +3275,7 @@ document.addEventListener('visibilitychange',()=>{if(document.hidden){save();try
 addEventListener('contextmenu',e=>{if(!e.target.closest('textarea,input'))e.preventDefault()});
 async function goFull(){const el=document.documentElement;try{if(document.fullscreenElement){await document.exitFullscreen();return}await (el.requestFullscreen||el.webkitRequestFullscreen).call(el,{navigationUI:'hide'});try{await screen.orientation.lock('landscape')}catch(e){}}catch(e){toast("Le plein écran n'est pas disponible ici. Sur Android, utilise « Ajouter à l'écran d'accueil » dans le menu du navigateur.")}}
 $('bCode').onclick=()=>{audioOn();openCode(true)};
-window.__T={openActs,openDM,openPet,openCraft,openHunt,openClock,openEng,openDict,openRace,openTour,openDraw,openRoom,openBadges,openJournal,openFam,openParent,gameTaiko,gameMemo,gameRace,tourRun,newHunt,huntFound,showPause,calcNinja,animalCard,dexDetail:(i)=>dexDetail(i),examQ,clockInfo,eventToday,BADGES,FACTS,giantWin,encounter,MISSIONS,gamePlat,platMenu,buildLevel,ensureMv,pendingMoves,learnset,mvDef,learnMove,gainXp,renderMoves,trainerTalk,get TRB(){return TRB},fishing,gameFish,pensionMenu,penStep,hatch,legend,LEGEND,openCode,packSave,unpackSave,dayPhase,weatherAt,sttSkip,learnTech,useTech,TECH,hasT,place,rnTalk,maman,professor,mallTalk,missionCall,RNPC,BLOCKS,MISSIONS,ROUTES,wild,lineOdds,stageOdds,get mode(){return mode},mk,maxhp,atk,moves,eff,spec,need,wildLv,wild,CHAMPS,get LEAGUE(){return LEAGUE},rivalTeam,foeMove,LINES,TRAINERS,get S(){return S},set S(v){S=v},trainerBattle,rivalBattle,league,defi,arena,toupieTournament,battle,initState,enterWorld,save,load};
+window.__T={updTop,rankPts,openActs,openDM,openPet,openCraft,openHunt,openClock,openEng,openDict,openRace,openTour,openDraw,openRoom,openBadges,openJournal,openFam,openParent,gameTaiko,gameMemo,gameRace,tourRun,newHunt,huntFound,showPause,calcNinja,animalCard,dexDetail:(i)=>dexDetail(i),examQ,clockInfo,eventToday,BADGES,FACTS,giantWin,encounter,MISSIONS,gamePlat,platMenu,buildLevel,ensureMv,pendingMoves,learnset,mvDef,learnMove,gainXp,renderMoves,trainerTalk,get TRB(){return TRB},fishing,gameFish,pensionMenu,penStep,hatch,legend,LEGEND,openCode,packSave,unpackSave,dayPhase,weatherAt,sttSkip,learnTech,useTech,TECH,hasT,place,rnTalk,maman,professor,mallTalk,missionCall,RNPC,BLOCKS,MISSIONS,ROUTES,wild,lineOdds,stageOdds,get mode(){return mode},mk,maxhp,atk,moves,eff,spec,need,wildLv,wild,CHAMPS,get LEAGUE(){return LEAGUE},rivalTeam,foeMove,LINES,TRAINERS,get S(){return S},set S(v){S=v},trainerBattle,rivalBattle,league,defi,arena,toupieTournament,battle,initState,enterWorld,save,load};
 
 const saved=load();
 if(saved){$('bCont').hidden=false;$('hero').value=saved.name||'Ninja';$('bCont').textContent=`Continuer (${saved.name})`}
