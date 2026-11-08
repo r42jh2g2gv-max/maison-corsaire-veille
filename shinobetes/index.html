@@ -407,7 +407,7 @@ button.dexc{font:inherit;color:inherit;cursor:pointer;box-shadow:0 3px 0 var(--i
       <button class="big alt" id="bCont" hidden>Continuer</button>
       <button class="tact alt" id="bCode">J'ai un code de sauvegarde</button>
       <p id="bootMsg">Chargement du jeu…</p>
-      <p class="small" style="opacity:.6;margin:4px 0 0;text-align:center">Version 63</p>
+      <p class="small" style="opacity:.6;margin:4px 0 0;text-align:center">Version 64</p>
       <p class="small" id="newWarn" hidden>Une partie existe déjà. Appuie encore sur « Nouvelle aventure » pour l'effacer et recommencer.</p>
     </div>
     </div>
@@ -1704,7 +1704,7 @@ function wild(r){
   const m=mk(line*3+st-1,lv);if(Math.random()<shinyP())m.shiny=true;return m;
 }
 async function encounter(r){
-  const w=wild(r);if(S.beaten.length>=2&&Math.random()<1/110){w.giant=true;w.lv=Math.min(60,w.lv+3);w.hp=maxhp(w);toast('🦣 Une Shinobête GÉANTE surgit des herbes !')}constrr=RAR[Math.floor(w.sp/3)];if(rr===4){S.st.vrare=(S.st.vrare||0)+1}if(rr>=3)toast(rr===4?'★ Une Shinobête TRÈS RARE est apparue ! ★':'★ Une Shinobête rare est apparue !');
+  const w=wild(r);if(S.beaten.length>=2&&Math.random()<1/110){w.giant=true;w.lv=Math.min(60,w.lv+3);w.hp=maxhp(w);toast('🦣 Une Shinobête GÉANTE surgit des herbes !')}const rr=RAR[Math.floor(w.sp/3)];if(rr===4){S.st.vrare=(S.st.vrare||0)+1}if(rr>=3)toast(rr===4?'★ Une Shinobête TRÈS RARE est apparue ! ★':'★ Une Shinobête rare est apparue !');
   const res=await battle([w],null,BG[TOWNS[r].th]);mode='map';if(res==='win'&&w.giant)await giantWin(w);
   if(res==='lose'){await talk('Sensei du dojo',"Ton équipe était épuisée. Je l'ai soignée au dojo. Tu peux repartir !");mode='map'}
 }
