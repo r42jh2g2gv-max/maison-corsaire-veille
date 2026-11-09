@@ -117,6 +117,7 @@ html.ios #map{filter:saturate(1.08) contrast(1.04)}
 #actL .stats{display:grid;grid-template-columns:1fr auto;gap:6px 12px;align-items:center}#actL .petbox{display:flex;gap:14px;align-items:center;flex-wrap:wrap}#actL .petbox img{height:130px}
 #actL .journal p{border-left:4px solid #ffd76a;padding-left:10px}#actL .dictw{font-family:var(--display);font-size:42px;text-align:center;letter-spacing:.04em;min-height:1.2em}
 #actL .drawwrap{display:flex;gap:12px;flex-wrap:wrap}#drCv{width:min(320px,100%);aspect-ratio:1;border:3px solid var(--ink);border-radius:12px;background:#fff;touch-action:none}#actL .drtools{display:flex;flex-direction:column;gap:8px;flex:1;min-width:200px}
+.vqrow{display:flex;gap:10px;align-items:flex-start;background:#fff;border:3px solid var(--ink);border-radius:14px;padding:8px 10px;margin:8px 0}.vqrow.done{opacity:.6}.vqic{font-size:28px}.vqsteps{font-size:12px;margin-top:4px;line-height:1.6}.vqsteps span{background:#eee;border-radius:8px;padding:1px 6px}.vqsteps .ok{background:#c9f2b5}.vqsteps .cur{background:#ffd23f;font-weight:900}
 .mgask{position:fixed;inset:0;z-index:2147483000;background:rgba(20,18,40,.55);display:flex;align-items:center;justify-content:center;padding:16px}.mgaskb{background:#fff8e6;border:4px solid #1d1b2e;border-radius:18px;padding:16px 18px;max-width:520px;width:100%;text-align:center;box-shadow:0 6px 0 #1d1b2e}.mgaskb p{font-size:22px;font-weight:800;margin:10px 0 14px}.mgaskb .row2{justify-content:center}
 .bvbox{background:#fff8e6;border:3px solid var(--ink);border-radius:14px;padding:10px 12px;margin:8px 0;text-align:center}.bvbox .row2{justify-content:center}
 .edwrap{flex:none;overflow-x:auto;border:3px solid var(--ink);border-radius:12px;max-width:100%;-webkit-overflow-scrolling:touch}.edwrap canvas{display:block;touch-action:none;height:min(340px,52vh);width:auto}
@@ -418,7 +419,7 @@ button.dexc{font:inherit;color:inherit;cursor:pointer;box-shadow:0 3px 0 var(--i
       <button class="big alt" id="bCont" hidden>Continuer</button>
       <button class="tact alt" id="bCode">J'ai un code de sauvegarde</button>
       <p id="bootMsg">Chargement du jeu…</p>
-      <p class="small" style="opacity:.6;margin:4px 0 0;text-align:center">Version 77</p>
+      <p class="small" style="opacity:.6;margin:4px 0 0;text-align:center">Version 78</p>
       <p class="small" id="newWarn" hidden>Une partie existe déjà. Appuie encore sur « Nouvelle aventure » pour l'effacer et recommencer.</p>
     </div>
     </div>
@@ -809,7 +810,32 @@ function genWorld(){
     if(!ch)break}
   return g;
 }
-const WORLD=genWorld();
+/* ================= VILLAGES ET QUÊTES ENTRE VILLES (v78) ================= */
+const VILLAGES=[];
+function addVillages(g){
+  const DEF=[{n:'Le Perray-en-Yvelines',p:[640,1100]},{n:'Les Essarts-le-Roi',p:[690,940],r:0},{n:'Poissy',p:[775,520]},{n:'Maule',p:[565,600]},{n:'Septeuil',p:[445,650]},{n:'Neauphle-le-Château',p:[612,728],r:1}];
+  const bad=ch=>'HDAEJGMwbX'.includes(ch);
+  for(const d of DEF){const tx=Math.round((d.p[0]-OX)/SC),ty=Math.round((d.p[1]-OY)/SC);let best=null,bd=1e9;
+    let regs=TP.map((t,i)=>[i,(t.x-tx)**2+(t.y-ty)**2]).sort((a,b)=>a[1]-b[1]).slice(0,5).map(a=>a[0]);if(d.r!==undefined)regs=[d.r,...regs.filter(x=>x!==d.r)];
+    for(const r0 of regs){if(best)break;
+      for(let cy=3;cy<MH-4;cy++)for(let cx=4;cx<MW-4;cx++){if(REG[cy][cx]!==r0)continue;const dist=Math.hypot(cx-tx,cy-ty);if(dist>=bd)continue;
+        if(TP.some(t=>Math.hypot(t.x-cx,t.y-cy)<8)||VILLAGES.some(v=>Math.hypot(v.x-cx,v.y-cy)<9))continue;let ok=true;
+        for(let y=cy-2;y<=cy+2&&ok;y++)for(let x=cx-2;x<=cx+2&&ok;x++){if(REG[y][x]!==r0||WALL[y][x]||bad(g[y][x])||BRUME.has(key(x,y))||MONU.has(key(x,y)))ok=false}
+        for(let y=cy-3;y<=cy+3&&ok;y++)for(let x=cx-3;x<=cx+3&&ok;x++)if('HM'.includes((g[y]||[])[x]))ok=false;
+        for(const[bx,by,bw,bh]of[[cx-2,cy-2,3,2],[cx+1,cy-2,2,2]])for(let y=by-1;y<=by+bh&&ok;y++)for(let x=bx-1;x<=bx+bw&&ok;x++)if(ROUTE.has(key(x,y))||'GDAEJ'.includes((g[y]||[])[x]))ok=false;
+        if(ok){best=[cx,cy,r0];bd=dist}}}
+    if(!best){console.warn('village non placé',d.n);continue}const[cx,cy,r]=best;
+    for(let y=cy-2;y<=cy+2;y++)for(let x=cx-2;x<=cx+2;x++){g[y][x]='.';ROOF.delete(key(x,y))}
+    const blk=(x0,y0,w,h,k,col)=>{for(let y=y0;y<y0+h;y++)for(let x=x0;x<x0+w;x++){g[y][x]='H';ROOF.set(key(x,y),col)}BLOCKS.push({x:x0,y:y0,w,h,k,t:r})};
+    blk(cx-2,cy-2,3,2,'dojo','#c62f3a');g[cy-1][cx-1]='D';DOJOS.set(key(cx-1,cy-1),r);
+    blk(cx+1,cy-2,2,2,'maison-1','#6a7f3a');
+    const seen=new Map([[key(cx,cy+2),null]]),q=[[cx,cy+2]];let end=null;
+    while(q.length&&!end){const[x,y]=q.shift();for(const[ddx,ddy]of[[0,1],[1,0],[-1,0],[0,-1]]){const nx=x+ddx,ny=y+ddy,k=key(nx,ny);if(seen.has(k))continue;const c=(g[ny]||[])[nx];
+        if(c===undefined||(REG[ny]||[])[nx]!==r||WALL[ny][nx]||'HDAEJGMX'.includes(c))continue;seen.set(k,key(x,y));if(ROUTE.has(k)||Math.hypot(nx-TP[r].x,ny-TP[r].y)<4){end=k;break}q.push([nx,ny])}}
+    if(end){let k=end;while(k){const[x,y]=k.split(',').map(Number);const c=g[y][x];if(c==='w')g[y][x]='b';else if(c!=='b')g[y][x]='.';k=seen.get(k)}}
+    VILLAGES.push({n:d.n,x:cx,y:cy,r})}
+  return VILLAGES}
+const WORLD=genWorld();addVillages(WORLD);
 const START={x:TP[HOME].x-3,y:TP[HOME].y-1};
 const TRAINERS=[];{const RN=rng(4242),NAMES=['Lucas','Emma','Hugo','Léa','Nathan','Chloé','Tom','Inès','Jules','Manon','Noah','Zoé','Louis','Camille','Arthur','Lina','Malo','Rose'];let n=0;
   ROUTES.forEach(({t,p})=>{for(const frac of[.25,.8]){let placed=false;for(let j=0;j<40&&!placed;j++){const i=Math.min(p.length-2,Math.max(1,Math.floor(p.length*frac)+(j%2?1:-1)*Math.ceil(j/2))),[x,y]=p[i],a=p[Math.max(0,i-1)],b=p[Math.min(p.length-1,i+1)],hz=Math.abs(b[0]-a[0])>=Math.abs(b[1]-a[1]);
@@ -870,6 +896,71 @@ const msAvail=M=>S&&S.ms&&!S.ms.includes(M.id)&&S.beaten.length>=M.need&&(!M.req
      if(!c||BRUME.has(key(tx,ty))||!',hfg'.includes(c)||ROUTE.has(key(tx,ty))||WALL[ty][tx]||REG[ty][tx]<0||!REACH.has(key(tx,ty))||avoid.some(o=>o.x===tx&&o.y===ty))continue;
      const id=HIDDEN.length,IT=[['onigiri',2],['potion',1],['gold',1],['money',80],['fumi',1],['the',1],['scroll',3],['bento',1],['money',150],['cristal',1]];HIDDEN.push({x:tx,y:ty,id,it:IT[id%IT.length]});done=true;break}}})}
 const rnpcAt=(x,y)=>RNPC.find(n=>n.x===x&&n.y===y&&n.vis());
+const vByName=n=>VILLAGES.find(v=>v.n===n);
+const placeName=a=>typeof a==='number'?TOWNS[a].n:a;
+const placeReg=a=>typeof a==='number'?a:(vByName(a)||{r:0}).r;
+const regNeed=r=>r===HOME?0:r===MALLT?1:r;
+const VQ=[
+ {id:'lettre',n:'La lettre de Mamie Odette',ic:'✉️',steps:[
+  {at:HOME,who:'Facteur Gilles',spr:'V2',say:['Bonjour petit ninja ! J’ai une lettre pour Mamie Odette, qui habite au Perray-en-Yvelines.','Mes jambes sont fatiguées… Tu veux bien la lui porter ? Le Perray est sur la route de Rambouillet.']},
+  {at:'Le Perray-en-Yvelines',who:'Mamie Odette',spr:'V4',say:['Une lettre de ma petite-fille ! Merci, mon grand.'],q:{q:'Avant de te donner un pot de confiture pour Gilles : une poule a combien de pattes ?',o:['2','4','6'],a:0},after:['Bravo ! Rapporte ce pot de confiture au facteur Gilles, à Saint-Arnoult.']},
+  {at:HOME,who:'Facteur Gilles',spr:'V2',say:['De la confiture de Mamie Odette ! Quel régal.','Tu es un vrai ninja facteur. Tiens, pour ta peine !']}],rw:{m:150,it:{onigiri:2}}},
+ {id:'chat',n:'Le chat de la garde forestière',ic:'🐈',steps:[
+  {at:0,who:'Garde forestière Inès',spr:'N7',say:['Mon chat Moustache s’est sauvé vers Les Essarts-le-Roi !','Tu peux aller demander aux habitants s’ils l’ont vu ?']},
+  {at:'Les Essarts-le-Roi',who:'Petite Lou',spr:'V1',say:['Moustache ? Oui, il est caché sous l’auberge. Il a peur…','Il ne sortira que pour sa souris en laine. Mamie Odette, au Perray, en tricote toujours !']},
+  {at:'Le Perray-en-Yvelines',who:'Mamie Odette',spr:'V4',say:['Une souris en laine pour un chat qui a peur ? J’en ai une toute neuve.'],q:{q:'Elle est à toi si tu me dis : combien font 7 + 8 ?',o:['14','15','16'],a:1},after:['Parfait ! Retourne vite voir la garde Inès à Rambouillet avec la souris.']},
+  {at:0,who:'Garde forestière Inès',spr:'N7',say:['La souris en laine ! Moustache est sorti tout de suite et il est revenu à la maison.','Merci, ninja ! Voici une récompense.']}],rw:{m:300,it:{potion:2}}},
+ {id:'farine',n:'La farine du moulin',ic:'🌾',steps:[
+  {at:2,who:'Fermière Rose',spr:'V3',say:['Savais-tu que la poule de Houdan a 5 doigts à chaque patte, au lieu de 4 ?','Je veux faire des gâteaux, mais je n’ai plus de farine. Le meunier de Septeuil en a !']},
+  {at:'Septeuil',who:'Meunier Bastien',spr:'V5',say:['De la farine pour Rose ? Bien sûr.'],q:{q:'Une petite question de pâtissier : il faut 3 œufs pour un gâteau. Combien d’œufs pour 2 gâteaux ?',o:['5','6','8'],a:1},after:['Exact ! Voilà un sac de farine pour Rose, à Houdan.']},
+  {at:2,who:'Fermière Rose',spr:'V3',say:['La farine ! Merci ! Les gâteaux seront prêts ce soir.','Peux-tu prévenir mon cousin Paul, à Mantes ? Il adore mes gâteaux.']},
+  {at:3,who:'Cousin Paul',spr:'V0',say:['Des gâteaux de Rose ? J’arrive tout de suite !','Merci du message, ninja. Tiens, c’est pour toi.']}],rw:{m:400,it:{bento:2}}},
+ {id:'pomme',n:'Les pommes de Maule',ic:'🍎',steps:[
+  {at:1,who:'Marchande Zoé',spr:'V3',say:['Mon étal est vide ! Le maraîcher de Maule a les meilleures pommes.','Tu peux aller lui en demander ?']},
+  {at:'Maule',who:'Maraîcher Karim',spr:'V0',say:['Des pommes pour Zoé ? Avec plaisir.'],q:{q:'J’ai 12 pommes. Je t’en donne la moitié. Combien en reçois-tu ?',o:['4','6','8'],a:1},after:['Bravo ! Mais d’abord, passe chez le boulanger de Plaisir : il me doit un panier.']},
+  {at:MALLT,who:'Boulanger Théo',spr:'V5',say:['Le panier de Karim ! Le voici, rempli de pommes.','Et ajoute cette tarte aux pommes pour Zoé, à Montfort.']},
+  {at:1,who:'Marchande Zoé',spr:'V3',say:['Des pommes ET une tarte ! Mon étal est sauvé.','Merci, ninja. Voici ta récompense.']}],rw:{m:450,it:{the:2}}},
+ {id:'filet',n:'Le filet du pêcheur',ic:'🎣',steps:[
+  {at:4,who:'Pêcheur Marcel',spr:'N1',say:['J’ai prêté mon filet à mon amie de Poissy… et je ne l’ai jamais revu !','Tu peux aller le chercher ?']},
+  {at:'Poissy',who:'Batelière Yasmine',spr:'V2',say:['Le filet de Marcel ? Oh là là… Je l’ai prêté au pêcheur de Mantes !']},
+  {at:3,who:'Pêcheur Hugo',spr:'N1',say:['Le filet ? Oui, je l’ai. Je le rends si tu connais la Seine.'],q:{q:'La Seine finit sa course dans… ?',o:['La mer (la Manche)','Un lac','Une montagne'],a:0},after:['Exact, elle va jusqu’à la mer ! Rends le filet à Yasmine, à Poissy : c’est elle qui l’a emprunté.']},
+  {at:'Poissy',who:'Batelière Yasmine',spr:'V2',say:['Merci ! Je vais le rendre à Marcel… Non, vas-y toi, il sera si content !']},
+  {at:4,who:'Pêcheur Marcel',spr:'N1',say:['Mon filet ! Après tout ce voyage !','Tu as remonté toute la Seine pour moi. Merci, ninja !']}],rw:{m:600,it:{cristal:1,potion:2}}},
+ {id:'parchemin',n:'Le vieux parchemin',ic:'📜',steps:[
+  {at:MALLT,who:'Sage Hiroshi',spr:'N5',say:['Un vieux parchemin ninja dort à la bibliothèque de Neauphle-le-Château.','Il raconte l’histoire des premières Shinobêtes. Peux-tu le rapporter ?']},
+  {at:'Neauphle-le-Château',who:'Bibliothécaire Anna',spr:'V1',say:['Le parchemin d’Hiroshi ? Le voici.'],q:{q:'Mais d’abord, une énigme : je suis plus grand que 5 et plus petit que 7. Qui suis-je ?',o:['4','6','8'],a:1},after:['Bien joué ! Mais il manque la dernière page : la professeure Lucie, à Saint-Quentin, l’a empruntée.']},
+  {at:6,who:'Professeure Lucie',spr:'V4',say:['La dernière page ? Je l’ai rendue hier à la bibliothèque de Neauphle !','Retourne là-bas, Anna a dû la ranger.']},
+  {at:'Neauphle-le-Château',who:'Bibliothécaire Anna',spr:'V1',say:['Ah, la voilà, elle était glissée dans un livre sur les dragons !','Voici le parchemin complet. Rapporte-le au sage Hiroshi, à Plaisir.']},
+  {at:MALLT,who:'Sage Hiroshi',spr:'N5',say:['Le parchemin complet… Merci, jeune ninja.','« Les premières Shinobêtes sont nées de l’amitié entre un enfant et un renard de feu. » Garde ce cristal en souvenir.']}],rw:{m:800,it:{cristal:2,elixir:1}}}];
+for(let i=VQ.length-1;i>=0;i--)if(VQ[i].steps.some(st=>typeof st.at!=='number'&&!vByName(st.at)))VQ.splice(i,1);
+VQ.forEach(Q=>{Q.need=Math.max(...Q.steps.map(s=>regNeed(placeReg(s.at))))});
+function vqState(){S.qv=S.qv||{};return S.qv}
+const vqStep=Q=>{const v=vqState()[Q.id];return v===undefined?(S.beaten.length>=Q.need?0:-1):v};
+const vqDone=Q=>vqState()[Q.id]>=Q.steps.length;
+function vqPlace(at,used){let c;if(typeof at==='number')c=TP[at];else{const v=vByName(at);if(!v)return null;c=v}
+  const free=(x,y)=>{const ch=(WORLD[y]||[])[x];return ch!==undefined&&',.f'.includes(ch)&&!WALL[y][x]&&!used.has(key(x,y))&&!RNPC.some(n=>n.x===x&&n.y===y)&&!TRAINERS.some(t=>Math.abs(t.x-x)+Math.abs(t.y-y)<3)};
+  for(let rad=1;rad<=8;rad++)for(let dy=-rad;dy<=rad;dy++)for(let dx=-rad;dx<=rad;dx++){if(Math.max(Math.abs(dx),Math.abs(dy))!==rad)continue;const x=c.x+dx,y=c.y+dy;
+    if(!free(x,y)||ROUTE.has(key(x,y)))continue;let ok=true;for(let ey=-1;ey<=1&&ok;ey++)for(let ex=-1;ex<=1&&ok;ex++){if(!ex&&!ey)continue;const ch=(WORLD[y+ey]||[])[x+ex];if(ch===undefined||!',.fhg'.includes(ch)||WALL[y+ey][x+ex])ok=false}
+    if(!ok)continue;for(let ey=-1;ey<=1;ey++)for(let ex=-1;ex<=1;ex++)used.add(key(x+ex,y+ey));return[x,y]}
+  return null}
+{const spots=new Map(),used=new Set();
+ VQ.forEach(Q=>Q.steps.forEach((st,i)=>{const k=placeName(st.at)+'|'+st.who;let xy=spots.get(k);if(!xy){xy=vqPlace(st.at,used);if(!xy)return;spots.set(k,xy)}
+   RNPC.push({x:xy[0],y:xy[1],spr:st.spr,kind:'vquest',Q,i,name:st.who,vis:()=>!!S&&vqStep(Q)===i,mark:()=>true})}))}
+function vqObjective(Q){const i=vqStep(Q);if(i<0||i>=Q.steps.length)return '';const st=Q.steps[i];return `Parler à ${st.who} (${placeName(st.at)})`}
+async function vqTalk(n){const Q=n.Q,st=Q.steps[n.i],S2=vqState();
+  await talks(st.who,st.say);
+  if(st.q){const a=await ask(st.who,st.q.q,st.q.o);if(a!==st.q.a){await talk(st.who,`Presque ! La bonne réponse était ${st.q.o[st.q.a]}. Reviens me voir pour réessayer.`);return}S.st.exam=(S.st.exam||0)+1;sfx.lvl&&sfx.lvl();if(st.after)await talks(st.who,st.after)}
+  S2[Q.id]=n.i+1;
+  if(S2[Q.id]>=Q.steps.length){const R=Q.rw;S.money+=R.m||0;for(const[k,v]of Object.entries(R.it||{}))bagAdd(k,v);sfx.win&&sfx.win();updTop();save();
+    await talk('Quête terminée !',`${Q.ic} « ${Q.n} » est terminée ! +${R.m} shinosous${Object.entries(R.it||{}).map(([k,v])=>` · ${ITEMS[k]?ITEMS[k].n:k} × ${v}`).join('')}.`);jr&&jr(`Quête « ${Q.n} » terminée.`);checkQuests&&checkQuests()}
+  else{save();toast(`${Q.ic} ${Q.n} : ${vqObjective(Q)}`)}}
+function openVQ(){const rows=VQ.map(Q=>{const i=vqStep(Q),done=vqDone(Q);
+    return `<div class="vqrow ${done?'done':''}"><span class="vqic">${done?'✅':i<0?'🔒':Q.ic}</span><div><b>${Q.n}</b><br><small>${done?'Terminée !':i<0?`Gagne ${Q.need} arène${Q.need>1?'s':''} pour la débloquer`:(i===0&&vqState()[Q.id]===undefined?'Nouvelle ! ':'')+vqObjective(Q)}</small>
+      ${!done&&i>=0?`<div class="vqsteps">${Q.steps.map((s,k)=>`<span class="${k<i?'ok':k===i?'cur':''}">${placeName(s.at).replace(/-en-Yvelines|-l'Amaury|-le-Roi|-le-Château/,'')}</span>`).join(' → ')}</div>`:''}</div></div>`}).join('');
+  panel('📜 Quêtes des villages',`<p>Des habitants ont besoin de toi ! Chaque quête t’emmène de ville en ville… et parfois il faut <b>revenir en arrière</b>. Cherche le « ! » au-dessus de la bonne personne. Les villages ont un dojo pour soigner ton équipe.</p>${rows}`)}
+let curVill=null;
+function villageEnter(){const v=VILLAGES.find(v=>Math.abs(P.x-v.x)<=2&&Math.abs(P.y-v.y)<=2)||null;if(v!==curVill){curVill=v;if(v){banner(v.n,'Village · dojo pour soigner ton équipe');if(S){S.vv=S.vv||[];if(!S.vv.includes(v.n)){S.vv.push(v.n);save()}}}}}
+
 let grid=WORLD.map(r=>r.slice());
 const ROWS=MH,COLS=MW;
 const SOLID=new Set(['T','w','H','D','r','X','A','G','M','E','P','J']);
@@ -1449,7 +1540,7 @@ function arrive(){
   const r=REG[P.y][P.x];
   {let nt=-1;TP.forEach((c,i)=>{if(Math.abs(P.x-c.x)<=6&&Math.abs(P.y-c.y)<=5)nt=i});
    if(nt>=0&&S.vis&&!S.vis.includes(nt)){S.vis.push(nt);if(hasT('tp'))toast(`${TOWNS[nt].n} ajoutée à ta Téléportation !`)}
-   {const inB=BRUME.has(key(P.x,P.y));if(inB!==!!window.__inB){window.__inB=inB;if(inB)banner('Forêt de la Brume','Région secrète · Shinobêtes sauvages Nv 45 à 55')}}
+   villageEnter();{const inB=BRUME.has(key(P.x,P.y));if(inB!==!!window.__inB){window.__inB=inB;if(inB)banner('Forêt de la Brume','Région secrète · Shinobêtes sauvages Nv 45 à 55')}}
    if(nt!==curReg){curReg=nt;if(nt>=0){const C=CHAMPS[nt],[a,b]=wildLv(nt);banner(TOWNS[nt].n,nt===HOME?`Ton village natal · Shinobêtes sauvages Nv ${a} à ${b}`:nt===MALLT?'Ville commerciale · centre commercial, cinéma, boutiques':`Arène ${EL[C.el].n} de ${C.name} · Shinobêtes sauvages Nv ${a} à ${b}`)}}}
   {const h=HIDDEN.find(o=>o.x===P.x&&o.y===P.y&&!S.found.includes(o.id));if(h){S.found.push(h.id);const[k,n]=h.it;if(k==='money'){S.money+=n;toast(`Trésor caché : ${n} shinosous !`)}else{bagAdd(k,n);toast(`Trésor caché : ${ITEMS[k].n} × ${n} !`)}sfx.lvl();updTop();save()}}
   mapPuff(P.x,P.y,'hg'.includes(ch)?'leaf':'dust');
@@ -2015,13 +2106,13 @@ function openMenu(){
   const g=$('menuGrid'),cq=qClaimable().length;
   const it=[['dex',ICO('i_livre','📖'),'Shinodex',`${S.caught.length} / ${NSP} capturées`],['team',ICO('i_groupe','🥷'),'Équipe',`${S.team.length} / 6 · Boîte ${S.box.length}`],
     ['bag',ICO('i_sac','🎒'),'Sac',`${S.money} shinosous`],['quest',ICO('i_etoile','⭐'),'Quêtes',cq?`${cq} récompense${cq>1?'s':''} à récupérer !`:`${S.qc.length} / ${QUESTS.length} terminées`],
-    ['tech','🥷','Techniques ninja',`${TECH.filter(T=>hasT(T.k)).length} / ${TECH.length} apprises`],['map',ICO('map','🗺️'),'Carte',`Ceinture ${BELTS[S.beaten.length][0]}`],['code','🔑','Code de sauvegarde','Garde ta partie en lieu sûr'],['adv','🗺️','Aventures ninja','Courses du vent, monde mystère, temple'],['create','🧱','Créer et jouer','Base, parcours, boulangerie, vestiaire…'],['act','🎒','Activités','Jeux, énigmes, dessin, parents…'],['mini','🧭','Mini-carte',S.mini===false?'Cachée':'Affichée en haut à droite'],['fs','⛶','Plein écran',document.fullscreenElement?'Activé':'Pour jouer sans les barres'],['qual','⚙️','Qualité graphique',{auto:'Automatique',haute:'Haute (tablettes puissantes)',eco:'Économie (tablettes lentes)'}[S.qual||'auto']],['day',dayPhase()==='night'?'🌙':'☀️','Jour et nuit',S.dayMode==='day'?'Toujours de jour':'Suit l’heure réelle'],['tips',ICO('i_bulle','💡'),'Astuces','Des conseils de sensei'],['music','🎵','Musique',S.music?'Activée':'Coupée'],['save','💾','Sauvegarder','La partie est aussi sauvegardée toute seule']];
+    ['tech','🥷','Techniques ninja',`${TECH.filter(T=>hasT(T.k)).length} / ${TECH.length} apprises`],['map',ICO('map','🗺️'),'Carte',`Ceinture ${BELTS[S.beaten.length][0]}`],['code','🔑','Code de sauvegarde','Garde ta partie en lieu sûr'],['vq','📜','Quêtes des villages',`${VQ.filter(vqDone).length} / ${VQ.length} terminées`],['adv','🗺️','Aventures ninja','Courses du vent, monde mystère, temple'],['create','🧱','Créer et jouer','Base, parcours, boulangerie, vestiaire…'],['act','🎒','Activités','Jeux, énigmes, dessin, parents…'],['mini','🧭','Mini-carte',S.mini===false?'Cachée':'Affichée en haut à droite'],['fs','⛶','Plein écran',document.fullscreenElement?'Activé':'Pour jouer sans les barres'],['qual','⚙️','Qualité graphique',{auto:'Automatique',haute:'Haute (tablettes puissantes)',eco:'Économie (tablettes lentes)'}[S.qual||'auto']],['day',dayPhase()==='night'?'🌙':'☀️','Jour et nuit',S.dayMode==='day'?'Toujours de jour':'Suit l’heure réelle'],['tips',ICO('i_bulle','💡'),'Astuces','Des conseils de sensei'],['music','🎵','Musique',S.music?'Activée':'Coupée'],['save','💾','Sauvegarder','La partie est aussi sauvegardée toute seule']];
   const MC=['#e05a4e','#f0883a','#3d9be0','#8b5cf6','#43a85c','#d9488f','#c98a00','#2bb3a3','#5468d4','#e0703a','#7a8a99','#6b7f3a','#9b59b6'];
   g.innerHTML=it.map(([k,ic,t,s],i)=>`<button class="mtile${k==='quest'&&cq?' hot':''}" data-k="${k}" style="--mc:${MC[i%MC.length]}"><span class="mic">${ic}</span><span class="mtx"><b>${t}</b><small>${s}</small></span></button>`).join('');
   g.querySelectorAll('button').forEach(b=>b.onclick=()=>{const k=b.dataset.k;
     if(k==='music'){S.music=!S.music;musicOn(S.music);save();mode='map';openMenu();return}
     if(k==='save'){save();toast('Partie sauvegardée !');return}
-    $('menuL').hidden=true;mode='map';({mini:()=>{S.mini=S.mini===false;save();toast(S.mini===false?'Mini-carte cachée.':'Mini-carte affichée. Touche-la pour ouvrir la grande carte.')},create:openCreate,adv:openAdv,act:openActs,fs:goFull,qual:()=>{const o=['auto','haute','eco'],q=o[(o.indexOf(S.qual||'auto')+1)%3];S.qual=q;RS=Math.min(1.5,window.devicePixelRatio||1);resize();save();toast({auto:'⚙️ Qualité automatique : le jeu s’adapte à ta tablette.',haute:'⚙️ Qualité haute : image la plus nette.',eco:'⚙️ Mode économie : plus fluide sur les tablettes lentes.'}[q])},code:()=>openCode(false),day:()=>{S.dayMode=S.dayMode==='day'?'auto':'day';save();toast(S.dayMode==='day'?'☀️ Le jeu reste toujours de jour.':'🌙 Le jour et la nuit suivent maintenant l’heure réelle.')},tech:openTech,dex:openDex,team:openTeam,bag:()=>openBag(),quest:openQuests,map:openMap,tips:async()=>{mode='talk';const a=TIPS.slice().sort(()=>Math.random()-.5).slice(0,4);await talks('Astuces du sensei',a);mode='map'}})[k]()});
+    $('menuL').hidden=true;mode='map';({mini:()=>{S.mini=S.mini===false;save();toast(S.mini===false?'Mini-carte cachée.':'Mini-carte affichée. Touche-la pour ouvrir la grande carte.')},create:openCreate,adv:openAdv,vq:openVQ,act:openActs,fs:goFull,qual:()=>{const o=['auto','haute','eco'],q=o[(o.indexOf(S.qual||'auto')+1)%3];S.qual=q;RS=Math.min(1.5,window.devicePixelRatio||1);resize();save();toast({auto:'⚙️ Qualité automatique : le jeu s’adapte à ta tablette.',haute:'⚙️ Qualité haute : image la plus nette.',eco:'⚙️ Mode économie : plus fluide sur les tablettes lentes.'}[q])},code:()=>openCode(false),day:()=>{S.dayMode=S.dayMode==='day'?'auto':'day';save();toast(S.dayMode==='day'?'☀️ Le jeu reste toujours de jour.':'🌙 Le jour et la nuit suivent maintenant l’heure réelle.')},tech:openTech,dex:openDex,team:openTeam,bag:()=>openBag(),quest:openQuests,map:openMap,tips:async()=>{mode='talk';const a=TIPS.slice().sort(()=>Math.random()-.5).slice(0,4);await talks('Astuces du sensei',a);mode='map'}})[k]()});
   $('menuL').hidden=false;
 }
 
@@ -2616,6 +2707,7 @@ async function missionCall(){if(!S)return;for(const M of MISSIONS){if(msAvail(M)
 const RDEF_EL=['feu','eau','terre','foudre','vent','glace','ombre','lumiere'],SCE=['feu','eau','terre','foudre','ombre','lumiere'];
 async function rnTalk(n){mode='talk';n.talking=true;n.dir={up:'down',down:'up',left:'right',right:'left'}[P.dir];
   try{
+  if(n.kind==='vquest'){await vqTalk(n);return}
   if(n.kind==='mission'){const M=n.M;await talks(M.who,M.intro);
     const res=await battle(M.team.map(([l,lv,gi])=>{const m=mkL(l,lv);if(gi){m.giant=true;m.hp=maxhp(m)}return m}),M.boss?{name:M.who,t:5,vs:{name:M.who,title:'Cheffe du Clan des Brumes',img:'N4',el:'ombre'}}:{name:M.who},'d');mode='talk';
     if(res!=='win'){await talk(M.who,"Ha ha ! Le Clan des Brumes est trop fort pour toi. Reviens quand tu seras prêt !");return}
@@ -3829,6 +3921,8 @@ function orbReg(){const D=window.DECOR_SRC||{},U=window.UI_SRC;if(!U||U.orb0)ret
 function fxFrame(c,key,f,x,y,s,flip,rot){const im=XI(key+Math.max(0,Math.min(5,f|0)));if(!im)return false;c.save();c.translate(x,y);if(flip)c.scale(-1,1);if(rot)c.rotate(rot);c.drawImage(im,-s/2,-s/2,s,s);c.restore();return true}
 function bgPick(zone,k,foes){const D=window.DECOR_SRC||{},fel=foes&&foes[0]?spec(foes[0].sp).el:'';if(fel==='feu'&&D.x_bg_villagefeu&&Math.random()<.4)return'x_bg_villagefeu';if(fel==='glace'&&D.x_bg_villageneige&&Math.random()<.45)return'x_bg_villageneige';if(zone==='w'&&D.x_bg_peniche&&Math.random()<.5)return'x_bg_peniche';if((zone==='m'||zone==='c'||zone==='d')&&D.x_bg_carriere&&Math.random()<.35)return'x_bg_carriere';return k}
 
+BADGES.push(['🏘️','Voyageur des villages',()=>!!(S.vv&&S.vv.length>=VILLAGES.length&&VILLAGES.length)],['📜','Ami des habitants',()=>VQ.every(vqDone)]);
+
 /* ================= TENUES DU NINJA ================= */
 const OUTF=[['','Tenue d’origine',()=>true,''],['0','Bleu et rouge',()=>true,''],['1','Ivoire et or',()=>S.beaten.length>=2,'Gagner 2 arènes'],['2','Verte',()=>new Set(S.caught).size>=10,'Attraper 10 Shinobêtes différentes'],['3','Bordeaux et orange',()=>S.beaten.length>=5,'Gagner 5 arènes'],['4','Violet et lavande',()=>new Set(S.caught).size>=25,'Attraper 25 Shinobêtes différentes']];
 const HERO0={};let curOut=null;
@@ -4107,6 +4201,8 @@ function openMap(){
   for(let y=0;y<MH;y++)for(let x=0;x<MW;x++){const ch=grid[y][x];c.fillStyle=ROOF.get(key(x,y))||MMC[ch]||'#c62f3a';c.fillRect(x*s,y*s,s,s)}
   fogInit();fogDraw(c,s,0,0,0,0,MW,MH);{const pc=fogPct();c.save();c.font=`900 ${Math.max(12,s*3)}px sans-serif`;c.fillStyle='#fff';c.strokeStyle='#1d1b2e';c.lineWidth=4;c.textAlign='left';c.strokeText(`Carte explorée : ${pc} %`,8,s*4);c.fillText(`Carte explorée : ${pc} %`,8,s*4);c.restore()}
   c.font=`900 ${Math.max(11,s*2.3)}px ${getComputedStyle(document.body).fontFamily}`;c.textAlign='center';c.textBaseline='middle';c.lineJoin='round';
+  VILLAGES.forEach(v=>{if(fogged(v.x,v.y))return;const x=v.x*s+s/2,y=v.y*s;c.beginPath();c.arc(x,y,s*1.6,0,7);c.fillStyle='#ffe9b8';c.fill();c.lineWidth=2;c.strokeStyle='#1d1b2e';c.stroke();c.save();c.font=`800 ${Math.max(10,s*1.9)}px sans-serif`;c.lineWidth=4;c.strokeStyle='#fff';c.strokeText(v.n,x,y+s*3.2);c.fillStyle='#5a3a1a';c.fillText(v.n,x,y+s*3.2);c.restore()});
+  for(const Q of VQ){const i=vqStep(Q);if(i<0||i>=Q.steps.length)continue;const at=Q.steps[i].at,p=typeof at==='number'?TP[at]:vByName(at);if(!p)continue;c.save();c.font=`${Math.max(14,s*3)}px serif`;c.fillText('❗',p.x*s+s/2+s*2.2,p.y*s-s*2.2);c.restore()}
   TOWNS.forEach((T,t)=>{const p=TP[t],x=p.x*s+s/2,y=p.y*s,done=S.beaten.includes(t),nx=t===S.beaten.length;if(fogged(p.x,p.y))return;
     if(t>=NA){c.beginPath();c.arc(x,y,s*2.2,0,7);c.fillStyle='#7fd6ff';c.fill();c.lineWidth=2;c.strokeStyle='#1d1b2e';c.stroke();c.fillStyle='#1d1b2e';c.fillText(t===HOME?'⌂':'€',x,y+1);
       const ly=t===MALLT?y-s*4:y+s*4.2;c.lineWidth=4;c.strokeStyle='#fff';c.strokeText(SHORT[t],x,ly);c.fillStyle='#1d1b2e';c.fillText(SHORT[t],x,ly);return}
@@ -4165,7 +4261,7 @@ document.addEventListener('visibilitychange',()=>{if(document.hidden){save();try
 addEventListener('contextmenu',e=>{if(!e.target.closest('textarea,input'))e.preventDefault()});
 async function goFull(){const el=document.documentElement;try{if(document.fullscreenElement){await document.exitFullscreen();return}await (el.requestFullscreen||el.webkitRequestFullscreen).call(el,{navigationUI:'hide'});try{await screen.orientation.lock('landscape')}catch(e){}}catch(e){toast("Le plein écran n'est pas disponible ici. Sur Android, utilise « Ajouter à l'écran d'accueil » dans le menu du navigateur.")}}
 $('bCode').onclick=()=>{audioOn();openCode(true)};
-window.__T={VROOMS,TEMPLES,volcanGate,ADV,openAdv,advPlay,gameTemple,templeGate,LOGIC,TRAINERS,trSees,trCheck,updTrainers,applyOutfit,OUTF,baseScore,bvMath,lavaFx,hatBox,baseVisit,XI,OBBY,platParse,openCreate,openEditor,openObby,openBase,openAvatar,openTycoon,openJobs,openBoxes,giveBox,gamePompier,gameCuisinier,gameVeto,fogPct,tyRate,gameTaupe,gameSlice,gameDuel,arcadeNew,updTop,rankPts,openActs,openDM,openPet,openCraft,openHunt,openClock,openEng,openDict,openRace,openTour,openDraw,openRoom,openBadges,openJournal,openFam,openParent,gameTaiko,gameMemo,gameRace,tourRun,newHunt,huntFound,showPause,calcNinja,animalCard,dexDetail:(i)=>dexDetail(i),examQ,clockInfo,eventToday,BADGES,FACTS,giantWin,encounter,MISSIONS,gamePlat,platMenu,buildLevel,ensureMv,pendingMoves,learnset,mvDef,learnMove,gainXp,renderMoves,trainerTalk,get TRB(){return TRB},fishing,gameFish,pensionMenu,penStep,hatch,legend,LEGEND,openCode,packSave,unpackSave,dayPhase,weatherAt,sttSkip,learnTech,useTech,TECH,hasT,place,rnTalk,maman,professor,mallTalk,missionCall,RNPC,BLOCKS,MISSIONS,ROUTES,wild,lineOdds,stageOdds,get mode(){return mode},mk,maxhp,atk,moves,eff,spec,need,wildLv,wild,CHAMPS,get LEAGUE(){return LEAGUE},rivalTeam,foeMove,LINES,TRAINERS,get S(){return S},set S(v){S=v},trainerBattle,rivalBattle,league,defi,arena,toupieTournament,battle,initState,enterWorld,save,load};
+window.__T={RNPC,VILLAGES,VQ,vqStep,openVQ,VROOMS,TEMPLES,volcanGate,ADV,openAdv,advPlay,gameTemple,templeGate,LOGIC,TRAINERS,trSees,trCheck,updTrainers,applyOutfit,OUTF,baseScore,bvMath,lavaFx,hatBox,baseVisit,XI,OBBY,platParse,openCreate,openEditor,openObby,openBase,openAvatar,openTycoon,openJobs,openBoxes,giveBox,gamePompier,gameCuisinier,gameVeto,fogPct,tyRate,gameTaupe,gameSlice,gameDuel,arcadeNew,updTop,rankPts,openActs,openDM,openPet,openCraft,openHunt,openClock,openEng,openDict,openRace,openTour,openDraw,openRoom,openBadges,openJournal,openFam,openParent,gameTaiko,gameMemo,gameRace,tourRun,newHunt,huntFound,showPause,calcNinja,animalCard,dexDetail:(i)=>dexDetail(i),examQ,clockInfo,eventToday,BADGES,FACTS,giantWin,encounter,MISSIONS,gamePlat,platMenu,buildLevel,ensureMv,pendingMoves,learnset,mvDef,learnMove,gainXp,renderMoves,trainerTalk,get TRB(){return TRB},fishing,gameFish,pensionMenu,penStep,hatch,legend,LEGEND,openCode,packSave,unpackSave,dayPhase,weatherAt,sttSkip,learnTech,useTech,TECH,hasT,place,rnTalk,maman,professor,mallTalk,missionCall,RNPC,BLOCKS,MISSIONS,ROUTES,wild,lineOdds,stageOdds,get mode(){return mode},mk,maxhp,atk,moves,eff,spec,need,wildLv,wild,CHAMPS,get LEAGUE(){return LEAGUE},rivalTeam,foeMove,LINES,TRAINERS,get S(){return S},set S(v){S=v},trainerBattle,rivalBattle,league,defi,arena,toupieTournament,battle,initState,enterWorld,save,load};
 
 const saved=load();
 if(saved){$('bCont').hidden=false;$('hero').value=saved.name||'Ninja';$('bCont').textContent=`Continuer (${saved.name})`}
