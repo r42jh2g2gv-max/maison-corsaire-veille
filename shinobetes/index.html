@@ -117,6 +117,7 @@ html.ios #map{filter:saturate(1.08) contrast(1.04)}
 #actL .stats{display:grid;grid-template-columns:1fr auto;gap:6px 12px;align-items:center}#actL .petbox{display:flex;gap:14px;align-items:center;flex-wrap:wrap}#actL .petbox img{height:130px}
 #actL .journal p{border-left:4px solid #ffd76a;padding-left:10px}#actL .dictw{font-family:var(--display);font-size:42px;text-align:center;letter-spacing:.04em;min-height:1.2em}
 #actL .drawwrap{display:flex;gap:12px;flex-wrap:wrap}#drCv{width:min(320px,100%);aspect-ratio:1;border:3px solid var(--ink);border-radius:12px;background:#fff;touch-action:none}#actL .drtools{display:flex;flex-direction:column;gap:8px;flex:1;min-width:200px}
+.bvbox{background:#fff8e6;border:3px solid var(--ink);border-radius:14px;padding:10px 12px;margin:8px 0;text-align:center}.bvbox .row2{justify-content:center}
 .edwrap{flex:none;overflow-x:auto;border:3px solid var(--ink);border-radius:12px;max-width:100%;-webkit-overflow-scrolling:touch}.edwrap canvas{display:block;touch-action:none;height:min(340px,52vh);width:auto}
 #actL .edt,#actL .bst,#actL .avb{padding:6px 9px;font-size:14px}
 .swatch{width:34px;height:34px;border-radius:50%;border:3px solid var(--ink)}.drfig{margin:0;display:flex;flex-direction:column;align-items:center;gap:4px;border:2px solid #e0cfa6;border-radius:12px;padding:6px;background:#fff}.drfig img{width:110px;height:110px}
@@ -416,7 +417,7 @@ button.dexc{font:inherit;color:inherit;cursor:pointer;box-shadow:0 3px 0 var(--i
       <button class="big alt" id="bCont" hidden>Continuer</button>
       <button class="tact alt" id="bCode">J'ai un code de sauvegarde</button>
       <p id="bootMsg">Chargement du jeu…</p>
-      <p class="small" style="opacity:.6;margin:4px 0 0;text-align:center">Version 68</p>
+      <p class="small" style="opacity:.6;margin:4px 0 0;text-align:center">Version 69</p>
       <p class="small" id="newWarn" hidden>Une partie existe déjà. Appuie encore sur « Nouvelle aventure » pour l'effacer et recommencer.</p>
     </div>
     </div>
@@ -2854,7 +2855,7 @@ async function gamePlat(n,OPT){OPT=OPT||{};const G=mgOpen(OPT.title||('Ninja des
         c.fillStyle='#43c463';c.beginPath();c.arc(-T*.08,-T*.1,T*.06,0,7);c.fill();c.fillStyle='#e63946';c.beginPath();c.arc(T*.09,T*.08,T*.05,0,7);c.fill();c.restore()}
       else if(ch==='*'){c.save();c.fillStyle='#ffd23f';c.strokeStyle='#b8860b';c.lineWidth=3;star(c,X+T/2,Y+T/2+Math.sin(t*3)*3,T*.38,5);c.fill();c.stroke();c.restore()}
       else if(ch==='x')img('s_ronces',X+T/2,Y+T,T*1.05);
-      else if(ch==='L'){const top=y===0||g[y-1][x]!=='L';c.fillStyle='#ff5a1f';c.fillRect(X,Y,T+1,T+1);c.fillStyle='#ffd23f';if(top)for(let i=0;i<3;i++){c.beginPath();c.arc(X+T*(.2+i*.3),Y+T*.15+Math.sin(t*4+x+i)*T*.06,T*.12,0,7);c.fill()}c.fillStyle='rgba(255,230,120,.35)';c.fillRect(X,Y+T*.4,T+1,T*.12)}
+      else if(ch==='L'){const top=y===0||g[y-1][x]!=='L';c.fillStyle='#ff5a1f';c.fillRect(X,Y,T+1,T+1);c.fillStyle='#ffd23f';if(top)for(let i=0;i<3;i++){c.beginPath();c.arc(X+T*(.2+i*.3),Y+T*.15+Math.sin(t*4+x+i)*T*.06,T*.12,0,7);c.fill()}c.fillStyle='rgba(255,230,120,.35)';c.fillRect(X,Y+T*.4,T+1,T*.12);lavaFx(c,X,Y,T,t,x,top)}
       else if(ch==='C'||ch==='Z'){c.fillStyle='#4a4a55';c.fillRect(X,Y,T+1,T*.45);c.fillStyle='#8a8a99';c.fillRect(X,Y+T*.45,T+1,T*.55);c.fillStyle='#ffd23f';const o=((ch==='C'?1:-1)*t*T*1.2)%(T/2);for(let i=-1;i<3;i++){const xx=X+i*T/2+o;if(xx<X-2||xx>X+T)continue;c.beginPath();if(ch==='C'){c.moveTo(xx,Y+T*.08);c.lineTo(xx+T*.18,Y+T*.22);c.lineTo(xx,Y+T*.36)}else{c.moveTo(xx+T*.18,Y+T*.08);c.lineTo(xx,Y+T*.22);c.lineTo(xx+T*.18,Y+T*.36)}c.fill()}}
       else if(ch==='T'){c.save();c.translate(X+T/2,Y+T/2);c.rotate(t*3);c.strokeStyle='#8e44ad';c.lineWidth=T*.1;c.beginPath();c.arc(0,0,T*.35,0,5);c.stroke();c.strokeStyle='#c39bff';c.beginPath();c.arc(0,0,T*.2,1,6);c.stroke();c.restore()}
       else if(ch==='D'){c.fillStyle='#8a5a2b';c.fillRect(X+T*.1,Y,T*.8,T+1);c.strokeStyle='#4a2c12';c.lineWidth=3;c.strokeRect(X+T*.1,Y,T*.8,T);c.fillStyle='#ffd23f';c.beginPath();c.arc(X+T*.7,Y+T*.55,T*.07,0,7);c.fill()}
@@ -3351,7 +3352,7 @@ function avDefault(){S.av=Object.assign({hat:'',cape:false,col:'#e63946',trail:'
 function drawAvatarBack(x,y,s,dir){avDefault();if(!S.av.cape||dir==='up')return;capeShape(x,y,s,dir)}
 function drawAvatarFront(x,y,s,dir,moving,t){avDefault();const A=S.av;if(A.cape&&dir==='up')capeShape(x,y,s,dir);
   if(A.hat){const hx=x+(dir==='left'?-s*.04:dir==='right'?s*.04:0),hy=y-s*.56+(moving?-Math.abs(Math.sin(t*12))*s*.04:0),hi=XI(HATIMG[A.hat]);ctx.save();
-    if(hi){const w=s*(A.hat==='🎀'?.42:A.hat==='🌸'||A.hat==='⭐'?.6:.56),h=w*hi.naturalHeight/hi.naturalWidth,yy=A.hat==='⭐'||A.hat==='🌸'?hy+s*.1:hy;if(dir==='left'){ctx.translate(hx,0);ctx.scale(-1,1);ctx.translate(-hx,0)}ctx.drawImage(hi,hx-w/2,yy-h,w,h)}
+    if(hi)drawHatImg(hi,A.hat,hx,hy-s*HTOP,s,dir==='left');
     else{ctx.font=`${s*.42}px serif`;ctx.textAlign='center';ctx.textBaseline='bottom';ctx.fillText(A.hat,hx,hy-s*.1)}ctx.restore()}
   if(A.ride){ctx.save();ctx.strokeStyle='#1d1b2e';ctx.lineWidth=Math.max(2,s*.05);ctx.fillStyle='#e63946';const by=y+s*.47;ctx.beginPath();ctx.roundRect(x-s*.32,by-s*.06,s*.64,s*.07,3);ctx.fill();ctx.stroke();for(const dx of[-.26,.26]){ctx.fillStyle='#333';ctx.beginPath();ctx.arc(x+dx*s,by+s*.03,s*.07,0,7);ctx.fill()}ctx.restore()}}
 function capeShape(x,y,s,dir){ctx.save();ctx.fillStyle=S.av.col;ctx.strokeStyle='rgba(0,0,0,.45)';ctx.lineWidth=2;const sw=Math.sin(performance.now()/300)*s*.03;ctx.beginPath();
@@ -3413,7 +3414,7 @@ function platTile(c,g,ch,x,y,X,Y,T,t){if(!XI('x_b_grass'))return false;
   if(ch==='='){c.drawImage(XI('x_b_plank'),X,Y,T+1,T*.5);return true}
   if(ch==='!'){c.drawImage(XI('x_b_stone'),X,Y,T+1,T+1);return true}
   if(ch==='C'||ch==='Z'){const im=XI('x_b_conv');c.save();if(ch==='Z'){c.translate(X+T,0);c.scale(-1,1);c.translate(-X,0)}c.drawImage(im,X,Y,T+1,T*.6);c.restore();c.fillStyle='#8a8a99';c.fillRect(X,Y+T*.6,T+1,T*.4);return true}
-  if(ch==='L'){c.drawImage(XI('x_b_lava'),X,Y+Math.sin(t*3+x)*1.5,T+1,T+1);return true}
+  if(ch==='L'){const top=y===0||g[y-1][x]!=='L',fr=XI((top?'x_lv':'x_lvd')+((Math.floor(t*6)+x)%4));if(fr)c.drawImage(fr,X,Y,T+1,T+1);else c.drawImage(XI('x_b_lava'),X,Y+Math.sin(t*3+x)*1.5,T+1,T+1);lavaFx(c,X,Y,T,t,x,top);return true}
   if(ch==='T'){c.save();c.globalAlpha=.85+.15*Math.sin(t*5);c.drawImage(XI('x_b_tp'),X-T*.1,Y+T*.1,T*1.2,T*.95);c.restore();return true}
   const k=PTILE[ch];if(k&&XI(k)){const im=XI(k),big=ch==='F'?1.6:ch==='K'?1.1:1,h=T*big,w=h*im.naturalWidth/im.naturalHeight;c.drawImage(im,X+T/2-w/2,Y+T-h+(ch==='k'?Math.sin(t*3)*3:0),w,h);return true}
   return false}
@@ -3505,16 +3506,16 @@ function baseDraw(g,BS,cs,extra){
     if(im)g.drawImage(im,X,Y-('WPRHBFDE'.includes(f)?cs*.25:0),cs+.5,cs*('WPRHBFDE'.includes(f)?1.25:1)+.5);else{g.fillStyle=FCOL[f]||'#7fcf5a';g.fillRect(X,Y,cs,cs)}}
   const items=Object.entries(BS.o).map(([k,v])=>{const[x,y]=k.split(',').map(Number);return{x,y,v}});if(extra)items.push(...extra);
   items.sort((a,b)=>(OWALK.has(a.v)?-1:0)-(OWALK.has(b.v)?-1:0)||a.y-b.y||(a.hero?1:0)-(b.hero?1:0));
-  for(const it of items){if(it.draw){it.draw(g);continue}const im=XI(it.v)||dImg(it.v);if(!im)continue;const big=OBIG[it.v]||1.15,w=cs*big,h=w*im.naturalHeight/im.naturalWidth;
+  for(const it of items){if(it.draw){it.draw(g);continue}const im=XI(it.v)||dImg(it.v);if(!im){if(OEMO[it.v]){g.font=`${cs*.8}px serif`;g.textAlign='center';g.textBaseline='bottom';g.fillText(OEMO[it.v],it.x*cs+cs/2,it.y*cs+cs*.98)}continue}const big=OBIG[it.v]||1.15,w=cs*big,h=w*im.naturalHeight/im.naturalWidth;
     if(OWALK.has(it.v)){g.drawImage(im,it.x*cs+cs/2-w/2,it.y*cs+cs/2-h/2,w,h);continue}g.fillStyle='rgba(0,0,0,.18)';g.beginPath();g.ellipse(it.x*cs+cs/2,it.y*cs+cs*.92,w*.36,cs*.12,0,0,7);g.fill();g.drawImage(im,it.x*cs+cs/2-w/2,it.y*cs+cs*.95-h,w,h)}}
 function openBase(tab){S.base=S.base||{f:'g'.repeat(BASE_W*BASE_H),o:{}};const BS=S.base;tab=tab||'Sols';let tool=null;const cs=56;
   const list=BTABS[tab].filter(b=>!b[2]||brumeOpen());
-  const icon=k=>{const src=(window.DECOR_SRC||{})[FIMG[k]||k];return src?`<img src="${src}" alt="" style="height:30px;width:auto;vertical-align:middle;border-radius:4px">`:`<span style="display:inline-block;width:18px;height:18px;border-radius:4px;border:2px solid #1d1b2e;background:${FCOL[k]||'#ccc'};vertical-align:middle"></span>`};
+  const icon=k=>{const src=(window.DECOR_SRC||{})[FIMG[k]||k];return src?`<img src="${src}" alt="" style="height:30px;width:auto;vertical-align:middle;border-radius:4px">`:OEMO[k]?`<span style="font-size:22px;vertical-align:middle">${OEMO[k]}</span>`:`<span style="display:inline-block;width:18px;height:18px;border-radius:4px;border:2px solid #1d1b2e;background:${FCOL[k]||'#ccc'};vertical-align:middle"></span>`};
   const B=panel('🏡 Ma base',`<div class="row2">${Object.keys(BTABS).map(t=>`<button class="tact${t===tab?'':' alt'} btab" data-t="${t}">${t}</button>`).join('')}<button class="tact alt" id="bsGum">🧽 Gomme</button><button class="big" id="bsWalk">🚶 Me promener</button></div>
    <div class="row2" id="bsPal">${list.map(([k,n])=>`<button class="tact alt bst" data-t="${k}">${icon(k)} ${n}</button>`).join('')}</div>
    <div class="edwrap"><canvas id="bsCv" width="${BASE_W*cs}" height="${BASE_H*cs}" style="width:100%;max-width:${BASE_W*cs}px;height:auto"></canvas></div>
-   <div class="row2"><span class="small" id="bsN">Choisis un élément, puis touche la grille (tout s'aimante aux cases). Glisse le doigt pour peindre.</span><button class="tact alt" id="bsClr">Tout effacer</button></div>`);
-  const cv2=$('bsCv'),g=cv2.getContext('2d');const draw=()=>{g.clearRect(0,0,cv2.width,cv2.height);baseDraw(g,BS,cs)};draw();
+   <p class="small" id="bsSc" style="margin:4px 0"></p><div class="row2"><span class="small" id="bsN">Choisis un élément, puis touche la grille (tout s'aimante aux cases). Glisse le doigt pour peindre.</span><button class="tact alt" id="bsClr">Tout effacer</button></div>`);
+  const cv2=$('bsCv'),g=cv2.getContext('2d');const draw=()=>{g.clearRect(0,0,cv2.width,cv2.height);baseDraw(g,BS,cs);const sc=baseScore(BS),el=$('bsSc');if(el)el.innerHTML=`<b style="color:#e6a100;font-size:18px">${starsTxt(sc.st)}</b> Note de ta base${sc.tips[0]?' · Astuce : '+sc.tips[0]:' · Parfait !'}`};draw();
   B.querySelectorAll('.btab').forEach(b=>b.onclick=()=>openBase(b.dataset.t));
   const sel=b=>{B.querySelectorAll('.bst,#bsGum').forEach(x=>x.classList.add('alt'));b.classList.remove('alt')};
   B.querySelectorAll('.bst').forEach(b=>b.onclick=()=>{tool=b.dataset.t;sel(b)});$('bsGum').onclick=()=>{tool='_';sel($('bsGum'))};
@@ -3526,26 +3527,131 @@ function openBase(tab){S.base=S.base||{f:'g'.repeat(BASE_W*BASE_H),o:{}};const B
   cv2.onpointerdown=e=>{e.preventDefault();down=true;last='';put2(e);try{cv2.setPointerCapture(e.pointerId)}catch(_){}};cv2.onpointermove=e=>{if(down)put2(e)};cv2.onpointerup=cv2.onpointercancel=()=>{down=false;save();checkQuests()};
   $('bsClr').onclick=()=>{if(!$('bsClr').dataset.ok){$('bsClr').dataset.ok=1;$('bsClr').textContent='Sûr ? Touche encore';return}S.base={f:'g'.repeat(BASE_W*BASE_H),o:{}};save();openBase(tab)};
   $('bsWalk').onclick=()=>baseVisit()}
+/* ================= BASE VIVANTE (v69) ================= */
+const OEMO={x_m0:'🛏️',x_m1:'🍽️',x_m2:'📚',x_m3:'🚪',x_m4:'✏️',x_m5:'🏮',x_m6:'🟦',x_m7:'🪴',x_m8:'📺',x_m9:'🧸',x_m10:'🐠',x_m11:'🧺',x_j0:'🌳',x_j1:'🎠',x_j2:'🛝',x_j3:'🤸',x_j4:'🐟',x_j5:'🥕',x_j6:'⛺',x_j7:'🔥',x_j8:'🏠',x_j9:'🗿',x_j10:'🌸',x_j11:'🎯'};
+const BFACT=["Le renard entend une souris bouger sous la neige, puis il saute dessus la tête la première !","Les tortues existent depuis plus de 200 millions d'années : elles ont connu les dinosaures.","L'aigle voit bien plus loin et plus net que nous : il repère un lapin de très haut dans le ciel.","Les loups vivent en famille. Cette famille s'appelle une meute.","Chaque tigre a des rayures différentes, comme tes empreintes de doigts.","Chez le manchot empereur, c'est le papa qui garde l'œuf au chaud sur ses pattes, pendant environ deux mois.","Les dauphins se reconnaissent grâce à un sifflement spécial, un peu comme un prénom.","Un chat dort environ deux tiers de sa vie !","La grenouille ne boit pas avec sa bouche : l'eau passe par sa peau.","Le hibou peut tourner la tête de trois quarts de tour.","Les abeilles font une petite danse pour montrer aux autres où sont les fleurs.","La pieuvre a trois cœurs, et son sang est bleu.","Le guépard est l'animal terrestre le plus rapide : plus vite qu'une voiture en ville !","La girafe a 7 os dans le cou, exactement comme toi. Ils sont juste beaucoup plus grands.","Le colibri peut voler en marche arrière.","Le paresseux ne descend de son arbre qu'environ une fois par semaine.","Les fourmis peuvent porter des choses bien plus lourdes qu'elles.","La chauve-souris est le seul mammifère qui vole vraiment.","Le caméléon peut bouger ses deux yeux chacun de son côté.","Les requins existaient déjà avant les premiers arbres !","Le kangourou ne peut pas marcher en arrière.","Un escargot peut dormir plusieurs mois quand il fait trop sec."];
+function bvDay(){const d=today();if(!S.bv||S.bv.d!==d)S.bv={d,n:{}};return S.bv}
+function bvLim(k,max){const B=bvDay();B.n[k]=B.n[k]||0;if(B.n[k]>=max)return false;B.n[k]++;return true}
+function baseScore(BS){let st=0;const tips=[],ob=Object.values(BS.o),kinds=new Set(ob),fl=new Set(BS.f.split(''));
+  const walls=[...BS.f].filter(c=>'WPRBF'.includes(c)).length;
+  if(kinds.size>=3)st++;else tips.push('Pose au moins 3 objets différents.');
+  if(kinds.size>=8)st++;else if(kinds.size>=3)tips.push(`Encore ${8-kinds.size} objet${8-kinds.size>1?'s':''} différent${8-kinds.size>1?'s':''} pour une étoile.`);
+  if(walls>=6&&BS.f.includes('D'))st++;else tips.push('Construis une maison avec des murs et une porte.');
+  if(ob.filter(v=>/^x_j/.test(v)).length>=2&&ob.some(v=>/^x_m/.test(v)))st++;else tips.push('Mets un meuble dans la maison et 2 jeux dans le jardin.');
+  if(fl.size>=4)st++;else tips.push('Utilise au moins 4 sortes de sols.');
+  return{st,tips}}
+const starsTxt=n=>'★'.repeat(n)+'☆'.repeat(5-n);
+function bvMath(){const lv=S.beaten.length,r=n=>Math.floor(Math.random()*n);let a,b,op,res;
+  if(lv<3){a=r(10)+1;b=r(10)+1;op='+';res=a+b}else if(lv<6){if(Math.random()<.5){a=r(50)+10;b=r(40)+5;op='+';res=a+b}else{a=r(60)+20;b=r(19)+1;op='−';res=a-b}}else{a=r(9)+2;b=r(9)+2;op='×';res=a*b}
+  const o=new Set([res]);while(o.size<3){const d=res+(r(7)-3)||res+4;if(d>=0)o.add(d)}return{q:`${a} ${op} ${b} = ?`,res,opts:shuffle([...o])}}
+function bvMoney(n){S.money+=n;updTop();save()}
+function bvGarden(){if(!S.gard)return -1;const m=(Date.now()-S.gard.t)/60000;return m>=20?2:m>=10?1:0}
+
 function baseVisit(){const BS=S.base,cs=56;let sx=-1,sy=-1;
   for(let y=BASE_H-1;y>=0&&sx<0;y--)for(let x=0;x<BASE_W;x++)if(BS.f[y*BASE_W+x]==='D'&&baseWalk(BS,x,y)){sx=x;sy=y;break}
   for(let y=BASE_H-1;y>=0&&sx<0;y--)for(let x=0;x<BASE_W;x++)if(baseWalk(BS,x,y)){sx=x;sy=y;break}
   if(sx<0){toast('Il n’y a aucune case libre pour marcher !');return}
-  const B=panel('🚶 Visite de ta base',`<p class="small">Touche une case pour y aller. Ta Shinobête te suit partout !</p><div class="edwrap"><canvas id="bvCv" width="${BASE_W*cs}" height="${BASE_H*cs}" style="width:100%;max-width:${BASE_W*cs}px;height:auto"></canvas></div><div class="row2"><button class="tact alt" id="bvBack">🛠️ Retour à la construction</button></div>`);
-  const cv2=$('bvCv'),g=cv2.getContext('2d');const H={x:sx,y:sy,fx:sx,fy:sy,t:1,dir:'down',path:[]},Pt={x:sx,y:Math.min(BASE_H-1,sy),fx:sx,fy:sy};let raf=0,last=performance.now(),steps=0;
+  const B=panel('🚶 Visite de ta base',`<p class="small">Touche une case pour y aller. <b>Touche un objet pour jouer avec !</b> Ta Shinobête te suit partout.</p><div class="edwrap"><canvas id="bvCv" width="${BASE_W*cs}" height="${BASE_H*cs}" style="width:100%;max-width:${BASE_W*cs}px;height:auto"></canvas></div>
+   <div id="bvBox" class="bvbox" hidden></div><div class="row2"><button class="tact alt" id="bvBack">🛠️ Construire</button><button class="tact alt" id="bvPh">📸 Photo</button><span class="small" id="bvSc"></span></div>`);
+  const cv2=$('bvCv'),g=cv2.getContext('2d');const H={x:sx,y:sy,fx:sx,fy:sy,t:1,dir:'down',path:[],goal:null,an:null},Pt={x:sx,y:sy,fx:sx,fy:sy,sleep:null,hide:null};let raf=0,last=performance.now(),steps=0,busy=false;
+  const FX=[],pop=(x,y,e,n)=>{for(let i=0;i<(n||1);i++)FX.push({x:x+(Math.random()-.5)*.6,y,e,t:-i*.15})};
+  const sc=baseScore(BS);$('bvSc').textContent='Note : '+starsTxt(sc.st);
+  const say2=(html,opts)=>new Promise(res=>{const bx=$('bvBox');if(!bx)return res(-1);bx.hidden=false;bx.innerHTML=`<div>${html}</div><div class="row2">${(opts||['OK']).map((o,i)=>`<button class="tact${i?' alt':''}" data-i="${i}">${o}</button>`).join('')}</div>`;
+    bx.querySelectorAll('button[data-i]').forEach(b=>b.onclick=()=>{bx.hidden=true;res(+b.dataset.i)});try{bx.scrollIntoView({block:'nearest',behavior:'smooth'})}catch(_){}});
   const bfs=(tx,ty)=>{const q=[[H.x,H.y]],prev={},k=(x,y)=>x+','+y;prev[k(H.x,H.y)]=null;while(q.length){const[x,y]=q.shift();if(x===tx&&y===ty){const p=[];let c=k(x,y);while(prev[c]){p.unshift(c.split(',').map(Number));c=prev[c]}return p}
       for(const[dx,dy]of[[1,0],[-1,0],[0,1],[0,-1]]){const nx=x+dx,ny=y+dy;if(prev[k(nx,ny)]!==undefined||!baseWalk(BS,nx,ny))continue;prev[k(nx,ny)]=k(x,y);q.push([nx,ny])}}return null};
-  cv2.onpointerdown=e=>{const r=cv2.getBoundingClientRect(),x=Math.floor((e.clientX-r.left)*cv2.width/r.width/cs),y=Math.floor((e.clientY-r.top)*cv2.height/r.height/cs);const p=bfs(x,y);if(p&&p.length)H.path=p;else if(!(x===H.x&&y===H.y))beep(200,.06,'square',.03);
-    const o=BS.o[x+','+y];if(o&&Math.abs(x-H.x)+Math.abs(y-H.y)<=1){const n=[...BTABS.Meubles,...BTABS.Jardin,...BTABS.Décors].find(b=>b[0]===o);toast(n?`${n[1]} : ${pick(['Très joli !','Ta Shinobête adore cet endroit.','Bien rangé, ninja !','Parfait pour se reposer.'])}`:'Joli !')}};
-  const team=S.team[0];
+  const team=S.team[0],objName=o=>{const n=[...BTABS.Meubles,...BTABS.Jardin,...BTABS.Décors].find(b=>b[0]===o);return n?n[1]:'Objet'};
+  const anim=(k,d,x,y)=>new Promise(res=>{H.an={k,t:0,d,x,y,res}});
+  const quiz=async(title,qq,good,reward)=>{const i=await say2(`<b>${title}</b><p style="font-size:26px;margin:6px 0">${qq.q}</p>`,qq.opts.map(String));const ok=qq.opts[i]===qq.res;
+    if(ok){sfx.win&&sfx.win();S.st.exam=(S.st.exam||0)+1;pop(H.x,H.y,'⭐',3);let msg=good;if(reward&&bvLim('quiz',12)){bvMoney(reward);msg+=` +${reward} shinosous.`}await say2(msg)}else{beep(180,.15,'square',.04);await say2(`Presque ! La bonne réponse était <b>${qq.res}</b>.`)}return ok};
+  const act=async(o,x,y)=>{if(busy)return;busy=true;try{
+    if(Pt.hide){if(Pt.hide===x+','+y){Pt.hide=null;Pt.x=Pt.fx=H.x;Pt.y=Pt.fy=H.y;pop(x,y,'💚',4);sfx.win&&sfx.win();let m=`Trouvé ! ${team?nm(team):'Ta Shinobête'} était caché derrière : ${objName(o)}.`;if(bvLim('hide',3)){bvMoney(15);m+=' +15 shinosous.'}await say2(m)}else{pop(x,y,'❓');await say2('Personne ici… Cherche encore !')}return}
+    switch(o){
+    case 'x_m0':await say2('Faire un gros dodo ? Toute ton équipe reprend des forces.',['Dodo !','Non']).then(async i=>{if(i)return;await anim('sleep',2.2,x,y);healAll();sfx.heal&&sfx.heal();save();await say2('Bien reposés ! Toute ton équipe est en pleine forme. 💪')});break;
+    case 'x_m1':pop(x,y,'🍙');pop(Pt.x,Pt.y,'❤️',3);await say2(`Miam ! ${team?nm(team):'Ta Shinobête'} adore le goûter.`);break;
+    case 'x_m2':S.st.fact=(S.st.fact||0)+1;await say2(`📚 <b>Le savais-tu ?</b><br>${pick(BFACT)}`,['Super !','Un autre !']).then(i=>{if(i===1){busy=false;return act(o,x,y)}});break;
+    case 'x_m3':openAvatar();return;
+    case 'x_m4':await quiz('✏️ Devoir du ninja',bvMath(),'Bravo, c’est juste !',8);break;
+    case 'x_m5':case 'lampadaire':case 'z_lanterne':BS.night=!BS.night;save();pop(x,y,BS.night?'🌙':'☀️');break;
+    case 'x_m7':if(bvLim('plant',1)){pop(x,y,'💧',3);pop(x,y,'✨',2);await say2('Tu arroses la plante. Elle a l’air toute contente !')}else await say2('La plante a déjà bu aujourd’hui. Reviens demain !');break;
+    case 'x_m8':{const ids=[...new Set(S.caught)];if(ids.length<3){await say2('📺 Un dessin animé de ninjas ! Attrape au moins 3 Shinobêtes pour jouer à « Qui est-ce ? ».');break}
+      const id=pick(ids),opts=shuffle([id,...shuffle(ids.filter(v=>spec(v).name!==spec(id).name)).slice(0,2)]);
+      const i=await say2(`📺 <b>Qui est-ce ?</b><br><img id="bvSil" src="${sprSrc(id)}" alt="" style="height:110px;filter:brightness(0);transition:filter .6s">`,opts.map(v=>spec(v).name));
+      const ok=opts[i]===id;if(ok){pop(H.x,H.y,'⭐',3);if(bvLim('tv',5))bvMoney(6)}
+      await say2(`<img src="${sprSrc(id)}" alt="" style="height:110px"><br>${ok?'Bravo ! ':'Raté ! '}C’était <b>${spec(id).name}</b>.`);break}
+    case 'x_m9':if(bvLim('toys',1)){const n=15+Math.floor(Math.random()*16);bvMoney(n);pop(x,y,'🪙',4);await say2(`En rangeant tes jouets, tu trouves ${n} shinosous !`)}else{pop(x,y,'🧸');await say2('Tes jouets sont bien rangés. Reviens demain, il y aura peut-être une surprise.')}break;
+    case 'x_m10':case 'x_j4':{const n=3+Math.floor(Math.random()*7),m=1+Math.floor(Math.random()*4),fish=shuffle([...Array(n).fill('🐠'),...Array(m).fill('🐡')]);
+      const opts=shuffle([...new Set([n,n+1,n-1,n+2])].filter(v=>v>0).slice(0,3));if(!opts.includes(n))opts[0]=n;
+      await quiz('🐠 Compte les poissons',{q:`<span style="font-size:30px;letter-spacing:2px">${fish.join('')}</span><br><span style="font-size:18px">Combien de 🐠 ?</span>`,res:n,opts:shuffle(opts)},'Bien compté !',5);break}
+    case 'x_m11':case 'x_j8':Pt.sleep={x,y};pop(x,y,'💤',3);await say2(`${team?nm(team):'Ta Shinobête'} fait une petite sieste. Touche une case pour la réveiller.`);break;
+    case 'x_j0':case 'x_j6':{const ks=Object.keys(BS.o).filter(k=>k!==x+','+y);if(ks.length<3){await say2('Pose plus d’objets pour jouer à cache-cache !');break}
+      if(await say2('🙈 Cache-cache ! Ta Shinobête va se cacher derrière un objet. Tu la trouves ?',['On joue !','Non']))break;Pt.hide=pick(ks);Pt.sleep=null;await say2('1, 2, 3… Prêt ! Touche les objets pour la trouver.');break}
+    case 'x_j1':await anim('swing',2.4,x,y);pop(Pt.x,Pt.y,'❤️',2);break;
+    case 'x_j2':await anim('slide',1.2,x,y);await say2('Wiiiii ! 🛝');break;
+    case 'x_j3':beep(500,.1,'triangle',.05,300);await anim('jump',1.8,x,y);pop(x,y,'⭐');break;
+    case 'x_j5':{const st=bvGarden();if(st<0){if(!await say2('🌱 Planter des graines dans le potager ? Elles poussent en vrai, même quand tu ne joues pas (20 minutes).',['Planter','Non'])){S.gard={t:Date.now()};save();pop(x,y,'🌱',3)}}
+      else if(st<2){const mn=Math.ceil(20-(Date.now()-S.gard.t)/60000);if(!await say2(`Ça pousse ! Encore ${mn} minute${mn>1?'s':''}. Arroser pour aller plus vite ?`,['Arroser 💧','Attendre'])){if(bvLim('water',3)){S.gard.t-=3*60000;save();pop(x,y,'💧',3)}else await say2('Le potager a assez bu pour aujourd’hui.')}}
+      else{S.gard=null;S.st.harv=(S.st.harv||0)+1;bvMoney(40);pop(x,y,'🥕',2);pop(x,y,'🍓',2);await say2('Quelle récolte ! Tu vends tes légumes au marché : +40 shinosous. Replante quand tu veux.')}break}
+    case 'x_j7':await marsh(x,y);break;
+    case 'x_j9':{const L=TECH.filter((t,i)=>S.beaten.includes(i));await say2(`🗿 <b>Tes techniques ninja</b><br>${L.length?L.map(t=>`${t.ic} ${t.n}`).join('<br>'):'Gagne une arène pour apprendre ta première technique !'}`);break}
+    case 'x_j10':photo();break;
+    case 'x_j11':{let ok=0;for(let k=0;k<3;k++){const qq=bvMath(),i=await say2(`<b>🎯 Lancer de shuriken ${k+1}/3</b><p style="font-size:26px;margin:6px 0">${qq.q}</p>`,qq.opts.map(String));if(qq.opts[i]===qq.res){ok++;S.st.exam=(S.st.exam||0)+1;pop(x,y,'💥');beep(700,.06,'square',.04)}else{pop(x,y,'💨');beep(180,.12,'square',.04)}}
+      let m=`${ok}/3 dans le mille !`;if(ok===3){m+=' Parfait, ninja !';if(bvLim('target',3)){bvMoney(15);m+=' +15 shinosous.'}}await say2(m);break}
+    default:pop(x,y,'✨');toast(`${objName(o)} : ${pick(['Très joli !','Ta Shinobête adore cet endroit.','Bien rangé, ninja !','Parfait pour se reposer.'])}`)}
+  }finally{busy=false}};
+  const marsh=(x,y)=>new Promise(res=>{const bx=$('bvBox');bx.hidden=false;bx.innerHTML=`<b>🔥 Guimauve grillée</b><p class="small">Retire la guimauve quand le curseur est dans la zone dorée !</p><div style="position:relative;height:26px;border:3px solid #1d1b2e;border-radius:10px;background:linear-gradient(90deg,#fff 0 55%,#ffc93c 55% 75%,#5a3a1a 75%)"><div id="mkC" style="position:absolute;top:-6px;width:6px;height:32px;background:#e63946;border-radius:3px"></div></div><div class="row2"><button class="tact" id="mkGo">Retirer !</button></div>`;
+    let p=0,dir=1,on=true;const step=()=>{if(!on||!$('mkC'))return;p+=dir*.012;if(p>1||p<0){dir*=-1;p=Math.max(0,Math.min(1,p))}$('mkC').style.left=`calc(${p*100}% - 3px)`;requestAnimationFrame(step)};step();
+    $('mkGo').onclick=async()=>{on=false;const good=p>=.55&&p<=.75;if(good){pop(x,y,'😋',2);pop(Pt.x,Pt.y,'❤️',3);sfx.win&&sfx.win();if(bvLim('marsh',3))bvMoney(5)}else pop(x,y,p>.75?'💨':'🤍');
+      bx.hidden=true;await say2(good?'Parfaitement dorée ! Miam !':p>.75?'Oups, un peu brûlée…':'Encore toute blanche… Réessaie !');res()}});
+  const photo=()=>{const url=cv2.toDataURL('image/jpeg',.9);S.st.photo=(S.st.photo||0)+1;beep(1200,.05,'square',.04);
+    say2(`<b>📸 Photo souvenir</b><br><img src="${url}" alt="Photo de ta base" style="width:100%;max-width:420px;border:3px solid #1d1b2e;border-radius:10px"><br><a href="${url}" download="ma-base-shinobetes.jpg" class="small">Enregistrer la photo</a><p class="small">Si le lien ne marche pas, appuie longtemps sur la photo.</p>`)};
+  cv2.onpointerdown=e=>{const r=cv2.getBoundingClientRect(),x=Math.floor((e.clientX-r.left)*cv2.width/r.width/cs),y=Math.floor((e.clientY-r.top)*cv2.height/r.height/cs);if(busy||H.an)return;
+    if(Pt.sleep){Pt.sleep=null}
+    const o=BS.o[x+','+y];
+    if(o&&!OWALK.has(o)){let best=null;for(const[dx,dy]of[[0,1],[1,0],[-1,0],[0,-1],[0,0]]){const nx=x+dx,ny=y+dy;if(!(dx===0&&dy===0)&&!baseWalk(BS,nx,ny))continue;if(dx===0&&dy===0)continue;const p=bfs(nx,ny);if(p&&(!best||p.length<best.length))best=p}
+      if(best){H.path=best;H.goal={o,x,y}}else beep(200,.06,'square',.03);return}
+    const p=bfs(x,y);if(p&&p.length)H.path=p;else if(!(x===H.x&&y===H.y))beep(200,.06,'square',.03)};
+  let oc=null;
   const loop=ts=>{if(!$('bvCv'))return;const dt=Math.min(.05,(ts-last)/1000);last=ts;
-    if(H.t<1){H.t=Math.min(1,H.t+dt*5)}else if(H.path.length){const[nx,ny]=H.path.shift();Pt.fx=Pt.x;Pt.fy=Pt.y;Pt.x=H.x;Pt.y=H.y;H.fx=H.x;H.fy=H.y;H.dir=nx>H.x?'right':nx<H.x?'left':ny>H.y?'down':'up';H.x=nx;H.y=ny;H.t=0;steps++}
-    const hx=(H.fx+(H.x-H.fx)*H.t+.5)*cs,hy=(H.fy+(H.y-H.fy)*H.t+.5)*cs,px2=(Pt.fx+(Pt.x-Pt.fx)*H.t+.5)*cs,py2=(Pt.fy+(Pt.y-Pt.fy)*H.t+.5)*cs,mov=H.t<1;
+    if(H.an){H.an.t+=dt;if(H.an.t>=H.an.d){const r=H.an.res;H.an=null;r()}}
+    else if(H.t<1){H.t=Math.min(1,H.t+dt*5)}else if(H.path.length){const[nx,ny]=H.path.shift();if(!Pt.sleep&&!Pt.hide){Pt.fx=Pt.x;Pt.fy=Pt.y;Pt.x=H.x;Pt.y=H.y}H.fx=H.x;H.fy=H.y;H.dir=nx>H.x?'right':nx<H.x?'left':ny>H.y?'down':'up';H.x=nx;H.y=ny;H.t=0;steps++}
+    else if(H.goal){const gl=H.goal;H.goal=null;H.dir=gl.x>H.x?'right':gl.x<H.x?'left':gl.y>H.y?'down':'up';act(gl.o,gl.x,gl.y)}
+    let hx=(H.fx+(H.x-H.fx)*H.t+.5)*cs,hy=(H.fy+(H.y-H.fy)*H.t+.5)*cs;const mov=H.t<1;let hide=false;
+    if(H.an){const p=H.an.t/H.an.d,A=H.an;if(A.k==='jump'){hx=(A.x+.5)*cs;hy=(A.y+.5)*cs-Math.abs(Math.sin(p*Math.PI*3))*cs*1.2}else if(A.k==='swing'){hx=(A.x+.5)*cs+Math.sin(p*Math.PI*4)*cs*.35;hy=(A.y+.3)*cs}else if(A.k==='slide'){hx=(A.x+.1+p*.9)*cs;hy=(A.y-.2+p*.8)*cs}else if(A.k==='sleep'){hide=true;if(Math.random()<.04)pop(A.x,A.y-.3,'💤')}}
+    const px2=Pt.sleep?(Pt.sleep.x+.5)*cs:(Pt.fx+(Pt.x-Pt.fx)*H.t+.5)*cs,py2=Pt.sleep?(Pt.sleep.y+.2)*cs:(Pt.fy+(Pt.y-Pt.fy)*H.t+.5)*cs;
     g.clearRect(0,0,cv2.width,cv2.height);
-    baseDraw(g,BS,cs,[{y:Pt.y-.01,v:'',draw:g2=>{const im=team&&SIMG(team.sp);if(im&&!(Pt.x===H.x&&Pt.y===H.y)){const s=cs*.85;g2.save();g2.translate(px2,py2+cs*.4-Math.abs(Math.sin(ts/90))*(mov?4:0));if(H.dir==='right')g2.scale(-1,1);g2.drawImage(im,-s/2,-s,s,s);g2.restore()}}},
-      {y:H.y,v:'',hero:1,draw:g2=>{const HH=window.HERO||{},side=H.dir==='left'||H.dir==='right';let im=null;if(mov){const f=Math.floor(steps*2+H.t*6)%6;im=side?HH['w'+(Math.floor(H.t*9)%9)]:HH[(H.dir==='up'?'b':'f')+f]}if(!im||!im.naturalWidth)im=HH[side?'side':H.dir==='up'?'up':'down'];if(!im||!im.naturalWidth)return;
-        const h=cs*1.35,w=h*im.naturalWidth/im.naturalHeight;g2.save();g2.translate(hx,hy+cs*.45);if(H.dir==='left')g2.scale(-1,1);g2.drawImage(im,-w/2,-h,w,h);g2.restore()}}]);
+    const ex=[{y:(Pt.sleep?Pt.sleep.y+.01:Pt.y-.01),v:'',draw:g2=>{const im=team&&SIMG(team.sp);if(Pt.hide||!im||(!Pt.sleep&&Pt.x===H.x&&Pt.y===H.y&&!H.an))return;const s=cs*.85;g2.save();g2.translate(px2,py2+cs*.4-(Pt.sleep?0:Math.abs(Math.sin(ts/90))*(mov?4:0)));if(H.dir==='right'&&!Pt.sleep)g2.scale(-1,1);if(Pt.sleep)g2.scale(1,.92);g2.drawImage(im,-s/2,-s,s,s);g2.restore()}},
+      {y:H.an?H.an.y+.02:H.y,v:'',hero:1,draw:g2=>{if(hide)return;const HH=window.HERO||{},side=H.dir==='left'||H.dir==='right';let im=null;if(mov){const f=Math.floor(steps*2+H.t*6)%6;im=side?HH['w'+(Math.floor(H.t*9)%9)]:HH[(H.dir==='up'?'b':'f')+f]}if(!im||!im.naturalWidth)im=HH[side?'side':H.dir==='up'?'up':'down'];if(!im||!im.naturalWidth)return;
+        const h=cs*1.35,w=h*im.naturalWidth/im.naturalHeight;g2.save();g2.translate(hx,hy+cs*.45);if(H.dir==='left')g2.scale(-1,1);g2.drawImage(im,-w/2,-h,w,h);g2.restore()}}];
+    for(const[k,v]of Object.entries(BS.o))if(v==='x_j5'&&S.gard){const[x,y]=k.split(',').map(Number),e=['🌱','🌿','🍓'][bvGarden()];ex.push({y:y+.03,v:'',draw:g2=>{g2.font=`${cs*.45}px serif`;g2.textAlign='center';g2.textBaseline='middle';g2.fillText(e,(x+.5)*cs,(y+.2)*cs+Math.sin(ts/300)*2)}})}
+    baseDraw(g,BS,cs,ex);
+    if(BS.night){if(!oc){oc=document.createElement('canvas');oc.width=cv2.width;oc.height=cv2.height}const o2=oc.getContext('2d');o2.globalCompositeOperation='source-over';o2.clearRect(0,0,oc.width,oc.height);o2.fillStyle='rgba(12,14,48,.62)';o2.fillRect(0,0,oc.width,oc.height);o2.globalCompositeOperation='destination-out';
+      const light=(x,y,r)=>{const gr=o2.createRadialGradient(x,y,0,x,y,r);gr.addColorStop(0,'rgba(0,0,0,1)');gr.addColorStop(1,'rgba(0,0,0,0)');o2.fillStyle=gr;o2.beginPath();o2.arc(x,y,r,0,7);o2.fill()};
+      for(const[k,v]of Object.entries(BS.o))if(['x_m5','lampadaire','z_lanterne','x_j7','z_champi','x_m8','x_m10'].includes(v)){const[x,y]=k.split(',').map(Number);light((x+.5)*cs,(y+.3)*cs,cs*(2.4+Math.sin(ts/200+x)*.1))}
+      light(hx,hy,cs*1.1);g.drawImage(oc,0,0);g.save();g.globalCompositeOperation='lighter';g.globalAlpha=.12;for(const[k,v]of Object.entries(BS.o))if(['x_m5','lampadaire','z_lanterne','x_j7'].includes(v)){const[x,y]=k.split(',').map(Number);g.fillStyle='#ffb347';g.beginPath();g.arc((x+.5)*cs,(y+.3)*cs,cs*1.2,0,7);g.fill()}g.restore()}
+    for(let i=FX.length-1;i>=0;i--){const f=FX[i];f.t+=dt;if(f.t>1.4){FX.splice(i,1);continue}if(f.t<0)continue;g.save();g.globalAlpha=Math.max(0,1-f.t/1.4);g.font=`${cs*.5}px serif`;g.textAlign='center';g.fillText(f.e,(f.x+.5)*cs,(f.y+.1)*cs-f.t*cs*.9);g.restore()}
     raf=requestAnimationFrame(loop)};raf=requestAnimationFrame(loop);
-  $('bvBack').onclick=()=>{cancelAnimationFrame(raf);openBase()}}
+  $('bvBack').onclick=()=>{cancelAnimationFrame(raf);openBase()};$('bvPh').onclick=()=>{if(!busy)photo()};
+  if(sc.st>0&&bvLim('visit',1)){const m=sc.st*10;bvMoney(m);setTimeout(()=>{const src=(window.HERO_SRC||{}).M;say2(`${src?`<img src="${src}" alt="" style="height:90px;float:left;margin-right:10px">`:''}<b>Maman visite ta base !</b><br>« Je lui donne ${starsTxt(sc.st)} ! » Elle te donne ${m} shinosous.${sc.tips[0]?`<br><span class="small">Son conseil : ${sc.tips[0]}</span>`:''}`)},500)}}
+
+/* ================= LAVE ANIMÉE ================= */
+function lavaFx(c,X,Y,T,t,x,top){c.save();c.globalAlpha=.14+.1*Math.sin(t*2.5+x*.7);c.fillStyle='#ffe066';c.fillRect(X,Y+(top?T*.25:0),T+1,top?T*.75:T);c.globalAlpha=1;
+  if(top)for(let i=0;i<2;i++){const s=((x*37+i*53)%100)/100,ph=(t*.6+s)%1;if(ph<.35){c.fillStyle=`rgba(255,235,140,${(1-ph/.35).toFixed(2)})`;c.beginPath();c.arc(X+T*(.2+s*.6),Y+T*.14-ph*T*.12,T*(.05+ph*.2),0,7);c.fill()}
+    const e=(t*.45+s*1.7)%1;c.fillStyle=`rgba(255,${140+e*100|0},40,${(1-e).toFixed(2)})`;c.fillRect(X+T*(.15+((s*3)%1)*.7)+Math.sin(t*3+i)*T*.08,Y-e*T*1.4,3,3)}
+  c.restore()}
+
+/* ================= CHAPEAUX BIEN CALÉS ================= */
+let HTOP=.1;const HBOX=new Map();
+function hatBox(im){if(HBOX.has(im))return HBOX.get(im);let b={x:0,y:0,w:im.naturalWidth,h:im.naturalHeight};
+  try{const W=Math.min(200,im.naturalWidth),Hh=Math.round(W*im.naturalHeight/im.naturalWidth),o=document.createElement('canvas');o.width=W;o.height=Hh;const g=o.getContext('2d');g.drawImage(im,0,0,W,Hh);const d=g.getImageData(0,0,W,Hh).data;let x0=W,y0=Hh,x1=-1,y1=-1;
+    for(let y=0;y<Hh;y++)for(let x=0;x<W;x++)if(d[(y*W+x)*4+3]>40){if(x<x0)x0=x;if(x>x1)x1=x;if(y<y0)y0=y;if(y>y1)y1=y}
+    if(x1>x0&&y1>y0){const k=im.naturalWidth/W;b={x:x0*k,y:y0*k,w:(x1-x0+1)*k,h:(y1-y0+1)*k}}}catch(_){}
+  HBOX.set(im,b);return b}
+/* largeur (× taille du héros) et enfoncement sur la tête, par chapeau */
+const HFIT={'🎀':[.4,.35],'🌸':[.56,.45],'⭐':[.54,.4],'😺':[.54,.4],'👑':[.44,.3],'🎩':[.5,.36],'🎓':[.58,.3],'🍄':[.62,.32],'🧁':[.56,.36],'⛑️':[.6,.35],'🧢':[.6,.38],'🪖':[.6,.35]};
+function drawHatImg(hi,hat,hx,headTop,s,flip){const b=hatBox(hi),f=HFIT[hat]||[.5,.28],w=s*f[0],h=w*b.h/b.w,y=headTop-h*(1-f[1]);ctx.save();if(flip){ctx.translate(hx,0);ctx.scale(-1,1);ctx.translate(-hx,0)}ctx.drawImage(hi,b.x,b.y,b.w,b.h,hx-w/2,y,w,h);ctx.restore()}
+
+BADGES.push(['📸','Photographe',()=>(S.st.photo||0)>=1],['🥕','Petit jardinier',()=>(S.st.harv||0)>=1],['📚','Curieux de nature',()=>(S.st.fact||0)>=10],['🏡','Base 5 étoiles',()=>!!S.base&&baseScore(S.base).st>=5]);
 
 /* ================= TECHNIQUES NINJA ================= */
 function techShow(T,title){return new Promise(res=>{let L=$('techL');if(!L){L=document.createElement('div');L.id='techL';document.getElementById('app').appendChild(L)}
@@ -3699,7 +3805,7 @@ document.addEventListener('visibilitychange',()=>{if(document.hidden){save();try
 addEventListener('contextmenu',e=>{if(!e.target.closest('textarea,input'))e.preventDefault()});
 async function goFull(){const el=document.documentElement;try{if(document.fullscreenElement){await document.exitFullscreen();return}await (el.requestFullscreen||el.webkitRequestFullscreen).call(el,{navigationUI:'hide'});try{await screen.orientation.lock('landscape')}catch(e){}}catch(e){toast("Le plein écran n'est pas disponible ici. Sur Android, utilise « Ajouter à l'écran d'accueil » dans le menu du navigateur.")}}
 $('bCode').onclick=()=>{audioOn();openCode(true)};
-window.__T={baseVisit,XI,OBBY,platParse,openCreate,openEditor,openObby,openBase,openAvatar,openTycoon,openJobs,openBoxes,giveBox,gamePompier,gameCuisinier,gameVeto,fogPct,tyRate,gameTaupe,gameSlice,gameDuel,arcadeNew,updTop,rankPts,openActs,openDM,openPet,openCraft,openHunt,openClock,openEng,openDict,openRace,openTour,openDraw,openRoom,openBadges,openJournal,openFam,openParent,gameTaiko,gameMemo,gameRace,tourRun,newHunt,huntFound,showPause,calcNinja,animalCard,dexDetail:(i)=>dexDetail(i),examQ,clockInfo,eventToday,BADGES,FACTS,giantWin,encounter,MISSIONS,gamePlat,platMenu,buildLevel,ensureMv,pendingMoves,learnset,mvDef,learnMove,gainXp,renderMoves,trainerTalk,get TRB(){return TRB},fishing,gameFish,pensionMenu,penStep,hatch,legend,LEGEND,openCode,packSave,unpackSave,dayPhase,weatherAt,sttSkip,learnTech,useTech,TECH,hasT,place,rnTalk,maman,professor,mallTalk,missionCall,RNPC,BLOCKS,MISSIONS,ROUTES,wild,lineOdds,stageOdds,get mode(){return mode},mk,maxhp,atk,moves,eff,spec,need,wildLv,wild,CHAMPS,get LEAGUE(){return LEAGUE},rivalTeam,foeMove,LINES,TRAINERS,get S(){return S},set S(v){S=v},trainerBattle,rivalBattle,league,defi,arena,toupieTournament,battle,initState,enterWorld,save,load};
+window.__T={baseScore,bvMath,lavaFx,hatBox,baseVisit,XI,OBBY,platParse,openCreate,openEditor,openObby,openBase,openAvatar,openTycoon,openJobs,openBoxes,giveBox,gamePompier,gameCuisinier,gameVeto,fogPct,tyRate,gameTaupe,gameSlice,gameDuel,arcadeNew,updTop,rankPts,openActs,openDM,openPet,openCraft,openHunt,openClock,openEng,openDict,openRace,openTour,openDraw,openRoom,openBadges,openJournal,openFam,openParent,gameTaiko,gameMemo,gameRace,tourRun,newHunt,huntFound,showPause,calcNinja,animalCard,dexDetail:(i)=>dexDetail(i),examQ,clockInfo,eventToday,BADGES,FACTS,giantWin,encounter,MISSIONS,gamePlat,platMenu,buildLevel,ensureMv,pendingMoves,learnset,mvDef,learnMove,gainXp,renderMoves,trainerTalk,get TRB(){return TRB},fishing,gameFish,pensionMenu,penStep,hatch,legend,LEGEND,openCode,packSave,unpackSave,dayPhase,weatherAt,sttSkip,learnTech,useTech,TECH,hasT,place,rnTalk,maman,professor,mallTalk,missionCall,RNPC,BLOCKS,MISSIONS,ROUTES,wild,lineOdds,stageOdds,get mode(){return mode},mk,maxhp,atk,moves,eff,spec,need,wildLv,wild,CHAMPS,get LEAGUE(){return LEAGUE},rivalTeam,foeMove,LINES,TRAINERS,get S(){return S},set S(v){S=v},trainerBattle,rivalBattle,league,defi,arena,toupieTournament,battle,initState,enterWorld,save,load};
 
 const saved=load();
 if(saved){$('bCont').hidden=false;$('hero').value=saved.name||'Ninja';$('bCont').textContent=`Continuer (${saved.name})`}
