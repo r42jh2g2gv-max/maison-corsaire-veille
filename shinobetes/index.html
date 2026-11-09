@@ -422,7 +422,7 @@ button.dexc{font:inherit;color:inherit;cursor:pointer;box-shadow:0 3px 0 var(--i
       <button class="big alt" id="bCont" hidden>Continuer</button>
       <button class="tact alt" id="bCode">J'ai un code de sauvegarde</button>
       <p id="bootMsg">Chargement du jeu…</p>
-      <p class="small" style="opacity:.6;margin:4px 0 0;text-align:center">Version 84</p>
+      <p class="small" style="opacity:.6;margin:4px 0 0;text-align:center">Version 85</p>
       <p class="small" id="newWarn" hidden>Une partie existe déjà. Appuie encore sur « Nouvelle aventure » pour l'effacer et recommencer.</p>
     </div>
     </div>
@@ -983,7 +983,7 @@ function villageEnter(){const v=VILLAGES.find(v=>Math.abs(P.x-v.x)<=2&&Math.abs(
 let grid=WORLD.map(r=>r.slice());
 const ROWS=MH,COLS=MW;
 const SOLID=new Set(['T','w','H','D','r','X','A','G','M','E','P','J']);
-window.__shino={trOK:()=>trOK(),dbgT:(x,y)=>[cls(x-1,y-1),cls(x,y-1),cls(x-1,y),cls(x,y)],room:(k,t)=>enterRoomNow(k,t),blocks:()=>BLOCKS,PROPS,TPS:TP,BRUME,get BRUMEC(){return BRUMEC},spotNear,REACH,RNPC,HIDDEN,BLOCKS,ROUTES,START,MISSIONS,pt:k=>playTrans(k),TRAINERS,ARCADES,get S(){return S},game:k=>({invaders:gameInvaders,saut:gameSaut,corsaire:gameCorsaire,toupie:()=>toupieMatch(TOUPIE_RIVALS[0],0)})[k](),vs:t=>vsSplash(t),GUARD,FENCE,get P(){return P},get NPCS(){return NPCS},get TS(){return TS},REG,TP,GATES,ARENAS,DOJOS,WORLD,MONU,SCHOOLS,PROPS,get grid(){return grid}};
+window.__shino={exam:c=>{EX={t:0,lv:1,sub:SUBS[0][0],c,last:""};$("examL").hidden=false;examAsk()},trOK:()=>trOK(),dbgT:(x,y)=>[cls(x-1,y-1),cls(x,y-1),cls(x-1,y),cls(x,y)],room:(k,t)=>enterRoomNow(k,t),blocks:()=>BLOCKS,PROPS,TPS:TP,BRUME,get BRUMEC(){return BRUMEC},spotNear,REACH,RNPC,HIDDEN,BLOCKS,ROUTES,START,MISSIONS,pt:k=>playTrans(k),TRAINERS,ARCADES,get S(){return S},game:k=>({invaders:gameInvaders,saut:gameSaut,corsaire:gameCorsaire,toupie:()=>toupieMatch(TOUPIE_RIVALS[0],0)})[k](),vs:t=>vsSplash(t),GUARD,FENCE,get P(){return P},get NPCS(){return NPCS},get TS(){return TS},REG,TP,GATES,ARENAS,DOJOS,WORLD,MONU,SCHOOLS,PROPS,get grid(){return grid}};
 
 /* ================= ÉTAT ================= */
 let S=null; // {name,team,x,y,beaten,seen,caught,scrolls}
@@ -2283,7 +2283,7 @@ const SUBS=[['math','Maths','🔢'],['gram','Grammaire','📚'],['ortho','Orthog
 let EX=null;
 async function school(t){
   mode='talk';const who=`${PROFS[t]} · École de ${TOWNS[t].n}`;
-  const k=await ask(who,`Bonjour ${S.name} ! Ici, tu passes des examens de CE1 ou de CE2 avec une de tes Shinobêtes. Bonne réponse : elle gagne 1 niveau. Mauvaise réponse : pas grave, elle ne perd rien et tu réessaies. Tu peux gagner ${EXAM_MAX} niveaux par jour. Il y a aussi mon arène de défis !`,['Passer un examen','Arène de défis','Au revoir']);
+  const k=await ask(who,`Bonjour ${S.name} ! Ici, tu passes des examens de CE1 ou de CE2 avec une de tes Shinobêtes. Bonne réponse : elle gagne 1 niveau. Mauvaise réponse : elle perd 1 niveau, et si elle redescend sous son niveau d’évolution, elle reprend sa forme d’avant ! Tu peux gagner ${EXAM_MAX} niveaux par jour. Il y a aussi mon arène de défis !`,['Passer un examen','Arène de défis','Au revoir']);
   if(k===1)return defi(t);
   if(k!==0){mode='map';return}
   mode='panel';EX={t,lv:0,sub:'',c:null,last:''};$('examTitle').textContent=`École de ${TOWNS[t].n}`;$('examL').hidden=false;examStep1();
@@ -2322,7 +2322,8 @@ async function examAnswer(Q,i){
   if(ok){S.ex.g++;S.st.exam++;S.money+=5;sfx.catch();
     if(c.lv<capLv()){const old=maxhp(c);c.lv++;c.xp=0;c.hp=Math.min(maxhp(c),c.hp+maxhp(c)-old);msg=`Bravo ! ${nm(c)} monte au niveau ${c.lv}. Tu gagnes aussi 5 shinosous.`}
     else msg=`Bravo ! Mais ${nm(c)} est déjà au maximum pour ta ceinture. Tu gagnes 5 shinosous.`}
-  else{sfx.hit();msg=`Oups ! La bonne réponse était « ${Q.good} ». Pas grave : ${nm(c)} garde son niveau ${c.lv}. Essaie la suivante !`}
+  else{sfx.hit();const lost=c.lv>1;let dev='';if(lost){c.lv--;c.xp=0;const ln=Math.floor(c.sp/3),st=c.sp%3,ev=LINES[ln].evo;if((st===2&&c.lv<ev[1])||(st===1&&c.lv<ev[0])){const from=nm(c);c.sp--;c.known=null;c.mv=null;ensureMv(c);setTimeout(()=>{const cv2=$('exCv');if(cv2)paint(cv2,c.sp,{size:64})},50);dev=`Oh non ! ${from} redescend au niveau ${c.lv} et redevient ${nm(c)}… Réponds juste pour la faire évoluer à nouveau !`}c.hp=Math.min(c.hp,maxhp(c))}
+    msg=`Oups ! La bonne réponse était « ${Q.good} ». ${dev||(lost?`${nm(c)} redescend au niveau ${c.lv}.`:`${nm(c)} est déjà au niveau 1.`)}`}
   $('exLv').textContent=c.lv;
   fb.innerHTML=`<div class="fb ${ok?'ok':'ko'}">${msg}</div><div class="fbtns"><button class="big" id="exNext">${exLeft()>0?'Question suivante':'Terminer'}</button><button class="tact alt" id="exStop">Arrêter</button></div>`;
   save();updTop();
