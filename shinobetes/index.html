@@ -417,7 +417,7 @@ button.dexc{font:inherit;color:inherit;cursor:pointer;box-shadow:0 3px 0 var(--i
       <button class="big alt" id="bCont" hidden>Continuer</button>
       <button class="tact alt" id="bCode">J'ai un code de sauvegarde</button>
       <p id="bootMsg">Chargement du jeu…</p>
-      <p class="small" style="opacity:.6;margin:4px 0 0;text-align:center">Version 71</p>
+      <p class="small" style="opacity:.6;margin:4px 0 0;text-align:center">Version 72</p>
       <p class="small" id="newWarn" hidden>Une partie existe déjà. Appuie encore sur « Nouvelle aventure » pour l'effacer et recommencer.</p>
     </div>
     </div>
@@ -1384,8 +1384,8 @@ function drawMap(t){
   const nowS=performance.now()/1000,SAY=[];
   for(const n of NPCS){const nx=n.moving?n.fx+(n.x-n.fx)*n.tm:n.x,ny=n.moving?n.fy+(n.y-n.fy)*n.tm:n.y;if(nx<x0-1||nx>x1+1||ny<y0-1||ny>y1+2)continue;const V=VILL[n.v];
     L.push([ny+.005,()=>{const sx=nx*TS-camX+TS/2,sy=ny*TS-camY+TS/2;npcSprite(sx,sy,TS,'V'+n.v,n.dir,n.moving,(n.steps+n.tm)*Math.PI)||ninja(sx,sy,TS*.85,V.suit,V.band,'#5a3a1a',n.dir,n.moving?(n.steps+n.tm)*Math.PI+.01:0,false);if(n===FACE.npc)SAY.push([sx,sy-TS*.95])}])}
-  for(const T of TRAINERS){if(T.x<x0-1||T.x>x1+1||T.y<y0-1||T.y>y1+2)continue;L.push([T.y+.004,()=>{const sx=T.x*TS-camX+TS/2,sy=T.y*TS-camY+TS/2,beat=S&&S.trn.includes(T.id);
-    npcSprite(sx,sy,TS,'D'+T.v,T.dir,false,0)||ninja(sx,sy,TS*.85,'#6c6f7d','#e63946','#5a3a1a',T.dir,0,false);if(!beat&&T.alert&&performance.now()-T.alert<700)bubble(sx,sy-TS*1.15,'!');if(T===FACE.tr)SAY.push([sx,sy-TS*1.05])}])}
+  for(const T of TRAINERS){if(T.x<x0-1||T.x>x1+1||T.y<y0-1||T.y>y1+2)continue;const tfx=T.fx===undefined?T.x:T.fx+(T.x-T.fx)*T.tm,tfy=T.fy===undefined?T.y:T.fy+(T.y-T.fy)*T.tm;L.push([tfy+.004,()=>{const sx=tfx*TS-camX+TS/2,sy=tfy*TS-camY+TS/2,beat=S&&S.trn.includes(T.id);
+    npcSprite(sx,sy,TS,'D'+T.v,T.dir,!!T.moving,((T.steps||0)+(T.tm||0))*Math.PI)||ninja(sx,sy,TS*.85,'#6c6f7d','#e63946','#5a3a1a',T.dir,0,false);if(!beat&&T.alert&&performance.now()-T.alert<1100)bubble(sx,sy-TS*1.15,'!');if(T===FACE.tr)SAY.push([sx,sy-TS*1.05])}])}
   for(const n of RNPC){if(!n.vis()||n.x<x0-1||n.x>x1+1||n.y<y0-1||n.y>y1+2)continue;L.push([n.y+.004,()=>{const sx=n.x*TS-camX+TS/2,sy=n.y*TS-camY+TS/2,mk2=n.mark&&n.mark();
     npcSprite(sx,sy,TS*(n.spr[0]==='N'?1.05:1),n.spr,n.dir||'down',false,0,false,false)||ninja(sx,sy,TS*.85,'#7d6f9e','#cfc6ff','#5a3a1a','down',0,false);if(mk2)bubble(sx,sy-TS*1.25,'!');if(n===FACE.rn)SAY.push([sx,sy-TS*1.05])}])}
   for(const h of HIDDEN){if(!S.found||S.found.includes(h.id)||h.x<x0||h.x>x1||h.y<y0||h.y>y1)continue;const sx=h.x*TS-camX+TS/2,sy=h.y*TS-camY+TS/2,k=(Math.sin(t*4+h.id)+1)/2;
@@ -1454,7 +1454,7 @@ function arrive(){
   mapPuff(P.x,P.y,'hg'.includes(ch)?'leaf':'dust');
   if(hidden()){mapPuff(P.x,P.y,'dust');return}
   for(const T of TRAINERS)if(T.calm&&Math.abs(T.x-P.x)+Math.abs(T.y-P.y)>4)T.calm=false;
-  if(!TRB&&!hidden()){const T=TRAINERS.find(T=>!T.calm&&!S.trn.includes(T.id)&&Math.abs(T.x-P.x)+Math.abs(T.y-P.y)<=2);if(T){TRB=true;held=null;mode='busy';T.alert=performance.now();beep(880,.08,'square',.05);setTimeout(()=>trainerBattle(T),650);return}}
+  if(trCheck(P.x,P.y))return;
   if(S.repel>0){S.repel--;if(!S.repel)toast('La fumée ninja s’est dissipée.');return}
   if('hg'.includes(ch)&&P.steps>2&&Math.random()<.055){held=null;mode='busy';EMOTE=performance.now();beep(880,.08,'square',.05);setTimeout(()=>encounter(r),550)}
 }
@@ -1465,7 +1465,7 @@ function perfTick(ms,dt){if(!S||(S.qual&&S.qual!=='auto'))return;PF.n++;PF.t+=dt
     PF={n:0,slow:0,fast:0,t:0}}}
 function frame(ts){
   requestAnimationFrame(frame);
-  const dt=Math.min(.05,(ts-last)/1000||0);last=ts;mapDt=dt;playTick(dt);
+  const dt=Math.min(.05,(ts-last)/1000||0);last=ts;mapDt=dt;playTick(dt);if(S&&!INT){trInit();updTrainers(dt)}
   if(mode==='map'||mode==='talk'){
     if(P.moving){P.t+=dt/(S&&S.av&&S.av.ride&&!INT?(RUN?.07:.1):hasT('speed')?(RUN?.075:.13):(RUN?.095:.17));if(P.t>=1){P.moving=false;P.t=0;P.fx=P.x;P.fy=P.y;arrive()}}
     if(!P.moving&&held&&mode==='map')tryMove(held);
@@ -1559,7 +1559,7 @@ function choose(me,foe,isTr){
     add(`${ICO('scroll','📜')} Capturer (${S.scrolls})`,'sys',()=>res({t:'catch'}));
     add(`${ICO('sac','🎒')} Sac`,'sys',()=>res({t:'bag'}));
     add('Changer','sys',()=>res({t:'switch'}));
-    add(isTr?'Abandonner':'Fuir','sys',()=>res({t:'run'}));
+    if(!isTr)add('Fuir','sys',()=>res({t:'run'}));
   });
 }
 function chooseTech(av){return new Promise(res=>{const acts=$('acts');acts.innerHTML='';$('msg').textContent='Quelle technique ninja ?';
@@ -1654,6 +1654,7 @@ async function battle(foes,tr,zone){
   const end=async r=>{for(const c of S.team)delete c.stt;if(r==='win'||r==='caught')await heroPop('h_win',1300);else if(r==='lose')await heroPop('h_tired',1300);await wait(300);ov.hidden=true;music('map');$('acts').innerHTML='';$('msg').textContent='';
     if(r==='lose'){healAll();if(!window.__noResp)respawn()}
     save();updTop();return r};
+  let runN=0;
   while(true){
     const cur=S.team[me];
     let a=await choose(cur,foe,!!tr);
@@ -1687,8 +1688,10 @@ async function battle(foes,tr,zone){
       me=i;setMe(S.team[me]);await say(`Reviens ! À toi, ${nm(S.team[me])} !`,1100);
     }
     else if(a.t==='run'){
-      if(tr){await say(`Tu salues ${tr.name} et tu quittes le duel.`);return end('run')}
-      await say('Tu disparais dans un nuage de fumée ninja !');return end('run');
+      if(tr){await say('Impossible d’abandonner un combat de dresseur !');continue}
+      runN++;const fch=clamp(.5+(cur.lv-foe.lv)*.06+(runN-1)*.15-(foe.giant?.15:0),.25,.95);
+      if(Math.random()<fch){await say('Tu disparais dans un nuage de fumée ninja !');return end('run')}
+      sfx.bump&&sfx.bump();await say(`Fuite ratée ! ${nm(foe)} te barre le chemin.`,1300);
     }
     else if(a.t==='move'&&await sttSkip(cur)){}
     else if(a.t==='move'){
@@ -2269,6 +2272,34 @@ function musicOn(on){MUS.on=on;if(MUS.gain)MUS.gain.gain.setTargetAtTime(on?1:0,
 
 /* ================= DRESSEURS, RIVAL, LIGUE, DÉFIS ================= */
 let TRB=false;
+/* ================= DRESSEURS : vision et déplacements ================= */
+const TR_SIGHT=4;
+function trInit(){for(const T of TRAINERS)if(T.hx===undefined){T.hx=T.x;T.hy=T.y;T.fx=T.x;T.fy=T.y;T.tm=0;T.moving=false;T.steps=0;T.next=rand(1,4)}}
+function trBlocked(x,y){const ch=grid[y]&&grid[y][x];return !ch||SOLID.has(ch)||(WALL[y]&&WALL[y][x])}
+/* Le joueur est-il dans le champ de vision du dresseur (en face de lui, jusqu'à 4 cases, sans obstacle) ? */
+function trSees(T,px,py){const[dx,dy]=DIRS[T.dir];for(let k=1;k<=TR_SIGHT;k++){const x=T.x+dx*k,y=T.y+dy*k;if(x===px&&y===py)return k;if(trBlocked(x,y)||npcAt(x,y)||rnpcAt(x,y)||trainerAt(x,y))return 0}return 0}
+function trCan(T){return !T.calm&&!T.chase&&!S.trn.includes(T.id)}
+function trSpot(T){TRB=true;held=null;mode='busy';T.alert=performance.now();T.chase=true;T.wait=.7;beep(880,.08,'square',.05);
+  P.dir={up:'down',down:'up',left:'right',right:'left'}[T.dir]}
+function trCheck(px,py){if(TRB||hidden()||INT)return false;for(const T of TRAINERS)if(trCan(T)&&trSees(T,px,py)){trSpot(T);return true}return false}
+function updTrainers(dt){if(INT||!S)return;
+  for(const T of TRAINERS){
+    if(T.moving){T.tm+=dt/(T.chase?.3:.45);if(T.tm>=1){T.moving=false;T.tm=0;T.fx=T.x;T.fy=T.y;T.steps++;
+        if(!T.chase&&mode==='map'&&!P.moving&&trCan(T)&&trSees(T,P.x,P.y))trSpot(T)}continue}
+    if(T.chase){if((T.wait-=dt)>0)continue;const d=Math.abs(T.x-P.x)+Math.abs(T.y-P.y);
+      if(d<=1){T.chase=false;T.dir=P.x>T.x?'right':P.x<T.x?'left':P.y>T.y?'down':'up';trainerBattle(T);continue}
+      const[dx,dy]=DIRS[T.dir],nx=T.x+dx,ny=T.y+dy;if(trBlocked(nx,ny)||(nx===P.x&&ny===P.y)){T.chase=false;trainerBattle(T);continue}
+      T.fx=T.x;T.fy=T.y;T.x=nx;T.y=ny;T.moving=true;T.tm=0;continue}
+    if(mode!=='map'||TRB||T===FACE.tr)continue;
+    if(Math.abs(T.x-P.x)>14||Math.abs(T.y-P.y)>10)continue;
+    if((T.next-=dt)>0)continue;T.next=rand(1.2,3.5);
+    const ds=['up','down','left','right'],d=ds[Math.floor(Math.random()*4)];
+    if(Math.random()<.45){T.dir=d;if(!P.moving&&trCan(T)&&trSees(T,P.x,P.y))trSpot(T);continue}
+    const[dx,dy]=DIRS[d],nx=T.x+dx,ny=T.y+dy,ch=grid[ny]&&grid[ny][nx],far=Math.abs(nx-T.hx)+Math.abs(ny-T.hy);
+    T.dir=d;
+    if(!ch||!',hfg.'.includes(ch)||(WALL[ny]&&WALL[ny][nx])||(far>2&&far>=Math.abs(T.x-T.hx)+Math.abs(T.y-T.hy))||(nx===P.x&&ny===P.y)||(nx===P.fx&&ny===P.fy)||trainerAt(nx,ny)||npcAt(nx,ny)||rnpcAt(nx,ny)||BRUME.has(key(nx,ny)))continue;
+    T.fx=T.x;T.fy=T.y;T.x=nx;T.y=ny;T.moving=true;T.tm=0;
+  }}
 async function trainerTalk(T){const who=(T.v%2?'Dresseur ':'Dresseuse ')+T.name;T.dir={up:'down',down:'up',left:'right',right:'left'}[P.dir];
   if(!S.trn.includes(T.id)){TRB=true;return trainerBattle(T)}
   mode='talk';const a=await ask(who,pick(["Tu m'as battu la dernière fois… mais je me suis entraîné ! Une revanche ?","Encore toi ! Tu veux rejouer un combat ?","Mes Shinobêtes ont progressé depuis notre combat. Revanche ?"]),['Revanche !','Non merci']);
@@ -3817,7 +3848,7 @@ document.addEventListener('visibilitychange',()=>{if(document.hidden){save();try
 addEventListener('contextmenu',e=>{if(!e.target.closest('textarea,input'))e.preventDefault()});
 async function goFull(){const el=document.documentElement;try{if(document.fullscreenElement){await document.exitFullscreen();return}await (el.requestFullscreen||el.webkitRequestFullscreen).call(el,{navigationUI:'hide'});try{await screen.orientation.lock('landscape')}catch(e){}}catch(e){toast("Le plein écran n'est pas disponible ici. Sur Android, utilise « Ajouter à l'écran d'accueil » dans le menu du navigateur.")}}
 $('bCode').onclick=()=>{audioOn();openCode(true)};
-window.__T={applyOutfit,OUTF,baseScore,bvMath,lavaFx,hatBox,baseVisit,XI,OBBY,platParse,openCreate,openEditor,openObby,openBase,openAvatar,openTycoon,openJobs,openBoxes,giveBox,gamePompier,gameCuisinier,gameVeto,fogPct,tyRate,gameTaupe,gameSlice,gameDuel,arcadeNew,updTop,rankPts,openActs,openDM,openPet,openCraft,openHunt,openClock,openEng,openDict,openRace,openTour,openDraw,openRoom,openBadges,openJournal,openFam,openParent,gameTaiko,gameMemo,gameRace,tourRun,newHunt,huntFound,showPause,calcNinja,animalCard,dexDetail:(i)=>dexDetail(i),examQ,clockInfo,eventToday,BADGES,FACTS,giantWin,encounter,MISSIONS,gamePlat,platMenu,buildLevel,ensureMv,pendingMoves,learnset,mvDef,learnMove,gainXp,renderMoves,trainerTalk,get TRB(){return TRB},fishing,gameFish,pensionMenu,penStep,hatch,legend,LEGEND,openCode,packSave,unpackSave,dayPhase,weatherAt,sttSkip,learnTech,useTech,TECH,hasT,place,rnTalk,maman,professor,mallTalk,missionCall,RNPC,BLOCKS,MISSIONS,ROUTES,wild,lineOdds,stageOdds,get mode(){return mode},mk,maxhp,atk,moves,eff,spec,need,wildLv,wild,CHAMPS,get LEAGUE(){return LEAGUE},rivalTeam,foeMove,LINES,TRAINERS,get S(){return S},set S(v){S=v},trainerBattle,rivalBattle,league,defi,arena,toupieTournament,battle,initState,enterWorld,save,load};
+window.__T={TRAINERS,trSees,trCheck,updTrainers,applyOutfit,OUTF,baseScore,bvMath,lavaFx,hatBox,baseVisit,XI,OBBY,platParse,openCreate,openEditor,openObby,openBase,openAvatar,openTycoon,openJobs,openBoxes,giveBox,gamePompier,gameCuisinier,gameVeto,fogPct,tyRate,gameTaupe,gameSlice,gameDuel,arcadeNew,updTop,rankPts,openActs,openDM,openPet,openCraft,openHunt,openClock,openEng,openDict,openRace,openTour,openDraw,openRoom,openBadges,openJournal,openFam,openParent,gameTaiko,gameMemo,gameRace,tourRun,newHunt,huntFound,showPause,calcNinja,animalCard,dexDetail:(i)=>dexDetail(i),examQ,clockInfo,eventToday,BADGES,FACTS,giantWin,encounter,MISSIONS,gamePlat,platMenu,buildLevel,ensureMv,pendingMoves,learnset,mvDef,learnMove,gainXp,renderMoves,trainerTalk,get TRB(){return TRB},fishing,gameFish,pensionMenu,penStep,hatch,legend,LEGEND,openCode,packSave,unpackSave,dayPhase,weatherAt,sttSkip,learnTech,useTech,TECH,hasT,place,rnTalk,maman,professor,mallTalk,missionCall,RNPC,BLOCKS,MISSIONS,ROUTES,wild,lineOdds,stageOdds,get mode(){return mode},mk,maxhp,atk,moves,eff,spec,need,wildLv,wild,CHAMPS,get LEAGUE(){return LEAGUE},rivalTeam,foeMove,LINES,TRAINERS,get S(){return S},set S(v){S=v},trainerBattle,rivalBattle,league,defi,arena,toupieTournament,battle,initState,enterWorld,save,load};
 
 const saved=load();
 if(saved){$('bCont').hidden=false;$('hero').value=saved.name||'Ninja';$('bCont').textContent=`Continuer (${saved.name})`}
