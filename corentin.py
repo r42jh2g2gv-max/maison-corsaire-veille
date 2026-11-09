@@ -278,9 +278,14 @@ def collect(fetcher=fetch):
                 changes = compare(previous, snapshot)
                 for category, title, details in changes:
                     add_observation(conn, name, category, title, details, url)
-                summary.append(
-                    f"🔔 {name} — {url} : {len(changes)} changement(s) enregistré(s)."
-                )
+                if changes:
+                    summary.append(
+                        f"🔔 {name} — {url} : {len(changes)} changement(s) enregistré(s)."
+                    )
+                else:
+                    summary.append(
+                        f"= {name} — {url} : aucun changement (contenu seulement réordonné)."
+                    )
 
             conn.execute(
                 """
