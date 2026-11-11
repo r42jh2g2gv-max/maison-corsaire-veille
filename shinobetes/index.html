@@ -422,7 +422,7 @@ button.dexc{font:inherit;color:inherit;cursor:pointer;box-shadow:0 3px 0 var(--i
       <button class="big alt" id="bCont" hidden>Continuer</button>
       <button class="tact alt" id="bCode">J'ai un code de sauvegarde</button>
       <p id="bootMsg">Chargement du jeu…</p>
-      <p class="small" style="opacity:.6;margin:4px 0 0;text-align:center">Version 93</p>
+      <p class="small" style="opacity:.6;margin:4px 0 0;text-align:center">Version 94</p>
       <p class="small" id="newWarn" hidden>Une partie existe déjà. Appuie encore sur « Nouvelle aventure » pour l'effacer et recommencer.</p>
     </div>
     </div>
@@ -1338,20 +1338,20 @@ function texDetail(x0,x1,y0,y1,camX,camY){if(S&&S.qual==='eco')return;const s=TS
 /* ---------- jeu de tuiles unique (v90) ---------- */
 const NTON=()=>!!XI('x_nt_chemin_0');
 const NTC={grass:'g',path:'chemin',water:'eau',tall:'hautes',forest:'foret'};
-function ntCls(x,y,corner){if(x<0||y<0||x>=COLS||y>=ROWS)return null;if(RGN(x,y)||SEASON()==='hiver')return null;const c=cls(x,y);if(corner&&c==='bridge')return 'eau';if(c==='field')return 'champ';const t=NTC[c];if(!t)return null;if(t==='chemin'&&inPlaza(x,y))return XI('x_np_cobble')?'pave':null;return t}
+function ntCls(x,y,corner){if(x<0||y<0||x>=COLS||y>=ROWS)return null;if(SEASON()==='hiver')return null;{const rg=regionOf(x,y);if(rg)return rg}const c=cls(x,y);if(corner&&c==='bridge')return 'eau';if(c==='field')return 'champ';const t=NTC[c];if(!t)return null;if(t==='chemin'&&inPlaza(x,y))return XI('x_np_cobble')?'pave':null;return t}
 function paveKey(x,y){const r=(REG[y]||[])[x];return r===8?'x_np_gravier':(r===6||r===10||r===5)?'x_np_dalles':'x_np_cobble'}
-function ntFill(t,x,y){if(t==='pave')return XI(paveKey(x||0,y||0));return XI(t==='g'?'x_nt_herbe_eau':'x_nt_'+t+'_fill')}
+function ntFill(t,x,y){if(t==='volc')return XI('x_vv0');if(t==='givre')return XI('x_gv0');if(t==='pave')return XI(paveKey(x||0,y||0));return XI(t==='g'?'x_nt_herbe_eau':'x_nt_'+t+'_fill')}
 const NTMAP={"chemin":{"1":2,"2":-1,"3":-1,"4":1,"5":7,"6":-1,"7":11,"8":0,"9":-1,"10":6,"11":10,"12":4,"13":-1,"14":-1},"eau":{"1":3,"2":2,"3":5,"4":1,"5":7,"6":13,"7":11,"8":0,"9":12,"10":6,"11":10,"12":4,"13":-1,"14":-1},"foret":{"1":3,"2":2,"3":-1,"4":1,"5":7,"6":9,"7":11,"8":0,"9":-1,"10":6,"11":-1,"12":4,"13":-1,"14":-1},"hautes":{"8":0,"4":1,"2":2,"1":3,"12":4,"3":5,"10":6,"5":7,"14":8,"13":9,"11":10,"7":11,"9":12,"6":13},"champ":{"8":0,"4":1,"2":2,"1":3,"12":4,"3":5,"10":6,"5":7,"14":8,"13":9,"11":10,"7":11,"9":12,"6":13}};
-const NTPRI=['eau','pave','chemin','champ','foret','hautes'];let NTC2=null;let NTC3=null;
+const NTPRI=['volc','givre','eau','pave','chemin','champ','foret','hautes'];let NTC2=null;let NTC3=null;
 function ntDraw(x0,x1,y0,y1,camX,camY){const s=TS;
-  for(let y=y0;y<=y1;y++)for(let x=x0;x<=x1;x++){const t=ntCls(x,y);if(!t)continue;const im=ntFill(t,x,y);if(!im)continue;const q=im.naturalWidth/4;ctx.drawImage(im,(x%4)*q,(y%4)*q,q,q,x*s-camX,y*s-camY,s+.6,s+.6)}
+  for(let y=y0;y<=y1;y++)for(let x=x0;x<=x1;x++){const t=ntCls(x,y);if(!t)continue;const im=ntFill(t,x,y);if(!im)continue;const nn=(t==='volc'||t==='givre')?3:4,q=im.naturalWidth/nn;ctx.drawImage(im,(x%nn)*q,(y%nn)*q,q,q,x*s-camX,y*s-camY,s+.6,s+.6)}
   const br=[];
   for(let y=y0+1;y<=y1;y++)for(let x=x0+1;x<=x1;x++){const c=[ntCls(x-1,y-1,1),ntCls(x,y-1,1),ntCls(x-1,y,1),ntCls(x,y,1)];if(c.some(v=>!v))continue;
     const types=new Set(c.filter(k=>k!=='g'));if(!types.size||!c.includes('g')&&types.size===1)continue;if(types.has('pave')&&!c.includes('g'))continue;
     const B=NTPRI.find(p=>types.has(p));const m=(c[0]===B?8:0)|(c[1]===B?4:0)|(c[2]===B?2:0)|(c[3]===B?1:0),i=TRMAP[m];if(i===undefined)continue;
     const dx=Math.round((x-.5)*s-camX),dy=Math.round((y-.5)*s-camY);
     const di=NTMAP[B]?NTMAP[B][m]:-1;if(di>=0){const im=XI('x_nt_'+B+'_'+di);if(!im)continue;ctx.drawImage(im,dx,dy,s+1,s+1)}
-    else{const mk=XI('x_nm_'+B+'_'+m)||XI('x_tm_'+B+'_'+i),bf=ntFill(B,x,y),gf=ntFill('g');if(!mk||!bf||!gf)continue;const sz=Math.ceil(s)+1;if(!NTC2||NTC2.width!==sz){NTC2=document.createElement('canvas');NTC2.width=NTC2.height=sz;NTC3=document.createElement('canvas');NTC3.width=NTC3.height=sz}
+    else{const mk=(B==='volc'||B==='givre')?XI('x_nm_foret_'+m):XI('x_nm_'+B+'_'+m)||XI('x_tm_'+B+'_'+i),bf=ntFill(B,x,y),gf=ntFill('g');if(!mk||!bf||!gf)continue;const sz=Math.ceil(s)+1;if(!NTC2||NTC2.width!==sz){NTC2=document.createElement('canvas');NTC2.width=NTC2.height=sz;NTC3=document.createElement('canvas');NTC3.width=NTC3.height=sz}
       const g2=NTC2.getContext('2d'),g3=NTC3.getContext('2d'),q=gf.naturalWidth/4,qb=bf.naturalWidth/4;g2.globalCompositeOperation='source-over';g2.clearRect(0,0,sz,sz);g3.globalCompositeOperation='source-over';g3.clearRect(0,0,sz,sz);
       for(const[cx,cy]of[[x-1,y-1],[x,y-1],[x-1,y],[x,y]]){g2.drawImage(gf,(cx%4)*q,(cy%4)*q,q,q,(cx-x+.5)*s,(cy-y+.5)*s,s+1,s+1);g3.drawImage(bf,(cx%4)*qb,(cy%4)*qb,qb,qb,(cx-x+.5)*s,(cy-y+.5)*s,s+1,s+1)}
       g3.globalCompositeOperation='destination-in';g3.drawImage(mk,0,0,sz,sz);g2.drawImage(NTC3,0,0);ctx.drawImage(NTC2,dx,dy)}
