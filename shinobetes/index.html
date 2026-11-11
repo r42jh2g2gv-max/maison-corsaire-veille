@@ -422,7 +422,7 @@ button.dexc{font:inherit;color:inherit;cursor:pointer;box-shadow:0 3px 0 var(--i
       <button class="big alt" id="bCont" hidden>Continuer</button>
       <button class="tact alt" id="bCode">J'ai un code de sauvegarde</button>
       <p id="bootMsg">Chargement du jeu…</p>
-      <p class="small" style="opacity:.6;margin:4px 0 0;text-align:center">Version 88</p>
+      <p class="small" style="opacity:.6;margin:4px 0 0;text-align:center">Version 89</p>
       <p class="small" id="newWarn" hidden>Une partie existe déjà. Appuie encore sur « Nouvelle aventure » pour l'effacer et recommencer.</p>
     </div>
     </div>
@@ -871,7 +871,7 @@ function addVillages(g){
     if(end){let k=end;while(k){const[x,y]=k.split(',').map(Number);const c=g[y][x];if(c==='w')g[y][x]='b';else if(c!=='b')g[y][x]='.';k=seen.get(k)}}
     VILLAGES.push({n:d.n,x:cx,y:cy,r})}
   return VILLAGES}
-const WORLD=genWorld();addVillages(WORLD);for(let y=1;y<MH-1;y++)for(let x=1;x<MW-1;x++){const r=REG[y][x];if((r!==3&&r!==4)||WALL[y][x]||ROUTE.has(key(x,y))||WORLD[y][x]!==','||RGN(x,y))continue;let n=0;for(const[dx,dy]of[[1,0],[-1,0],[0,1],[0,-1]])if(WORLD[y+dy][x+dx]==='w')n++;if(n)WORLD[y][x]='s'}for(const c of TP.concat(VILLAGES))for(let y=c.y-6;y<=c.y+6;y++)for(let x=c.x-7;x<=c.x+7;x++){const ch=(WORLD[y]||[])[x];if((ch==='h'||ch==='g')&&!BRUME.has(key(x,y)))WORLD[y][x]=','}
+const WORLD=genWorld();addVillages(WORLD);for(const c of TP.concat(VILLAGES))for(let y=c.y-6;y<=c.y+6;y++)for(let x=c.x-7;x<=c.x+7;x++){const ch=(WORLD[y]||[])[x];if((ch==='h'||ch==='g')&&!BRUME.has(key(x,y)))WORLD[y][x]=','}
 const START={x:TP[HOME].x-3,y:TP[HOME].y-1};
 const TRAINERS=[];{const RN=rng(4242),NAMES=['Lucas','Emma','Hugo','Léa','Nathan','Chloé','Tom','Inès','Jules','Manon','Noah','Zoé','Louis','Camille','Arthur','Lina','Malo','Rose'];let n=0;
   ROUTES.forEach(({t,p})=>{for(const frac of[.25,.8]){let placed=false;for(let j=0;j<40&&!placed;j++){const i=Math.min(p.length-2,Math.max(1,Math.floor(p.length*frac)+(j%2?1:-1)*Math.ceil(j/2))),[x,y]=p[i],a=p[Math.max(0,i-1)],b=p[Math.min(p.length-1,i+1)],hz=Math.abs(b[0]-a[0])>=Math.abs(b[1]-a[1]);
@@ -1195,13 +1195,13 @@ const GSLOT={rambouillet:{herbe:0,chemin:1,foret:2},montfort:{herbe:0,chemin:1,f
 const GKIND={'s':'sable',',':'herbe','T':'herbe','r':'herbe','M':'herbe','f':'fleur','.':'chemin','G':'chemin','g':'foret','w':'eau','c':'champ'};
 const RTEX={givre:{herbe:'x_gv0',fleur:'x_gv0',chemin:'x_gv3',foret:'x_gv2',eau:'x_gv2',champ:'x_gv1',place:'x_gv1'},volc:{herbe:'x_vv0',fleur:'x_vv3',chemin:'x_vv1',foret:'x_vv2',eau:'x_vv2',champ:'x_vv3',place:'x_vv1'}};
 const SEASON=()=>{const o=S&&S.season;if(o&&o!=='auto')return o;const m=new Date().getMonth();return m===11||m<=1?'hiver':m>=8&&m<=10?'automne':'ete'};
-const STEX={automne:{herbe:'x_au0',fleur:'x_au0',chemin:'x_au1',foret:'x_au2',champ:'x_au3'},hiver:{herbe:'x_wi0',fleur:'x_wi0',chemin:'x_wi1',foret:'x_wi2',champ:'x_wi0'}};
+const STEX={hiver:{herbe:'x_wi0',fleur:'x_wi0',chemin:'x_wi1',champ:'x_wi0'}};
 function gTex(kind,x,y){{const rg=regionOf(x,y);if(rg){const k=RTEX[rg][kind];return k?XI(k):null}}if(kind==='sable')return XI('x_g_sable');if(kind==='eau'){const wa=XI((REG[y]||[])[x]===8?'x_wb0':'x_wa0');if(wa)return wa}{const se=SEASON(),T2=STEX[se];if(T2&&T2[kind]&&!(kind==='chemin'&&inPlaza(x,y))&&XI(T2[kind]))return XI(T2[kind])}const r=(REG[y]||[])[x],n=GTEX[r];if(!n)return null;const sl=GSLOT[n];let i=sl[kind];
   if(kind==='fleur'&&i===undefined)i=sl.herbe;if(kind==='chemin'&&sl.place!==undefined&&Math.abs(x-TP[r].x)<=4&&Math.abs(y-TP[r].y)<=3)i=sl.place;
   if(i===undefined)return null;return XI('x_g_'+n+'_'+i)}
 {const D=window.DECOR||{};let tm=0;for(const k in D)if((k.startsWith('x_g_')||k.startsWith('x_tm_'))&&!D[k].complete)D[k].addEventListener('load',()=>{clearTimeout(tm);tm=setTimeout(()=>{CHC.clear()},150)})}
 function tile(ch,x,y,sx,sy,t){
-  if(ch==='b'&&XI('x_pt_h')){const s=TS,wl=c=>c==='w'||c==='b',hz=!wl((grid[y]||[])[x-1])||!wl((grid[y]||[])[x+1])||(((grid[y-1]||[])[x]==='w')&&((grid[y+1]||[])[x]==='w')),wt=gTex('eau',x,y)||dImg('eau');if(wt){const q=wt.naturalWidth/4;ctx.drawImage(wt,(x%4)*q,(y%4)*q,q,q,sx,sy,s+1,s+1)}ctx.drawImage(XI(hz?'x_pt_h':'x_pt_v'),sx,sy,s+1,s+1);return}
+  if(false&&ch==='b'&&XI('x_pt_h')){const s=TS,wl=c=>c==='w'||c==='b',hz=!wl((grid[y]||[])[x-1])||!wl((grid[y]||[])[x+1])||(((grid[y-1]||[])[x]==='w')&&((grid[y+1]||[])[x]==='w')),wt=gTex('eau',x,y)||dImg('eau');if(wt){const q=wt.naturalWidth/4;ctx.drawImage(wt,(x%4)*q,(y%4)*q,q,q,sx,sy,s+1,s+1)}ctx.drawImage(XI(hz?'x_pt_h':'x_pt_v'),sx,sy,s+1,s+1);return}
   if(ch==='h'&&dImg('hh_c')){const s=TS,g=gTex('herbe',x,y)||dImg('herbe');if(g){const n=4,q=g.naturalWidth/n;ctx.drawImage(g,(x%n)*q,(y%n)*q,q,q,sx,sy,s+1,s+1)}else{ctx.fillStyle='#5eaa06';ctx.fillRect(sx,sy,s+1,s+1)}
     if(BRUME.has(key(x,y))){ctx.fillStyle='rgba(120,70,190,.22)';ctx.fillRect(sx,sy,s+1,s+1)}
     const k=hhPiece(x,y),im=hhVariant(k,x,y),sw=!reduced?Math.sin(t*1.6+x*.7+y*.4)*s*.015:0,se=SEASON(),rg=regionOf(x,y)||(se==='hiver'?'givre':se==='automne'?'aut':null);if(rg){ctx.save();ctx.filter=rg==='aut'?'sepia(.55) saturate(1.6) hue-rotate(-20deg)':rg==='givre'?'saturate(.35) brightness(1.45) hue-rotate(40deg)':'sepia(.7) saturate(1.8) hue-rotate(-25deg) brightness(.75)'}ctx.drawImage(im,sx-s*.06+sw,sy-s*.1,s*1.12,s*1.16);if(rg)ctx.restore();return}
@@ -1320,7 +1320,7 @@ function drawTrans(x0,x1,y0,y1,camX,camY){if(!trOK())return;const s=TS,sz=Math.c
       ctx.drawImage(TRC,dx,dy)}}}
 const GNZ=vnoise(5,7),GNZ2=vnoise(9,2.5);
 const FLR=['x_d_coquelicots','x_d_boutons_or','x_d_bleuets','x_d_marguerites','x_d_cailloux','x_d_champignons','x_d_fougere'];
-function texDetail(x0,x1,y0,y1,camX,camY){if(S&&S.qual==='eco')return;const s=TS,q=s/3;if(SEASON()!=='hiver')for(let y=y0;y<=y1;y++)for(let x=x0;x<=x1;x++){if((grid[y]||[])[x]!==','||ROUTE.has(key(x,y))||RGN(x,y)||inPlaza(x,y))continue;const h=hsh(x*3+7,y*5+1);if(h%29)continue;const im=XI(FLR[(h>>5)%FLR.length]);if(!im)continue;const w=s*.62,hh=w*im.naturalHeight/im.naturalWidth;ctx.drawImage(im,x*s-camX+s*.19+((h>>9)%5-2)*s*.04,y*s-camY+s*.92-hh,w,hh)}
+function texDetail(x0,x1,y0,y1,camX,camY){if(S&&S.qual==='eco')return;const s=TS,q=s/3;if(SEASON()!=='hiver')for(let y=y0;y<=y1;y++)for(let x=x0;x<=x1;x++){if((grid[y]||[])[x]!==','||ROUTE.has(key(x,y))||RGN(x,y)||inPlaza(x,y))continue;const h=hsh(x*3+7,y*5+1);if(h%71)continue;const im=XI(FLR[(h>>5)%FLR.length]);if(!im)continue;const w=s*.62,hh=w*im.naturalHeight/im.naturalWidth;ctx.drawImage(im,x*s-camX+s*.19+((h>>9)%5-2)*s*.04,y*s-camY+s*.92-hh,w,hh)}
   for(let y=y0;y<=y1;y++)for(let x=x0;x<=x1;x++){const c=cls(x,y);if(c==='out'||c==='water')continue;const sx=x*s-camX,sy=y*s-camY;
     for(let j=0;j<3;j++)for(let i=0;i<3;i++){const fx=x+(i+.5)/3,fy=y+(j+.5)/3,v=(GNZ(fx,fy)-.5)*1.4+(GNZ2(fx,fy)-.5)*.5;
       ctx.fillStyle=v>0?`rgba(255,246,200,${Math.min(.13,v*.16).toFixed(3)})`:`rgba(18,40,12,${Math.min(.16,-v*.2).toFixed(3)})`;ctx.fillRect(sx+i*q,sy+j*q,q+.6,q+.6)}
@@ -1328,7 +1328,7 @@ function texDetail(x0,x1,y0,y1,camX,camY){if(S&&S.qual==='eco')return;const s=TS
     const lf=(grid[y]||[])[x-1];if(lf&&'HDAEJ'.includes(lf)){const gr=ctx.createLinearGradient(sx,0,sx+s*.3,0);gr.addColorStop(0,'rgba(10,25,10,.22)');gr.addColorStop(1,'rgba(10,25,10,0)');ctx.fillStyle=gr;ctx.fillRect(sx,sy,s*.3,s+.6)}}}
 function drawEdges(x0,x1,y0,y1,camX,camY){drawTrans(x0,x1,y0,y1,camX,camY);texDetail(x0,x1,y0,y1,camX,camY);const TRON=trOK();
   for(let y=y0;y<=y1;y++)for(let x=x0;x<=x1;x++){const a=cls(x,y),L=LIP[a];if(!L)continue;const sx=Math.round(x*TS-camX),sy=Math.round(y*TS-camY),h=hsh(x,y);
-    [[0,-1],[1,0],[0,1],[-1,0]].forEach(([dx,dy],side)=>{const b=cls(x+dx,y+dy);if(b===a||b==='bridge'&&a==='water')return;if(TRON&&trPair(a,b))return;if(a==='bridge'&&b==='water'){if(!XI('x_pt_h'))rail(sx,sy,side);return}if(b==='water'&&(a==='path'||a==='grass')){fence(sx,sy,side);if(side!==0)return}if(side===0&&(a==='path'||a==='water')&&(b==='grass'||b==='tall'||b==='forest'||b==='out')){ledge(sx,sy,a,b,h);return}const col=L[b];if(col)lip(sx,sy,side,col,(h>>side)%3)});
+    [[0,-1],[1,0],[0,1],[-1,0]].forEach(([dx,dy],side)=>{const b=cls(x+dx,y+dy);if(b===a||b==='bridge'&&a==='water')return;if(TRON&&trPair(a,b))return;if(a==='bridge'&&b==='water'){rail(sx,sy,side);return}if(b==='water'&&(a==='path'||a==='grass')){fence(sx,sy,side);if(side!==0)return}if(side===0&&(a==='path'||a==='water')&&(b==='grass'||b==='tall'||b==='forest'||b==='out')){ledge(sx,sy,a,b,h);return}const col=L[b];if(col)lip(sx,sy,side,col,(h>>side)%3)});
     if(a==='path'&&!TRON){const s=TS;for(const[dx,dy]of[[-1,-1],[1,-1],[1,1],[-1,1]]){const b=cls(x+dx,y+dy);if(b==='path'||cls(x+dx,y)!=='path'||cls(x,y+dy)!=='path'||!L[b])continue;
       ctx.fillStyle=L[b][0];ctx.beginPath();const cx=sx+(dx>0?s:0),cy=sy+(dy>0?s:0);ctx.arc(cx,cy,s*.16,0,7);ctx.fill();ctx.strokeStyle=L[b][1];ctx.lineWidth=Math.max(1.5,s*.035);ctx.stroke()}}}
 }
@@ -1392,7 +1392,7 @@ LAYOUT.auberge=['#########','####N####','##.....##','##.....##','##.....##','##.
 LAYOUT.boulang=['#########','####N####','###...###','###...###','##.....##','##.....##','##.....##','####.####'];
 LAYOUT.cinema=['#########','####N####','###...###','###...###','###...###','###...###','###...###','####.####'];
 LAYOUT.epicerie=['#########','####N####','##.....##','##.....##','##.....##','##.....##','##.....##','####.####'];
-LAYOUT.vbat=['#########','####N####','##.....##','##.....##','##.....##','##.....##','##.....##','####.####'];LAYOUT.rarene=['#########','####N####','##.....##','##.....##','##.....##','##.....##','##.....##','####.####'];
+LAYOUT.vbat=['#########','#########','##.....##','####N####','##.....##','##.....##','##.....##','####.####'];LAYOUT.rarene=['#########','#########','####N####','##.....##','##.....##','##.....##','##.....##','####.####'];
 LAYOUT.sanct=['#########','####N####','###...###','###...###','##.....##','##.....##','##.....##','####.####'];
 const ROOMK={x_vb0:'vbat',x_vb1:'vbat',x_vb2:'vbat',x_vb3:'vbat',x_vb4:'vbat',x_vb5:'vbat',x_rb_arene_g:'rarene',x_rb_arene_v:'rarene',b_marche:'epicerie',b_auberge:'auberge',b_boulang:'boulang',b_patiss:'boulang',b_cinema:'cinema',b_sanct:'sanct'};
 const roomNpc=()=>{const L=LAYOUT[INT.k];for(let y=0;y<RH;y++){const x=L[y].indexOf('N');if(x>=0)return[x,y]}return[4,1]};
