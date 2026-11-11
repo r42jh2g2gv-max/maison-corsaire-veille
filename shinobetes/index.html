@@ -422,7 +422,7 @@ button.dexc{font:inherit;color:inherit;cursor:pointer;box-shadow:0 3px 0 var(--i
       <button class="big alt" id="bCont" hidden>Continuer</button>
       <button class="tact alt" id="bCode">J'ai un code de sauvegarde</button>
       <p id="bootMsg">Chargement du jeu…</p>
-      <p class="small" style="opacity:.6;margin:4px 0 0;text-align:center">Version 95</p>
+      <p class="small" style="opacity:.6;margin:4px 0 0;text-align:center">Version 96</p>
       <p class="small" id="newWarn" hidden>Une partie existe déjà. Appuie encore sur « Nouvelle aventure » pour l'effacer et recommencer.</p>
     </div>
     </div>
@@ -1013,7 +1013,7 @@ function villageEnter(){const v=VILLAGES.find(v=>Math.abs(P.x-v.x)<=2&&Math.abs(
 let grid=WORLD.map(r=>r.slice());
 const ROWS=MH,COLS=MW;
 const SOLID=new Set(['T','w','H','D','r','X','A','G','M','E','P','J']);
-window.__shino={dbgDraw:(x0,y0,w,h,mode)=>{const old=ctx;const c=document.createElement("canvas");c.width=w*TS;c.height=h*TS;ctx=c.getContext("2d");try{for(let y=y0;y<y0+h;y++)for(let x=x0;x<x0+w;x++)tile(grid[y][x],x,y,(x-x0)*TS,(y-y0)*TS,0);if(mode===1)ntDraw(x0,x0+w-1,y0,y0+h-1,x0*TS,y0*TS);if(mode===2)drawEdges(x0,x0+w-1,y0,y0+h-1,x0*TS,y0*TS)}finally{ctx=old}return c.toDataURL()},nton:()=>NTON(),chc:()=>CHC.size,ntc:(x,y,c)=>ntCls(x,y,c),cl:(x,y)=>cls(x,y),clearCH:()=>CHC.clear(),WORLD,exam:c=>{EX={t:0,lv:1,sub:SUBS[0][0],c,last:""};$("examL").hidden=false;examAsk()},trOK:()=>trOK(),dbgT:(x,y)=>[cls(x-1,y-1),cls(x,y-1),cls(x-1,y),cls(x,y)],room:(k,t)=>enterRoomNow(k,t),blocks:()=>BLOCKS,PROPS,TPS:TP,BRUME,get BRUMEC(){return BRUMEC},spotNear,REACH,RNPC,HIDDEN,BLOCKS,ROUTES,START,MISSIONS,pt:k=>playTrans(k),TRAINERS,ARCADES,get S(){return S},game:k=>({invaders:gameInvaders,saut:gameSaut,corsaire:gameCorsaire,toupie:()=>toupieMatch(TOUPIE_RIVALS[0],0)})[k](),vs:t=>vsSplash(t),GUARD,FENCE,get P(){return P},get NPCS(){return NPCS},get TS(){return TS},REG,TP,GATES,ARENAS,DOJOS,WORLD,MONU,SCHOOLS,PROPS,get grid(){return grid}};
+window.__shino={tim:(x,y)=>{const i=treeImg(x,y);return i?(i.src||"").slice(0,30)+":"+i.naturalWidth:"NULL"},dbgDraw:(x0,y0,w,h,mode)=>{const old=ctx;const c=document.createElement("canvas");c.width=w*TS;c.height=h*TS;ctx=c.getContext("2d");try{for(let y=y0;y<y0+h;y++)for(let x=x0;x<x0+w;x++)tile(grid[y][x],x,y,(x-x0)*TS,(y-y0)*TS,0);if(mode===1)ntDraw(x0,x0+w-1,y0,y0+h-1,x0*TS,y0*TS);if(mode===2)drawEdges(x0,x0+w-1,y0,y0+h-1,x0*TS,y0*TS)}finally{ctx=old}return c.toDataURL()},nton:()=>NTON(),chc:()=>CHC.size,ntc:(x,y,c)=>ntCls(x,y,c),cl:(x,y)=>cls(x,y),clearCH:()=>CHC.clear(),WORLD,exam:c=>{EX={t:0,lv:1,sub:SUBS[0][0],c,last:""};$("examL").hidden=false;examAsk()},trOK:()=>trOK(),dbgT:(x,y)=>[cls(x-1,y-1),cls(x,y-1),cls(x-1,y),cls(x,y)],room:(k,t)=>enterRoomNow(k,t),blocks:()=>BLOCKS,PROPS,TPS:TP,BRUME,get BRUMEC(){return BRUMEC},spotNear,REACH,RNPC,HIDDEN,BLOCKS,ROUTES,START,MISSIONS,pt:k=>playTrans(k),TRAINERS,ARCADES,get S(){return S},game:k=>({invaders:gameInvaders,saut:gameSaut,corsaire:gameCorsaire,toupie:()=>toupieMatch(TOUPIE_RIVALS[0],0)})[k](),vs:t=>vsSplash(t),GUARD,FENCE,get P(){return P},get NPCS(){return NPCS},get TS(){return TS},REG,TP,GATES,ARENAS,DOJOS,WORLD,MONU,SCHOOLS,PROPS,get grid(){return grid}};
 
 /* ================= ÉTAT ================= */
 let S=null; // {name,team,x,y,beaten,seen,caught,scrolls}
@@ -1185,7 +1185,7 @@ function treeImg(x,y){if(XI('x_tr2_0')&&!BRUME.has(key(x,y))){const rg=regionOf(
     if(rg==='volc')return dImg(h%2?'rocher':'rocher2')||dImg('rocher');
     if(rg==='givre'||se==='hiver')return XI('x_tr2_10');
     if(se==='automne'&&h%3)return XI(h%2?'x_tr2_8':'x_tr2_9');
-    const L=NTREE[(REG[y]||[])[x]]||[0,1];return XI('x_tr2_'+L[(h>>3)%L.length])}
+    const L=NTREE[(REG[y]||[])[x]]||[0,1];return XI('x_tr2_'+L[(h>>>3)%L.length])}
   {const se=SEASON();if(se==='hiver'&&!regionOf(x,y))return dImg('t_hiver')||dImg('arbre');if(se==='automne'&&!regionOf(x,y)&&hsh(x,y)%3)return dImg('t_automne')||dImg('arbre')}{const rg=regionOf(x,y);if(rg==='givre')return dImg('t_hiver')||dImg('arbre');if(rg==='volc')return dImg(hsh(x,y)%2?'rocher':'rocher2')||dImg('rocher')}if(BRUME.has(key(x,y)))return dImg(hsh(x,y)%2?'z_arbre1':'z_arbre2')||dImg('arbre');const r0=REG[y]&&REG[y][x];if(r0===undefined||r0<0)return dImg('arbre');const h=hsh(x,y);return dImg(h%5===0?'t_big':TREEK[r0])||dImg('arbre')}
 const BLK=new Map();BLOCKS.forEach(B=>{for(let y=B.y;y<B.y+B.h;y++)for(let x=B.x;x<B.x+B.w;x++)BLK.set(key(x,y),B.k)});
 const dImg=k=>{const D=window.DECOR||{},im=D[k];return im&&im.complete&&im.naturalWidth?im:null};
@@ -1213,7 +1213,7 @@ function gTex(kind,x,y){{const rg=regionOf(x,y);if(rg){const k=RTEX[rg][kind];re
 function tile(ch,x,y,sx,sy,t){
   if(ch==='b'&&XI('x_pb_milieu')){const s=TS,bb=(a,b)=>(grid[b]||[])[a]==='b',wl=(a,b)=>{const c=(grid[b]||[])[a];return c==='w'||c==='b'},vert=bb(x,y-1)||bb(x,y+1)||(wl(x-1,y)&&wl(x+1,y));
     const wt=ntFill('eau')||gTex('eau',x,y)||dImg('eau');if(wt){const q=wt.naturalWidth/4;ctx.drawImage(wt,(x%4)*q,(y%4)*q,q,q,sx,sy,s+1,s+1)}
-    const prev=vert?bb(x,y-1):bb(x-1,y),next=vert?bb(x,y+1):bb(x+1,y),im=XI(!prev&&next?'x_pb_bout_g':prev&&!next?'x_pb_bout_d':((x+y)%2?'x_pb_milieu2':'x_pb_milieu'))||XI('x_pb_milieu');
+    const prev=vert?bb(x,y-1):bb(x-1,y),next=vert?bb(x,y+1):bb(x+1,y),im=XI((x+y)%2?'x_pb_milieu2':'x_pb_milieu')||XI('x_pb_milieu');
     ctx.save();ctx.translate(sx+s/2,sy+s/2);if(vert)ctx.rotate(Math.PI/2);const h=s*1.22;ctx.drawImage(im,-s/2-.5,-h/2,s+1,h);ctx.restore();return}
   if(false&&ch==='b'&&XI('x_pt_h')){const s=TS,wl=c=>c==='w'||c==='b',hz=!wl((grid[y]||[])[x-1])||!wl((grid[y]||[])[x+1])||(((grid[y-1]||[])[x]==='w')&&((grid[y+1]||[])[x]==='w')),wt=gTex('eau',x,y)||dImg('eau');if(wt){const q=wt.naturalWidth/4;ctx.drawImage(wt,(x%4)*q,(y%4)*q,q,q,sx,sy,s+1,s+1)}ctx.drawImage(XI(hz?'x_pt_h':'x_pt_v'),sx,sy,s+1,s+1);return}
   if(ch==='h'&&dImg('hh_c')){const s=TS,g=gTex('herbe',x,y)||dImg('herbe');if(g){const n=4,q=g.naturalWidth/n;ctx.drawImage(g,(x%n)*q,(y%n)*q,q,q,sx,sy,s+1,s+1)}else{ctx.fillStyle='#5eaa06';ctx.fillRect(sx,sy,s+1,s+1)}
@@ -1347,21 +1347,26 @@ const NTC={grass:'g',path:'chemin',water:'eau',tall:'hautes',forest:'foret'};
 function ntCls(x,y,corner){if(x<0||y<0||x>=COLS||y>=ROWS)return null;if(SEASON()==='hiver')return null;{const rg=regionOf(x,y);if(rg)return rg}const c=cls(x,y);if(corner&&c==='bridge')return 'eau';if(c==='field')return 'champ';const t=NTC[c];if(!t)return null;if(t==='chemin'&&inPlaza(x,y))return XI('x_np_cobble')?'pave':null;return t}
 function paveKey(x,y){const r=(REG[y]||[])[x];return r===8?'x_np_gravier':(r===6||r===10||r===5)?'x_np_dalles':'x_np_cobble'}
 function ntFill(t,x,y){if(t==='volc')return XI('x_vv0');if(t==='givre')return XI('x_gv0');if(t==='pave')return XI(paveKey(x||0,y||0));return XI(t==='g'?'x_nt_herbe_eau':'x_nt_'+t+'_fill')}
-const NTMAP={"chemin":{"1":2,"2":-1,"3":-1,"4":1,"5":7,"6":-1,"7":11,"8":0,"9":-1,"10":6,"11":10,"12":4,"13":-1,"14":-1},"eau":{"1":3,"2":2,"3":5,"4":1,"5":7,"6":13,"7":11,"8":0,"9":12,"10":6,"11":10,"12":4,"13":-1,"14":-1},"foret":{"1":3,"2":2,"3":-1,"4":1,"5":7,"6":9,"7":11,"8":0,"9":-1,"10":6,"11":-1,"12":4,"13":-1,"14":-1},"hautes":{"8":0,"4":1,"2":2,"1":3,"12":4,"3":5,"10":6,"5":7,"14":8,"13":9,"11":10,"7":11,"9":12,"6":13},"champ":{"8":0,"4":1,"2":2,"1":3,"12":4,"3":5,"10":6,"5":7,"14":8,"13":9,"11":10,"7":11,"9":12,"6":13}};
+const NTMAP={"chemin":{"1":2,"2":-1,"3":-1,"4":1,"5":7,"6":-1,"7":11,"8":0,"9":-1,"10":6,"11":10,"12":4,"13":-1,"14":-1},"eau":{"1":3,"2":2,"3":5,"4":1,"5":7,"6":13,"7":11,"8":0,"9":12,"10":6,"11":10,"12":4,"13":-1,"14":-1},"foret":{"1":3,"2":2,"3":-1,"4":1,"5":7,"6":9,"7":11,"8":0,"9":-1,"10":6,"11":-1,"12":4,"13":-1,"14":-1}};
 const NTPRI=['volc','givre','eau','pave','chemin','champ','foret','hautes'];let NTC2=null;let NTC3=null;
 function ntDraw(x0,x1,y0,y1,camX,camY){const s=TS;
   for(let y=y0;y<=y1;y++)for(let x=x0;x<=x1;x++){const t=ntCls(x,y);if(!t)continue;const im=ntFill(t,x,y);if(!im)continue;const nn=(t==='volc'||t==='givre')?3:4,q=im.naturalWidth/nn;ctx.drawImage(im,(x%nn)*q,(y%nn)*q,q,q,x*s-camX,y*s-camY,s+.6,s+.6)}
   const br=[];
+  const LAY=['g','hautes','champ','foret','chemin','pave','eau','givre','volc'],sz=Math.ceil(s)+1;
+  if(!NTC2||NTC2.width!==sz){NTC2=document.createElement('canvas');NTC2.width=NTC2.height=sz;NTC3=document.createElement('canvas');NTC3.width=NTC3.height=sz}
+  const g2=NTC2.getContext('2d'),g3=NTC3.getContext('2d');
   for(let y=y0+1;y<=y1;y++)for(let x=x0+1;x<=x1;x++){const c=[ntCls(x-1,y-1,1),ntCls(x,y-1,1),ntCls(x-1,y,1),ntCls(x,y,1)];if(c.some(v=>!v))continue;
-    const types=new Set(c.filter(k=>k!=='g'));if(!types.size||!c.includes('g')&&types.size===1)continue;if(types.has('pave')&&!c.includes('g'))continue;
-    const B=NTPRI.find(p=>types.has(p));const m=(c[0]===B?8:0)|(c[1]===B?4:0)|(c[2]===B?2:0)|(c[3]===B?1:0),i=TRMAP[m];if(i===undefined)continue;
-    const dx=Math.round((x-.5)*s-camX),dy=Math.round((y-.5)*s-camY);
-    const di=NTMAP[B]?NTMAP[B][m]:-1;if(di>=0){const im=XI('x_nt_'+B+'_'+di);if(!im)continue;ctx.drawImage(im,dx,dy,s+1,s+1)}
-    else{const mk=(B==='volc'||B==='givre')?XI('x_nm_foret_'+m):XI('x_nm_'+B+'_'+m)||XI('x_tm_'+B+'_'+i),bf=ntFill(B,x,y),gf=ntFill('g');if(!mk||!bf||!gf)continue;const sz=Math.ceil(s)+1;if(!NTC2||NTC2.width!==sz){NTC2=document.createElement('canvas');NTC2.width=NTC2.height=sz;NTC3=document.createElement('canvas');NTC3.width=NTC3.height=sz}
-      const g2=NTC2.getContext('2d'),g3=NTC3.getContext('2d'),q=gf.naturalWidth/4,qb=bf.naturalWidth/4;g2.globalCompositeOperation='source-over';g2.clearRect(0,0,sz,sz);g3.globalCompositeOperation='source-over';g3.clearRect(0,0,sz,sz);
-      for(const[cx,cy]of[[x-1,y-1],[x,y-1],[x-1,y],[x,y]]){g2.drawImage(gf,(cx%4)*q,(cy%4)*q,q,q,(cx-x+.5)*s,(cy-y+.5)*s,s+1,s+1);g3.drawImage(bf,(cx%4)*qb,(cy%4)*qb,qb,qb,(cx-x+.5)*s,(cy-y+.5)*s,s+1,s+1)}
-      g3.globalCompositeOperation='destination-in';g3.drawImage(mk,0,0,sz,sz);g2.drawImage(NTC3,0,0);ctx.drawImage(NTC2,dx,dy)}
-    for(const[cx,cy]of[[x-1,y-1],[x,y-1],[x-1,y],[x,y]])if(cls(cx,cy)==='bridge')br.push([cx,cy])}
+    const types=[...new Set(c)];if(types.length<2)continue;const dx=Math.round((x-.5)*s-camX),dy=Math.round((y-.5)*s-camY),cells=[[x-1,y-1],[x,y-1],[x-1,y],[x,y]];
+    for(const[cx,cy]of cells)if(cls(cx,cy)==='bridge')br.push([cx,cy]);
+    if(types.length===2&&types.includes('g')){const B=types.find(t=>t!=='g'),m=(c[0]===B?8:0)|(c[1]===B?4:0)|(c[2]===B?2:0)|(c[3]===B?1:0),di=NTMAP[B]?NTMAP[B][m]:undefined;
+      if(di!==undefined&&di>=0){const im=XI('x_nt_'+B+'_'+di);if(im){ctx.drawImage(im,dx,dy,s+1,s+1);continue}}}
+    types.sort((a,b)=>LAY.indexOf(a)-LAY.indexOf(b));
+    g2.globalCompositeOperation='source-over';g2.clearRect(0,0,sz,sz);
+    const paint=(g,t)=>{for(const[cx,cy]of cells){const f=ntFill(t,cx,cy);if(!f)continue;const nn=(t==='volc'||t==='givre')?3:4,q=f.naturalWidth/nn;g.drawImage(f,(cx%nn)*q,(cy%nn)*q,q,q,(cx-x+.5)*s,(cy-y+.5)*s,s+1,s+1)}};
+    paint(g2,types[0]);
+    for(let k=1;k<types.length;k++){const T=types[k],m=(c[0]===T?8:0)|(c[1]===T?4:0)|(c[2]===T?2:0)|(c[3]===T?1:0),mk=(T==='chemin'||T==='eau'||T==='foret')&&XI('x_nm_'+T+'_'+m)||XI('x_nm_foret_'+m);if(!mk)continue;
+      g3.globalCompositeOperation='source-over';g3.clearRect(0,0,sz,sz);paint(g3,T);g3.globalCompositeOperation='destination-in';g3.drawImage(mk,0,0,sz,sz);g2.drawImage(NTC3,0,0)}
+    ctx.drawImage(NTC2,dx,dy)}
   for(const[x,y]of br)tile('b',x,y,x*s-camX,y*s-camY,0)}
 function ntPair(x,y,x2,y2){return !!(ntCls(x,y)&&ntCls(x2,y2))}
 function drawEdges(x0,x1,y0,y1,camX,camY){const NTA=NTON();if(NTA)ntDraw(x0,x1,y0,y1,camX,camY);else drawTrans(x0,x1,y0,y1,camX,camY);texDetail(x0,x1,y0,y1,camX,camY);const TRON=trOK();
