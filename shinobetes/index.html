@@ -422,7 +422,7 @@ button.dexc{font:inherit;color:inherit;cursor:pointer;box-shadow:0 3px 0 var(--i
       <button class="big alt" id="bCont" hidden>Continuer</button>
       <button class="tact alt" id="bCode">J'ai un code de sauvegarde</button>
       <p id="bootMsg">Chargement du jeu…</p>
-      <p class="small" style="opacity:.6;margin:4px 0 0;text-align:center">Version 86</p>
+      <p class="small" style="opacity:.6;margin:4px 0 0;text-align:center">Version 87</p>
       <p class="small" id="newWarn" hidden>Une partie existe déjà. Appuie encore sur « Nouvelle aventure » pour l'effacer et recommencer.</p>
     </div>
     </div>
@@ -3934,8 +3934,8 @@ function gameTemple(TD){TD=TD||TEMPLES.eau;return new Promise(async resolve=>{co
       else{beep(160,.25,'square',.05);say('Raté ! Regarde encore l’ordre…',2);seq.show=0;seq.t=-.6;seq.need=0}}};
   const action=()=>{if(win)return;const[dx,dy]=DIRS[P.dir],tx=P.x+dx,ty=P.y+dy,ch=R.g[ty]&&R.g[ty][tx];
     if(ch==='C'){R.g[ty][tx]='c';tune([659,784,988,1319],.07,'triangle',.06);
-      if(R.chest==='staff'){hasStaff=true;say('🪄 Tu trouves le BÂTON DU VENT ! Appuie sur ✋ pour lancer une rafale qui touche les cristaux de loin.',6)}
-      else if(R.chest==='key'){keys++;say('🗝️ Tu trouves une CLÉ ! Elle ouvre une porte fermée.',4)}
+      if(R.chest==='staff'){hasStaff=true;fx.push({x:tx,y:ty,t:0,e:'',img:'x_o_baton'});say('🪄 Tu trouves le BÂTON DU VENT ! Appuie sur ✋ pour lancer une rafale qui touche les cristaux de loin.',6)}
+      else if(R.chest==='key'){keys++;fx.push({x:tx,y:ty,t:0,e:'',img:'x_o_cle'});say('🗝️ Tu trouves une CLÉ ! Elle ouvre une porte fermée.',4)}
       else if(R.chest==='relic'){win=true;endT=0;say('🏆 La RELIQUE DU TEMPLE est à toi !',5)}
       else{S.money+=30;updTop();say('💰 30 shinosous !')}return}
     if(ch==='L'){if(keys>0){keys--;R.g[ty][tx]='.';beep(700,.15,'triangle',.05,300);say('La clé tourne… La porte s’ouvre !')}else say('Cette porte est fermée à clé.');return}
@@ -3999,9 +3999,9 @@ function gameTemple(TD){TD=TD||TEMPLES.eau;return new Promise(async resolve=>{co
       if(boss.st==='wind'){c.font=`900 ${TS*.6}px sans-serif`;c.fillStyle='#e63946';c.textAlign='center';c.fillText('!',bx,by-TS*1.2)}c.font=`${TS*.3}px serif`;c.textAlign='center';c.fillText('❤️'.repeat(boss.hp),bx,by-TS*1.45)}
     {const HH=window.HERO||{},side=P.dir==='left'||P.dir==='right',mov=P.t<1;let im=null;if(mov){im=side?HH['w'+(Math.floor(P.t*9)%9)]:HH[(P.dir==='up'?'b':'f')+(Math.floor(steps*2+P.t*6)%6)]}if(!im||!im.naturalWidth)im=HH[side?'side':P.dir];
       const px=ox+(P.fx+(P.x-P.fx)*P.t+.5)*TS,py=oy+(P.fy+(P.y-P.fy)*P.t+.5)*TS;if(im&&im.naturalWidth){const h=TS*1.35,w=h*im.naturalWidth/im.naturalHeight;c.save();c.translate(px,py+TS*.45);if(P.dir==='left')c.scale(-1,1);c.drawImage(im,-w/2,-h,w,h);c.restore()}else{c.fillStyle='#e63946';c.beginPath();c.arc(px,py,TS*.35,0,7);c.fill()}}
-    for(const f of fx){f.t+=dt;if(f.e==='💥'&&XI('x_fxd0')){fxFrame(c,'x_fxd',f.t*6,ox+(f.x+.5)*TS,oy+(f.y+.5)*TS,TS*1.8);continue}if(f.e==='✨'&&XI('x_fxr0')){fxFrame(c,'x_fxr',f.t*6,ox+(f.x+.5)*TS,oy+(f.y+.5)*TS,TS*2.2);continue}c.globalAlpha=Math.max(0,1-f.t);c.font=`${TS*.6}px serif`;c.textAlign='center';c.textBaseline='middle';c.fillText(f.e,ox+(f.x+.5)*TS,oy+(f.y+.5)*TS-f.t*TS*.6);c.globalAlpha=1}fx=fx.filter(f=>f.t<1);
+    for(const f of fx){f.t+=dt;if(f.img&&XI(f.img)){const k=Math.min(1,f.t*3);c.globalAlpha=Math.max(0,1.4-f.t);c.drawImage(XI(f.img),ox+(f.x+.5)*TS-TS*.6*k,oy+(f.y+.5)*TS-TS*1.4*k-f.t*TS*.5,TS*1.2*k,TS*1.2*k);c.globalAlpha=1;continue}if(f.e==='💥'&&XI('x_fxd0')){fxFrame(c,'x_fxd',f.t*6,ox+(f.x+.5)*TS,oy+(f.y+.5)*TS,TS*1.8);continue}if(f.e==='✨'&&XI('x_fxr0')){fxFrame(c,'x_fxr',f.t*6,ox+(f.x+.5)*TS,oy+(f.y+.5)*TS,TS*2.2);continue}c.globalAlpha=Math.max(0,1-f.t);c.font=`${TS*.6}px serif`;c.textAlign='center';c.textBaseline='middle';c.fillText(f.e,ox+(f.x+.5)*TS,oy+(f.y+.5)*TS-f.t*TS*.6);c.globalAlpha=1}fx=fx.filter(f=>f.t<(f.img?1.4:1));
     // interface
-    c.font='900 18px sans-serif';c.textAlign='left';c.textBaseline='top';c.lineWidth=4;c.strokeStyle='#1d1b2e';c.fillStyle='#fff';const hud=`${R.n||''}   ${hasStaff?'🪄 ':''}${keys?'🗝️×'+keys+' ':''}${R.rule==='boss'?'❤️'.repeat(Math.max(0,hearts)):''}   ⏱ ${Math.floor(time)} s`;c.strokeText(hud,12,8);c.fillText(hud,12,8);
+    c.font='900 18px sans-serif';c.textAlign='left';c.textBaseline='top';c.lineWidth=4;c.strokeStyle='#1d1b2e';c.fillStyle='#fff';const IB=XI('x_o_baton'),IK=XI('x_o_cle'),hud=`${R.n||''}   ${hasStaff&&!IB?'🪄 ':''}${keys&&!IK?'🗝️×'+keys+' ':''}${R.rule==='boss'?'❤️'.repeat(Math.max(0,hearts)):''}   ⏱ ${Math.floor(time)} s`;c.strokeText(hud,12,8);c.fillText(hud,12,8);{let hx=12+c.measureText(hud).width+10;if(hasStaff&&IB){c.drawImage(IB,hx,2,28,28);hx+=32}if(keys&&IK){c.drawImage(IK,hx,4,24,24);c.strokeText('×'+keys,hx+24,8);c.fillText('×'+keys,hx+24,8)}}
     {const mx=W-150,my=8,s=14;for(const r2 of rooms){const X=mx+r2.at[0]*(s+4),Y=my+r2.at[1]*(s+4);c.fillStyle=r2===R?'#ffd23f':r2.seen?'#cfc6ff':'rgba(255,255,255,.15)';c.fillRect(X,Y,s,s)}}
     if(msgT>0&&msg){c.font='800 17px sans-serif';c.textAlign='center';const w2=Math.min(W-30,c.measureText(msg).width+30);c.globalAlpha=Math.min(1,msgT*2);c.fillStyle='rgba(29,27,46,.85)';c.fillRect(W/2-w2/2,34,w2,32);c.fillStyle='#fff';c.fillText(msg,W/2,41);c.globalAlpha=1}
     const B=btns();c.globalAlpha=.75;for(const[k,b]of Object.entries(B)){c.fillStyle=held[k]?'#ffd23f':k==='act'?'#ffd23f':'#fff';c.beginPath();c.arc(b.x,b.y,b.r,0,7);c.fill();c.lineWidth=3;c.strokeStyle='#1d1b2e';c.stroke();c.fillStyle='#1d1b2e';c.font=`900 ${b.r*.85}px sans-serif`;c.textAlign='center';c.textBaseline='middle';c.fillText({up:'▲',down:'▼',left:'◀',right:'▶',act:'✋',reset:'↺'}[k],b.x,b.y+2)}c.globalAlpha=1;
