@@ -403,6 +403,48 @@ button.dexc{font:inherit;color:inherit;cursor:pointer;box-shadow:0 3px 0 var(--i
 .bcard .bar i.low{animation:lowp .8s ease-in-out infinite}@keyframes lowp{50%{filter:brightness(1.6)}}
 .stage::after{animation:shbreath 2.4s ease-in-out infinite}@keyframes shbreath{50%{transform:scaleX(.9);opacity:.75}}
 @media (prefers-reduced-motion: reduce){#foeCv.hit,#meCv.hit,.dmg,.bcard.hurt,.bcard .bar i.low,.stage::after{animation:none!important}}
+
+/* ---------- nouveau menu (v100) ---------- */
+#menuL .sheet{width:min(760px,100%)}
+#menuGrid.mg2{display:flex!important;flex-direction:column;gap:10px!important;grid-template-columns:none!important}
+.mg2 .mhero{position:relative;width:100%;max-width:560px;margin:0 auto;aspect-ratio:715/330;background:var(--x-card) center/100% 100% no-repeat;filter:drop-shadow(0 4px 4px rgba(0,0,0,.3));color:#5a3412}
+.mg2 .mhero .mav{position:absolute;left:8%;top:14%;width:29%;aspect-ratio:1;border-radius:50%;overflow:hidden;display:grid;place-items:center;background:radial-gradient(circle at 50% 35%,#fff7dc,#f1d9a4)}
+.mg2 .mhero .mav{display:block!important}.mg2 .mhero .mav img{position:absolute;inset:6%;width:88%;height:88%;object-fit:cover;object-position:50% 12%}
+.mg2 .mhero .mtx2{position:absolute;left:40%;right:9%;top:13%;bottom:34%;display:flex;flex-direction:column;justify-content:center;gap:2px;min-width:0}
+.mg2 .mhero .mnm{font-family:var(--display);font-size:clamp(17px,4.6vw,26px);line-height:1.05;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#6b2f0e}
+.mg2 .mhero .mrk{font-weight:900;font-size:clamp(11px,2.9vw,15px);color:#9a5a12}
+.mg2 .mhero .mst{display:flex;gap:10px;flex-wrap:wrap;font-weight:900;font-size:clamp(11px,2.9vw,15px)}
+.mg2 .mhero .mst span{display:inline-flex;align-items:center;gap:3px}.mg2 .mhero .mst .ii{width:1.25em;height:1.25em}
+.mg2 .mhero .mbar{position:absolute;left:40.5%;right:11.5%;top:73.5%;height:8%;border-radius:99px;overflow:hidden}
+.mg2 .mhero .mbar i{display:block;height:100%;background:linear-gradient(#ffe27a,#f5a524 60%,#d07a10);box-shadow:inset 0 2px 0 rgba(255,255,255,.5);border-radius:99px;min-width:6%}
+.mg2 .mhero .mbl{position:absolute;left:40.5%;right:11.5%;top:73.5%;height:8%;display:grid;place-items:center;line-height:1;color:#fff!important;text-shadow:0 1px 1px #5a2a00,0 0 2px #5a2a00;font-size:clamp(9px,2.3vw,12px);font-weight:900;color:#9a5a12}
+.mg2 .msec{display:flex;align-items:center;gap:10px;margin:6px 2px 0;font-family:var(--display);font-size:clamp(16px,4.2vw,21px);color:#fff;text-shadow:0 2px 0 #7a3f0a,0 0 6px rgba(122,63,10,.5);-webkit-text-stroke:1px #7a3f0a;letter-spacing:.02em}
+.mg2 .msec::before,.mg2 .msec::after{content:"";flex:1;height:4px;border-radius:4px;background:linear-gradient(90deg,transparent,#d79a2e 30%,#f6d27a 50%,#d79a2e 70%,transparent)}
+.mg2 .mbig{display:grid;grid-template-columns:repeat(3,1fr);gap:10px 8px}
+@media (min-width:700px){.mg2 .mbig{grid-template-columns:repeat(6,1fr)}}
+.mg2 .mbig button{position:relative;background:none!important;border:none!important;box-shadow:none!important;padding:0!important;display:flex;flex-direction:column;align-items:center;gap:2px;color:#5a3412;transition:transform .15s}
+.mg2 .mbig .tl{position:relative;width:100%;aspect-ratio:319/364;background:var(--x-tile) center/100% 100% no-repeat;filter:drop-shadow(0 4px 3px rgba(0,0,0,.35))}
+.mg2 .mbig .tl .ic2{position:absolute;left:22%;right:22%;top:20%;aspect-ratio:1;display:grid;place-items:center;font-size:clamp(28px,8vw,44px);border-radius:50%;background:radial-gradient(circle at 50% 40%,color-mix(in srgb,var(--mc) 35%,#fff6dc),color-mix(in srgb,var(--mc) 70%,#e8c98a));box-shadow:inset 0 3px 6px rgba(0,0,0,.25)}
+.mg2 .mbig .tl .ic2 .ii{width:72%;height:72%;filter:drop-shadow(0 2px 1px rgba(0,0,0,.3))}
+.mg2 .mbig .tl .cnt{position:absolute;left:50%;bottom:9%;transform:translateX(-50%);font-weight:900;font-size:clamp(10px,2.6vw,13px);white-space:nowrap;color:#7a3f0a}
+.mg2 .mbig b{font-family:var(--display);font-size:clamp(13px,3.6vw,17px);color:#fff;background:var(--mc);padding:2px 10px 3px;border-radius:99px;border:2px solid #5a3412;box-shadow:0 2px 0 #5a3412;margin-top:-10px;position:relative;white-space:nowrap;max-width:100%;overflow:hidden;text-overflow:ellipsis;text-shadow:0 1px 0 rgba(0,0,0,.35)}
+.mg2 .mbig button:active,.mg2 .mwide button:active,.mg2 .mset button:active{transform:scale(.95)}
+.mg2 .hot .tl::after{content:"!";position:absolute;right:4%;top:2%;width:26%;aspect-ratio:1;border-radius:50%;background:#e63946;color:#fff;font-weight:900;display:grid;place-items:center;font-size:clamp(14px,4vw,20px);border:3px solid #fff;box-shadow:0 2px 4px rgba(0,0,0,.4);animation:mhot 1s ease-in-out infinite}
+@keyframes mhot{50%{transform:scale(1.18)}}
+.mg2 .mwide{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
+@media (min-width:700px){.mg2 .mwide{grid-template-columns:repeat(4,1fr)}}
+.mg2 .mwide button{display:flex;align-items:center;gap:8px;text-align:left;background:none!important;box-shadow:none!important;border:16px solid transparent!important;border-image:var(--x-bcard) 70 fill / 16px stretch!important;border-radius:0!important;padding:0!important;min-height:64px;color:#5a3412;filter:drop-shadow(0 3px 3px rgba(0,0,0,.3));transition:transform .15s}
+.mg2 .mwide .ic3{flex:none;width:44px;height:44px;margin:-6px 0 -6px -4px;border-radius:12px;display:grid;place-items:center;font-size:26px;background:var(--mc);border:2px solid #5a3412;box-shadow:inset 0 -3px 0 rgba(0,0,0,.2)}
+.mg2 .mwide b{display:block;font-family:var(--display);font-size:clamp(13px,3.5vw,16px);color:#6b2f0e;line-height:1.1}
+.mg2 .mwide small{display:block;font-weight:800;font-size:clamp(10px,2.6vw,12px);color:#9a5a12;line-height:1.15}
+.mg2 .mset{display:grid;grid-template-columns:repeat(5,1fr);gap:6px}
+@media (max-width:520px){.mg2 .mset{grid-template-columns:repeat(4,1fr)}}
+.mg2 .mset button{min-width:0;display:flex;flex-direction:column;align-items:center;gap:1px;background:none!important;border:none!important;box-shadow:none!important;padding:0!important;color:#5a3412;transition:transform .15s}
+.mg2 .mset .sq2{width:min(72%,74px);aspect-ratio:181/170;background:var(--x-sq) center/100% 100% no-repeat;display:grid;place-items:center;font-size:clamp(20px,6vw,28px);filter:drop-shadow(0 3px 2px rgba(0,0,0,.3))}
+.mg2 .mset .sq2 .ii{width:58%;height:58%}
+.mg2 .mset b{font-size:clamp(10px,2.7vw,13px);font-weight:900;line-height:1.1;text-align:center;color:#6b2f0e}
+.mg2 .mset small{font-size:clamp(9px,2.3vw,11px);font-weight:800;line-height:1.1;text-align:center;color:#9a5a12;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.uix .sheethead{padding-top:8px}
 </style>
 
 <div id="app">
@@ -450,7 +492,7 @@ button.dexc{font:inherit;color:inherit;cursor:pointer;box-shadow:0 3px 0 var(--i
       <button class="big alt" id="bCont" hidden>Continuer</button>
       <button class="tact alt" id="bCode">J'ai un code de sauvegarde</button>
       <p id="bootMsg">Chargement du jeu…</p>
-      <p class="small" style="opacity:.6;margin:4px 0 0;text-align:center">Version 99</p>
+      <p class="small" style="opacity:.6;margin:4px 0 0;text-align:center">Version 100</p>
       <p class="small" id="newWarn" hidden>Une partie existe déjà. Appuie encore sur « Nouvelle aventure » pour l'effacer et recommencer.</p>
     </div>
     </div>
@@ -918,7 +960,7 @@ function spotNear(p,frac,avoid){for(let j=0;j<60;j++){const i=Math.min(p.length-
  set('d','d0');set('b','u0');set('s','r0');for(let i=0;i<4;i++){set('f'+i,'d'+i);set('k'+i,'u'+i);set('w'+i,'r'+i)}}}
 
 /* interface dorée : images -> variables CSS */
-{const D=window.DECOR_SRC||{},rs=document.documentElement.style;let n=0;for(const k of['pill','sq','gold','plus','minus','frame','dlg','panel','ribbon','close','bcard'])if(D['x_ui_'+k]){rs.setProperty('--x-'+k,`url(${D['x_ui_'+k]})`);n++}if(n>=8)document.documentElement.classList.add('uix')}
+{const D=window.DECOR_SRC||{},rs=document.documentElement.style;let n=0;for(const k of['pill','sq','gold','plus','minus','frame','dlg','panel','ribbon','close','bcard'])if(D['x_ui_'+k]){rs.setProperty('--x-'+k,`url(${D['x_ui_'+k]})`);n++}for(const k of['card','tile','btn','bar','gold2'])if(D['x_ui_'+k])rs.setProperty('--x-'+k,`url(${D['x_ui_'+k]})`);if(n>=8)document.documentElement.classList.add('uix')}
 /* champions et dresseurs dans le nouveau style */
 {const D=window.DECOR||{},DS=window.DECOR_SRC||{},H=window.HERO||{},HS=window.HERO_SRC||{};
  for(let j=0;j<6;j++){const k=s2=>'x_np_C'+j+'_'+s2;if(!D[k('d0')])continue;const set=(a,b)=>{H[a]=D[k(b)];HS[a]=DS[k(b)]};set('C'+j,'d0');set('C'+j+'d','d0');set('C'+j+'b','u0');set('C'+j+'s','r0');for(let i=0;i<4;i++){set('C'+j+'f'+i,'d'+i);set('C'+j+'k'+i,'u'+i);set('C'+j+'w'+i,'r'+i)}}
@@ -2297,7 +2339,15 @@ function openMenu(){
     ['bag',ICO('i_sac','🎒'),'Sac',`${S.money} shinosous`],['quest',ICO('i_etoile','⭐'),'Quêtes',cq?`${cq} récompense${cq>1?'s':''} à récupérer !`:`${S.qc.length} / ${QUESTS.length} terminées`],
     ['tech','🥷','Techniques ninja',`${TECH.filter(T=>hasT(T.k)).length} / ${TECH.length} apprises`],['map',ICO('map','🗺️'),'Carte',`Ceinture ${BELTS[S.beaten.length][0]}`],['code','🔑','Code de sauvegarde','Garde ta partie en lieu sûr'],['vq','📜','Quêtes des villages',`${VQ.filter(vqDone).length} / ${VQ.length} terminées`],['adv','🗺️','Aventures ninja','Courses du vent, monde mystère, temple'],['create','🧱','Créer et jouer','Base, parcours, boulangerie, vestiaire…'],['act','🎒','Activités','Jeux, énigmes, dessin, parents…'],['mini','🧭','Mini-carte',S.mini===false?'Cachée':'Affichée en haut à droite'],['fs','⛶','Plein écran',document.fullscreenElement?'Activé':'Pour jouer sans les barres'],['season','🍂','Saison',{auto:'Automatique (selon la date)',ete:'Printemps / été',automne:'Automne',hiver:'Hiver'}[S.season||'auto']],['view','🎥','Vue de la caméra',S.flat?'À plat':'2,5D avec ciel animé'],['qual','⚙️','Qualité graphique',{auto:'Automatique',haute:'Haute (tablettes puissantes)',eco:'Économie (tablettes lentes)'}[S.qual||'auto']],['day',dayPhase()==='night'?'🌙':'☀️','Jour et nuit',S.dayMode==='day'?'Toujours de jour':'Suit l’heure réelle'],['tips',ICO('i_bulle','💡'),'Astuces','Des conseils de sensei'],['music','🎵','Musique',S.music?'Activée':'Coupée'],['save','💾','Sauvegarder','La partie est aussi sauvegardée toute seule']];
   const MC=['#e05a4e','#f0883a','#3d9be0','#8b5cf6','#43a85c','#d9488f','#c98a00','#2bb3a3','#5468d4','#e0703a','#7a8a99','#6b7f3a','#9b59b6'];
-  g.innerHTML=it.map(([k,ic,t,s],i)=>`<button class="mtile${k==='quest'&&cq?' hot':''}" data-k="${k}" style="--mc:${MC[i%MC.length]}"><span class="mic">${ic}</span><span class="mtx"><b>${t}</b><small>${s}</small></span></button>`).join('');
+  if(document.documentElement.classList.contains('uix')){g.classList.add('mg2');
+    const F=Object.fromEntries(it.map((a,i)=>[a[0],[...a,MC[i%MC.length]]])),HS=window.HERO_SRC||{},av=HS.down||HS.f0||'',pc=Math.round(S.caught.length/NSP*100);
+    const big=['dex','team','bag','quest','tech','map'],wide=['vq','adv','create','act'],cnt={dex:`${S.caught.length}/${NSP}`,team:`${S.team.length}/6`,bag:`${S.money} 🪙`,quest:`${S.qc.length}/${QUESTS.length}`,tech:`${TECH.filter(T=>hasT(T.k)).length}/${TECH.length}`,map:`${S.vis.length}/${TOWNS.length} villes`};
+    const shortT={tech:'Techniques',code:'Code',mini:'Mini-carte',fs:'Plein écran',view:'Caméra',qual:'Qualité',day:'Jour/nuit',save:'Sauver'};
+    g.innerHTML=`<div class="mhero"><div class="mav">${av?`<img src="${av}" alt="">`:'🥷'}</div><div class="mtx2"><div class="mnm">${$('rankNm').textContent}</div><div class="mrk">${$('rankLv').textContent} · Ceinture ${BELTS[S.beaten.length][0]}</div><div class="mst"><span>${ICO('coin','🪙')} ${S.money}</span><span>🏅 ${S.beaten.length}/${CHAMPS.length}</span><span>📜 ${S.scrolls}</span></div></div><div class="mbar"><i style="width:${pc}%"></i></div><div class="mbl">Shinodex ${S.caught.length} / ${NSP}</div></div>
+      <div class="msec">Aventure</div><div class="mbig">${big.map(k=>{const[,ic,t,,c]=F[k];return `<button class="${k==='quest'&&cq?'hot':''}" data-k="${k}" style="--mc:${c}"><span class="tl"><span class="ic2">${ic}</span><span class="cnt">${cnt[k]}</span></span><b>${k==='tech'?'Techniques':t}</b></button>`}).join('')}</div>
+      <div class="msec">Jeux et quêtes</div><div class="mwide">${wide.map(k=>{const[,ic,t,sb,c]=F[k];return `<button data-k="${k}" style="--mc:${c}"><span class="ic3">${ic}</span><span><b>${t}</b><small>${sb}</small></span></button>`}).join('')}</div>
+      <div class="msec">Réglages</div><div class="mset">${it.filter(a=>!big.includes(a[0])&&!wide.includes(a[0])).map(([k,ic,t,sb])=>`<button data-k="${k}"><span class="sq2">${ic}</span><b>${shortT[k]||t}</b><small>${sb}</small></button>`).join('')}</div>`}
+  else g.innerHTML=it.map(([k,ic,t,s],i)=>`<button class="mtile${k==='quest'&&cq?' hot':''}" data-k="${k}" style="--mc:${MC[i%MC.length]}"><span class="mic">${ic}</span><span class="mtx"><b>${t}</b><small>${s}</small></span></button>`).join('');
   g.querySelectorAll('button').forEach(b=>b.onclick=()=>{const k=b.dataset.k;
     if(k==='music'){S.music=!S.music;musicOn(S.music);save();mode='map';openMenu();return}
     if(k==='save'){save();toast('Partie sauvegardée !');return}
