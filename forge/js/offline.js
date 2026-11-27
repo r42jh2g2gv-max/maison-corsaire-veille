@@ -20,7 +20,9 @@ export async function enqueue(task) {
 // Ajoute une ligne « en attente » dans le journal et met la tâche en file.
 export async function pendingFood({ date, meal, name, grams = null, task }) {
   const id = uid('f');
-  await food.put({ id, date, meal, name, grams, kcal: 0, p: 0, c: 0, f: 0, pending: true, src: 'attente' });
+  const d = new Date(), time = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+  task = { ...task, time };
+  await food.put({ id, date, meal, time, name, grams, kcal: 0, p: 0, c: 0, f: 0, pending: true, src: 'attente' });
   await enqueue({ ...task, foodId: id, date, meal, grams });
   toast('Pas de réseau : enregistré, calculé dès que tu retrouves du réseau', 4500);
   return id;

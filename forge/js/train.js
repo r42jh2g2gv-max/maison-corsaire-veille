@@ -1,8 +1,9 @@
 // FORGE — programme, séance en direct, minuteurs de repos et d'intervalles, historique.
 import { S, esc, $, $$, exById, saveProgram, archiveProgram, WEEKDAYS, saveActive, toast, sheet, confirmBox, beep, unlockAudio, fmtTime, fmtDur, fmtDate, num, round, e1rm, sessionKcal } from './ui.js';
 import { sessions, kv, uid } from './db.js';
-import { EXERCISES, MUSCLES, makeItem, weekInfo, applyBlock, generateProgram, PRESETS, dayMinutes, WEEKDAY_LONG } from './data.js';
+import { EXERCISES, MUSCLES, makeItem, weekInfo, applyBlock, generateProgram, PRESETS, dayMinutes, WEEKDAY_LONG, fitProgramToTime, fitDayToTime } from './data.js';
 import { hr, parseActivity } from './devices.js';
+import { exInfoSheet } from './exinfo.js';
 
 const ROLE_LABEL = { force: 'Force', hyper: 'Hypertrophie', iso: 'Isolation', core: 'Gainage', cardio: 'Cardio', hiit: 'HIIT' };
 
@@ -63,7 +64,7 @@ export async function renderTrain(view) {
   const info = weekInfo(S.program);
   const list = await allSessions();
   const weekStart = new Date(); weekStart.setHours(0, 0, 0, 0); weekStart.setDate(weekStart.getDate() - ((weekStart.getDay() + 6) % 7));
-  const doneThisWeek = new Set(list.filter(s => new Date(s.date) >= weekStart).map(s => s.dayId));
+  const doneThisWeek = new Set(list.filter(s => new Date(s.date) >= weekStart).flatMap(s => [s.dayId, ...(s.dayIds || [])]));
   view.innerHTML = `
   ${S.active ? `<a class="card resume" href="#/seance"><b>▶ Séance en cours</b><span>${esc(S.active.name)}</span></a>` : ''}
   <section class="card">
@@ -76,9 +77,9 @@ export async function renderTrain(view) {
   <h3 class="sec">Séances du programme</h3>
   ${S.program.days.map(d => `
     <section class="card day ${doneThisWeek.has(d.id) ? 'done' : ''}">
-      <div class="row between"><div><h3>${esc(d.name)}</h3><div class="muted">${esc(d.focus || '')} · ${d.items.length} exercices · ≈ ${dayMinutes(d)} min${doneThisWeek.has(d.id) ? ' · ✓ fait cette semaine' : ''}</div></div>
+      <div class="row between"><div><h3>${esc(d.name)}</h3><div class="muted">${esc(d.focus || '')} · ${d.items.length} exercices · ≈ ${dayMinutes(d, S.program.periodize !== false)} min${S.program.minutes && dayMinutes(d, S.program.periodize !== false) > S.program.minutes + 2 ? ' ⚠️' : ''}${doneThisWeek.has(d.id) ? ' · ✓ fait cette semaine' : ''}</div></div>
       <button class="btn sm ghost" data-act="edit-day" data-id="${d.id}">✎ Modifier</button></div>
-      <ul class="exlist">${d.items.map(it => { const e = exById(it.exId); const b = applyBlock(it, info); return `<li><span>${esc(e.name)}</span><small>${prescription(b)}</small></li>`; }).join('')}</ul>
+      <ul class="exlist">${d.items.map(it => { const e = exById(it.exId); const b = applyBlock(it, info); return `<li data-act="exinfo-prog" data-ex="${it.exId}"><span>${esc(e.name)} <i class="info">ⓘ</i></span><small>${prescription(b)}</small></li>`; }).join('')}</ul>
       <button class="btn block" data-act="start" data-id="${d.id}">Démarrer</button>
     </section>`).join('')}
   <div class="row gap wrap">
@@ -101,6 +102,7 @@ export async function onTrainAction(act, el, rerender) {
   }
   if (act === 'prog-menu') return programMenu(rerender);
   if (act === 'programs') return programsSheet(rerender);
+  if (act === 'exinfo-prog') return exInfoSheet(el.dataset.ex);
   if (act === 'catalog') return catalogSheet(rerender);
   if (act === 'hist') return showSession(el.dataset.id, rerender);
 }
@@ -123,6 +125,7 @@ function programMenu(rerender) {
   const w = sheet(`<h3>Modifier le programme</h3>
     <label class="field">Nom<input id="pname" value="${esc(P.name)}"></label>
     <div class="grid2"><label class="mini">Début (semaine 1)<input type="date" id="pstart" value="${P.startDate}"></label>
+    <label class="mini">Temps max / séance (min)<input type="number" id="pmin" inputmode="numeric" min="20" max="180" step="5" value="${P.minutes || S.profile?.sessionMinutes || 60}"></label>
     <label class="mini">Durée<select id="pweeks">${[4, 6, 8, 10, 12, 16].map(n => `<option value="${n}" ${n === (P.weeks || 12) ? 'selected' : ''}>${n} semaines</option>`).join('')}</select></label></div>
     <label class="field">Progression par blocs<select id="pperiod"><option value="on" ${P.periodize !== false ? 'selected' : ''}>Oui : volume → force → pic, décharge toutes les 4 sem.</option><option value="off" ${P.periodize === false ? 'selected' : ''}>Non : toujours les séries/reps que je définis</option></select></label>
     <h3 class="sec">Jours (ordre avec ↑ ↓)</h3>
@@ -138,7 +141,11 @@ function programMenu(rerender) {
   const draw = () => { $('#pdays', w).innerHTML = days.map((d, i) => `<div class="edit-item row between"><span class="grow"><b>${esc(d.name)}</b><br><small class="muted">${d.items.length} exercices</small></span>
     <button class="icon-btn sm" data-mv="-1" data-i="${i}" aria-label="Monter">↑</button><button class="icon-btn sm" data-mv="1" data-i="${i}" aria-label="Descendre">↓</button><button class="icon-btn sm" data-ed="${i}" aria-label="Modifier">✎</button><button class="icon-btn sm" data-cp="${i}" aria-label="Dupliquer">⧉</button><button class="icon-btn sm danger" data-rm="${i}" aria-label="Supprimer">✕</button></div>`).join(''); };
   draw();
-  const commit = async () => { P.days = days; P.name = $('#pname', w).value; P.startDate = $('#pstart', w).value; P.weeks = +$('#pweeks', w).value; P.periodize = $('#pperiod', w).value === 'on'; await saveProgram(); };
+  const commit = async () => {
+    const mn = Math.min(180, Math.max(20, Math.round((+$('#pmin', w).value || 60) / 5) * 5));
+    P.days = days; P.periodize = $('#pperiod', w).value === 'on';
+    if (mn !== P.minutes) { fitProgramToTime(P, mn, S.profile?.goal); if (S.profile) { S.profile.sessionMinutes = mn; await kv.set('profile', S.profile); } toast(`Séances ajustées à ${mn} min max`); }
+    P.name = $('#pname', w).value; P.startDate = $('#pstart', w).value; P.weeks = +$('#pweeks', w).value; P.periodize = $('#pperiod', w).value === 'on'; await saveProgram(); };
   $('#pdays', w).onclick = async (e) => {
     const b = e.target.closest('button'); if (!b) return; const i = +b.dataset.i;
     if (b.dataset.mv) { const j = i + +b.dataset.mv; if (j >= 0 && j < days.length) [days[i], days[j]] = [days[j], days[i]]; draw(); }
@@ -191,7 +198,7 @@ function catalogSheet(rerender) {
   let tdays = (p.trainingDays?.length ? p.trainingDays : [0, 2, 4]).slice();
   const w = sheet(`<h3>📋 Programmes prédéfinis</h3>
     <p class="muted small">Choisis ton temps maximum et tes jours : chaque séance est calculée pour tenir dedans (échauffement compris).</p>
-    <div class="field">Temps max par séance<div class="chips" id="cmin">${[30, 45, 60, 75, 90, 120].map(m => `<button class="chip ${m === minutes ? 'on' : ''}" data-m="${m}">${m < 60 ? m + ' min' : m === 60 ? '1 h' : Math.floor(m / 60) + ' h ' + String(m % 60).padStart(2, '0')}</button>`).join('')}</div></div>
+    <div class="field">Temps max par séance<div class="row gap"><div class="chips grow" id="cmin">${[30, 45, 50, 60, 75, 90].map(m => `<button class="chip ${m === minutes ? 'on' : ''}" data-m="${m}">${m} min</button>`).join('')}</div><label class="mini cminl">ou<input type="number" id="cmini" inputmode="numeric" min="20" max="180" step="5" value="${minutes}"></label></div></div>
     <div class="field">Jours d’entraînement<div class="wdays" id="cdays">${WEEKDAYS.map((d, i) => `<label><input type="checkbox" value="${i}" ${tdays.includes(i) ? 'checked' : ''}><span>${d}</span></label>`).join('')}</div></div>
     <div id="cpresets" class="presets"></div>
     <div id="cprev"></div>
@@ -202,10 +209,11 @@ function catalogSheet(rerender) {
     $('#cpresets', w).innerHTML = Object.entries(PRESETS).map(([k, v]) => `<button class="preset ${k === preset ? 'on' : ''}" data-p="${k}"><b>${v.label}</b><small>${v.desc}</small></button>`).join('');
     if (!tdays.length) { $('#cprev', w).innerHTML = '<p class="muted">Coche au moins un jour.</p>'; return; }
     prog = generateProgram(p, { preset, minutes, trainingDays: tdays });
-    $('#cprev', w).innerHTML = `<h3 class="sec">Aperçu · ${tdays.length} séance${tdays.length > 1 ? 's' : ''} / semaine</h3>` + prog.days.map(d => `<div class="edit-item"><div class="row between"><b>${esc(d.name)}</b><span class="tag">≈ ${dayMinutes(d)} min</span></div><small class="muted">${d.items.map(it => esc(exById(it.exId).name)).join(' · ')}</small></div>`).join('');
+    $('#cprev', w).innerHTML = `<h3 class="sec">Aperçu · ${tdays.length} séance${tdays.length > 1 ? 's' : ''} / semaine</h3>` + prog.days.map(d => `<div class="edit-item"><div class="row between"><b>${esc(d.name)}</b><span class="tag">≈ ${dayMinutes(d)} min max</span></div><small class="muted">${d.items.map(it => esc(exById(it.exId).name)).join(' · ')}</small></div>`).join('');
   };
   draw();
-  $('#cmin', w).onclick = (e) => { const b = e.target.closest('[data-m]'); if (!b) return; minutes = +b.dataset.m; $$('#cmin .chip', w).forEach(c => c.classList.toggle('on', c === b)); draw(); };
+  $('#cmin', w).onclick = (e) => { const b = e.target.closest('[data-m]'); if (!b) return; minutes = +b.dataset.m; $('#cmini', w).value = minutes; $$('#cmin .chip', w).forEach(c => c.classList.toggle('on', c === b)); draw(); };
+  $('#cmini', w).onchange = (e) => { minutes = Math.min(180, Math.max(20, Math.round((+e.target.value || 60) / 5) * 5)); e.target.value = minutes; $$('#cmin .chip', w).forEach(c => c.classList.toggle('on', +c.dataset.m === minutes)); draw(); };
   $('#cdays', w).onchange = () => { tdays = $$('#cdays input:checked', w).map(x => +x.value); draw(); };
   $('#cpresets', w).onclick = (e) => { const b = e.target.closest('[data-p]'); if (!b) return; preset = b.dataset.p; draw(); };
   $('#cgo', w).onclick = async () => {
@@ -273,7 +281,7 @@ function editDay(id, rerender) {
         <div class="row gap wrap">${f}<label class="mini">Type<select data-i="${i}" data-k="role">${Object.entries(ROLE_LABEL).map(([k, v]) => `<option value="${k}" ${k === it.role ? 'selected' : ''}>${v}</option>`).join('')}</select></label></div></div>`;
     }).join('') || '<p class="muted">Aucun exercice.</p>';
   };
-  const _draw = draw; const drawAll = () => { _draw(); dur(); }; const dur = () => { const m = dayMinutes(day); const lim = S.program.minutes || S.profile?.sessionMinutes; $('#ddur', w).innerHTML = `⏱ Durée estimée : <b>${m} min</b>${lim ? ` / ${lim} min max` : ''}${lim && m > lim + 5 ? ' · <span class="warn">trop long</span>' : ''}`; };
+  const _draw = draw; const drawAll = () => { _draw(); dur(); }; const dur = () => { const per = S.program.periodize !== false; const m = dayMinutes(day, per); const lim = S.program.minutes || S.profile?.sessionMinutes; $('#ddur', w).innerHTML = `⏱ Durée estimée : <b>${m} min</b>${per ? ' (semaine la plus chargée)' : ''}${lim ? ` / ${lim} min max` : ''}${lim && m > lim + 2 ? ` · <span class="warn">trop long</span> <button class="btn sm" id="dfit">Ajuster à ${lim} min</button>` : ''}`; const f = $('#dfit', w); if (f) f.onclick = () => { fitDayToTime(day, lim, S.profile?.goal, per); drawAll(); toast(`Séance ajustée à ${lim} min max`); }; };
   drawAll();
   $('#items', w).addEventListener('change', (e) => {
     const t = e.target; if (!t.dataset.k) return;
@@ -286,7 +294,9 @@ function editDay(id, rerender) {
     const i = +b.dataset.i;
     if (b.dataset.mv) { const j = i + +b.dataset.mv; if (j < 0 || j >= day.items.length) return; [day.items[i], day.items[j]] = [day.items[j], day.items[i]]; drawAll(); }
     if (b.dataset.rm !== undefined) { day.items.splice(+b.dataset.rm, 1); drawAll(); }
-    if (b.dataset.sw !== undefined) pickExercise(ex => { const old = day.items[+b.dataset.sw]; const n = makeItem(ex, defaultRole(ex)); if (old.sets && n.sets) Object.assign(n, { sets: old.sets, rest: old.rest }); day.items[+b.dataset.sw] = n; drawAll(); });
+    if (b.dataset.sw !== undefined) { const k = +b.dataset.sw; const apply = (ex) => { const old = day.items[k]; const n = makeItem(ex, defaultRole(ex)); if (old.sets && n.sets) Object.assign(n, { sets: old.sets, rest: old.rest }); day.items[k] = n; drawAll(); };
+      const s2 = exInfoSheet(day.items[k].exId, apply); s2.querySelector('.sheet').insertAdjacentHTML('beforeend', '<button class="btn ghost block" data-other>🔍 Autre exercice…</button>'); s2.querySelector('[data-other]').onclick = () => { s2.close(); pickExercise(apply); }; return; }
+    if (false) pickExercise(ex => { const old = day.items[+b.dataset.sw]; const n = makeItem(ex, defaultRole(ex)); if (old.sets && n.sets) Object.assign(n, { sets: old.sets, rest: old.rest }); day.items[+b.dataset.sw] = n; drawAll(); });
   });
   $('#addx', w).onclick = () => pickExercise(ex => { day.items.push(makeItem(ex, defaultRole(ex))); drawAll(); });
   $('#saved', w).onclick = async () => { day.name = $('#dn', w).value; day.focus = $('#df', w).value; day.weekday = $('#dwd', w).value === '' ? null : +$('#dwd', w).value; await saveProgram(); toast('Séance enregistrée'); w.close(); };
@@ -315,6 +325,17 @@ async function startSession(dayId) {
     id: uid('s'), dayId, name: day ? day.name : 'Séance libre', start: Date.now(), week: info.week, phase: info.phase,
     exercises: day ? day.items.map(it => buildEx(applyBlock(it, info), list)) : [], note: '',
   };
+  await saveActive();
+  location.hash = '#/seance';
+}
+
+// Séance construite à la volée (rattrapage, séance combinée)
+export async function startCustom(name, items, dayIds = []) {
+  if (S.active && !(await confirmBox('Une séance est déjà en cours. La remplacer ?', 'Remplacer'))) { location.hash = '#/seance'; return; }
+  unlockAudio();
+  const list = await allSessions();
+  const info = weekInfo(S.program);
+  S.active = { id: uid('s'), dayId: dayIds[0] || null, dayIds, name, start: Date.now(), week: info.week, phase: info.phase, exercises: items.map(it => buildEx(applyBlock(it, info), list)), note: '' };
   await saveActive();
   location.hash = '#/seance';
 }
@@ -348,7 +369,7 @@ export async function renderSession(view) {
 function exCard(x, i) {
   const e = exById(x.exId), t = x.target;
   const head = `<div class="row between"><div><h3>${esc(e.name)}</h3><div class="muted">${esc(e.muscle)} · ${ROLE_LABEL[x.role] || ''} · ${prescription(t)}</div></div>
-    <button class="icon-btn" data-act="ex-menu" data-i="${i}" aria-label="Options">⋯</button></div>
+    <span class="row"><button class="icon-btn" data-act="exinfo" data-i="${i}" aria-label="Technique et équivalents">ⓘ</button><button class="icon-btn" data-act="ex-menu" data-i="${i}" aria-label="Options" style="margin-left:6px">⋯</button></span></div>
     ${x.last ? `<div class="last">${esc(x.last)}</div>` : ''}${x.sug?.msg ? `<div class="sug">→ ${esc(x.sug.msg)}</div>` : ''}${t.note ? `<div class="sug warn">${esc(t.note)}</div>` : ''}`;
   if (x.cardio) {
     const c = x.cardio;
@@ -425,6 +446,7 @@ export async function onSessionAction(act, el, rerender) {
   if (act === 'cardio-timer') intervalTimer({ rounds: 1, work: (x.target.minutes || 30) * 60, restWork: 0, title: exById(x.exId).name + ' — zone ' + (x.target.zone || 2), onRound: async () => { x.cardio.minutes = x.target.minutes; x.cardio.done = true; await saveActive(); refreshCard(i); updateProgress(); } });
   if (act === 'add-ex') pickExercise(async ex => { const it = makeItem(ex, defaultRole(ex)); a.exercises.push(buildEx(it, await allSessions())); await saveActive(); rerender(); });
   if (act === 'ex-menu') exMenu(i, rerender);
+  if (act === 'exinfo') exInfoSheet(x.exId, (ex) => swapEx(i, ex, rerender));
   if (act === 'hr') connectHR(rerender);
   if (act === 'cancel') { if (await confirmBox('Abandonner la séance ? Rien ne sera enregistré.', 'Abandonner')) { S.active = null; await kv.del('active'); stopRest(); location.hash = '#/entrainement'; } }
   if (act === 'finish') finishSession();
@@ -437,17 +459,27 @@ function refreshCard(i) {
   c.replaceWith(tmp.firstElementChild);
 }
 
+async function swapEx(i, ex, rerender) {
+  const a = S.active, x = a.exercises[i];
+  const it = { ...x.target, ...makeItem(ex, defaultRole(ex)) };
+  if (x.target.sets && it.sets) { it.sets = x.target.sets; it.repMin = x.target.repMin; it.repMax = x.target.repMax; it.rest = x.target.rest; }
+  a.exercises[i] = buildEx(it, await allSessions()); await saveActive(); rerender();
+  toast(`Remplacé par ${ex.name}`);
+}
+
 function exMenu(i, rerender) {
   const a = S.active, x = a.exercises[i];
   const w = sheet(`<h3>${esc(exById(x.exId).name)}</h3>
-    <button class="btn ghost block" data-m="swap">⇄ Remplacer (machine prise, douleur…)</button>
+    <button class="btn ghost block" data-m="alts">⇄ Machine prise ? Voir les équivalents</button>
+    <button class="btn ghost block" data-m="swap">🔍 Remplacer par un autre exercice</button>
     <button class="btn ghost block" data-m="up">↑ Monter</button><button class="btn ghost block" data-m="down">↓ Descendre</button>
     ${x.sets ? '<button class="btn ghost block" data-m="rmset">− Retirer la dernière série</button>' : ''}
     <button class="btn ghost danger block" data-m="rm">✕ Retirer de la séance</button>`);
   w.addEventListener('click', async (e) => {
     const m = e.target.closest('[data-m]')?.dataset.m; if (!m) return;
     w.close();
-    if (m === 'swap') return pickExercise(async ex => { const it = { ...x.target, ...makeItem(ex, defaultRole(ex)) }; if (x.target.sets && it.sets) { it.sets = x.target.sets; it.repMin = x.target.repMin; it.repMax = x.target.repMax; it.rest = x.target.rest; } a.exercises[i] = buildEx(it, await allSessions()); await saveActive(); rerender(); });
+    if (m === 'swap') return pickExercise(ex => swapEx(i, ex, rerender));
+    if (m === 'alts') return exInfoSheet(x.exId, (ex) => swapEx(i, ex, rerender));
     if (m === 'up' && i > 0) [a.exercises[i - 1], a.exercises[i]] = [a.exercises[i], a.exercises[i - 1]];
     if (m === 'down' && i < a.exercises.length - 1) [a.exercises[i + 1], a.exercises[i]] = [a.exercises[i], a.exercises[i + 1]];
     if (m === 'rmset') x.sets.pop();
@@ -480,7 +512,7 @@ async function finishSession() {
     if (best > prev && prev > 0) prs.push({ name: exById(x.exId).name, val: best, prev });
   }
   const hrStats = hr.stats(a.start);
-  const draft = { id: a.id, date: new Date(a.start).toISOString(), name: a.name, dayId: a.dayId, week: a.week, minutes, volume: Math.round(volume), exercises: a.exercises.map(({ last, sug, ...rest }) => rest), note: a.note, avgHr: hrStats?.avg, maxHr: hrStats?.max };
+  const draft = { id: a.id, date: new Date(a.start).toISOString(), name: a.name, dayId: a.dayId, dayIds: a.dayIds || [], week: a.week, minutes, volume: Math.round(volume), exercises: a.exercises.map(({ last, sug, ...rest }) => rest), note: a.note, avgHr: hrStats?.avg, maxHr: hrStats?.max };
   draft.kcal = sessionKcal(draft, S.profile?.weight);
   const w = sheet(`<h3>Bravo 🔥</h3>
     <div class="stats3"><div><b>${fmtDur(minutes)}</b><small>Durée</small></div><div><b>${setsDone}</b><small>Séries</small></div><div><b>${num(volume / 1000, 2)} t</b><small>Volume</small></div></div>

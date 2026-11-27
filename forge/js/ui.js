@@ -27,6 +27,22 @@ export const $ = (sel, root = document) => root.querySelector(sel);
 export const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
 export const today = () => { const d = new Date(); return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10); };
 export const dayKey = (iso) => { const d = new Date(iso); return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10); };
+// Heure de prise des repas
+export const nowTime = () => { const d = new Date(); return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`; };
+export const MEAL_TIME = { matin: '08:00', midi: '12:30', collation: '16:30', soir: '20:00' };
+export const mealFromTime = (t) => { const h = +String(t || '').split(':')[0]; return isNaN(h) ? null : h < 11 ? 'matin' : h < 15 ? 'midi' : h < 18 ? 'collation' : 'soir'; };
+export const defTime = (date, meal) => (date === today() && (!meal || mealFromTime(nowTime()) === meal)) ? nowTime() : (MEAL_TIME[meal] || nowTime());
+// Champs « Repas » + « Heure » liés : changer l'heure choisit le repas
+export function mealTimeFields(meal, time, ids = ['qmeal', 'qtime']) {
+  return `<div class="grid2"><label class="mini">Repas<select id="${ids[0]}">${[['matin', 'Petit-déjeuner'], ['midi', 'Déjeuner'], ['collation', 'Collation'], ['soir', 'Dîner']].map(([k, l]) => `<option value="${k}" ${k === meal ? 'selected' : ''}>${l}</option>`).join('')}</select></label>
+    <label class="mini">Heure<input type="time" id="${ids[1]}" value="${time}"></label></div>`;
+}
+export function bindMealTime(w, ids = ['qmeal', 'qtime']) {
+  const t = w.querySelector('#' + ids[1]), m = w.querySelector('#' + ids[0]);
+  t.addEventListener('change', () => { const k = mealFromTime(t.value); if (k) m.value = k; });
+  m.addEventListener('change', () => { if (!t.dataset.touched) t.value = MEAL_TIME[m.value]; });
+  t.addEventListener('input', () => { t.dataset.touched = '1'; });
+}
 export const fmtTime = (s) => { s = Math.max(0, Math.round(s)); const m = Math.floor(s / 60), r = s % 60; return `${m}:${String(r).padStart(2, '0')}`; };
 export const fmtDur = (min) => min >= 60 ? `${Math.floor(min / 60)} h ${String(Math.round(min % 60)).padStart(2, '0')}` : `${Math.round(min)} min`;
 export const fmtDate = (iso, opts = { weekday: 'short', day: 'numeric', month: 'short' }) => new Date(iso).toLocaleDateString('fr-FR', opts);

@@ -175,6 +175,16 @@ function pick(slot, equipment, used) {
   return null;
 }
 
+// Exercices équivalents (même mouvement, même muscle) faisables avec le matériel.
+export function alternatives(exId, equipment = 'salle', custom = [], n = 3) {
+  const ex = exById(exId, custom); if (!ex) return [];
+  const out = [];
+  const add = (id) => { const e = exById(id, custom); if (e && e.id !== exId && !out.includes(e) && eqAllowed(e, equipment)) out.push(e); };
+  for (const list of Object.values(SLOT)) if (list.includes(exId)) list.forEach(add);
+  for (const e of [...EXERCISES, ...custom]) if (e.muscle === ex.muscle && (e.kind === ex.kind || (ex.kind !== 'cardio' && e.kind !== 'cardio' && e.kind !== 'hiit'))) add(e.id);
+  return out.slice(0, n);
+}
+
 export function makeItem(ex, role) {
   const r = ROLE[role] || ROLE.hyper;
   const base = { exId: ex.id, role };
@@ -193,15 +203,25 @@ export function itemMinutes(it) {
   return (sets * (work + (+it.rest || 60))) / 60 + (it.role === 'force' ? 2.5 : 1); // + séries d'approche / installation
 }
 export const WARMUP = 7;
-export const dayMinutes = (day) => Math.round(WARMUP + day.items.reduce((a, it) => a + itemMinutes(it), 0));
+// Durée de la semaine la plus chargée du cycle (les blocs 2 et 3 ajoutent des séries) : c'est ce maximum qui doit tenir.
+const BLOCK_INFOS = [{ block: 1 }, { block: 2 }, { block: 3 }];
+export function itemsMinutes(items, periodize = true) {
+  const infos = periodize ? BLOCK_INFOS : [{ off: true }];
+  return Math.round(Math.max(...infos.map(info => WARMUP + items.reduce((a, it) => a + itemMinutes(applyBlock(it, info)), 0))));
+}
+export const dayMinutes = (day, periodize = true) => itemsMinutes(day.items, periodize);
 
 // Ajuste une séance pour tenir dans le temps maximum.
-function fitDay(items, budget, isCardioDay, goal) {
-  const est = () => WARMUP + items.reduce((a, it) => a + itemMinutes(it), 0);
+function fitDay(items, budget, isCardioDay, goal, { grow = true, periodize = true } = {}) {
+  const est = () => itemsMinutes(items, periodize);
   if (isCardioDay) {
     const other = items.filter(i => i.role !== 'cardio').reduce((a, it) => a + itemMinutes(it), 0);
     const c = items.find(i => i.role === 'cardio');
-    if (c) c.minutes = Math.max(15, Math.min(75, Math.round((budget - WARMUP - other) / 5) * 5));
+    if (c) {
+      const want = Math.max(15, Math.min(75, Math.round((budget - WARMUP - other) / (periodize ? 1.15 : 1) / 5) * 5));
+      c.minutes = grow ? want : Math.min(c.minutes, want);
+      while (est() > budget && c.minutes > 10) c.minutes -= 5;
+    }
     while (est() > budget && items.filter(i => i.role === 'core').length > 1) items.splice(items.findLastIndex(i => i.role === 'core'), 1);
     return items;
   }
@@ -228,7 +248,7 @@ function fitDay(items, budget, isCardioDay, goal) {
   while (est() > budget && guard++ < 200) { if (!steps.some(s => s())) break; }
   // du temps en plus : on enrichit (séries, finisher cardio)
   guard = 0;
-  while (budget - est() >= 6 && guard++ < 20) {
+  while (grow && budget - est() >= 6 && guard++ < 20) {
     const x = items.find(i => (i.role === 'hyper' && i.sets < 4) || (i.role === 'force' && i.sets < 5));
     if (x && budget - est() >= 4) { x.sets++; continue; }
     const c = items.find(i => i.role === 'cardio');
@@ -279,6 +299,22 @@ export function generateProgram(profile, opts = {}) {
     program.days.push({ id: 'd' + i + '_' + Date.now().toString(36), name: `${wd != null ? WEEKDAY_LONG[wd] : 'J' + (i + 1)} · ${t.name}`, focus: t.focus, items, weekday: wd ?? null });
   });
   return program;
+}
+
+// Ajuste un programme existant (modifié ou non) à un temps max par séance, sans rien ajouter.
+export function fitProgramToTime(program, minutes, goal) {
+  const periodize = program.periodize !== false;
+  for (const d of program.days) {
+    const cardioDay = d.items.some(i => i.role === 'cardio') && d.items.every(i => i.role === 'cardio' || i.role === 'core');
+    d.items = fitDay(d.items, minutes, cardioDay, goal, { grow: false, periodize });
+  }
+  program.minutes = minutes;
+  return program;
+}
+export function fitDayToTime(day, minutes, goal, periodize = true) {
+  const cardioDay = day.items.some(i => i.role === 'cardio') && day.items.every(i => i.role === 'cardio' || i.role === 'core');
+  day.items = fitDay(day.items, minutes, cardioDay, goal, { grow: false, periodize });
+  return day;
 }
 
 // Séance prévue un jour donné (selon les jours de la semaine du programme).

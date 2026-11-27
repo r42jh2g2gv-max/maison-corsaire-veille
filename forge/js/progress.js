@@ -3,14 +3,17 @@ import { S, esc, $, $$, exById, toast, sheet, confirmBox, fmtDate, num, e1rm, to
 import { body, photos, uid, kv } from './db.js';
 import { lineChart, barChart, bindCharts } from './charts.js';
 import { allSessions } from './train.js';
+import { bfGoalCard, reviewHtml, onFeatureAction } from './features.js';
 
 let tab = 'perf', exSel = null, bodyMetric = 'weight';
+export const setProgressTab = (t) => { tab = t; };
 
 export async function renderProgress(view) {
-  view.innerHTML = `<div class="seg" role="tablist">${[['perf', 'Performances'], ['corps', 'Corps'], ['photos', 'Photos']].map(([k, l]) => `<button class="${tab === k ? 'on' : ''}" data-act="ptab" data-t="${k}">${l}</button>`).join('')}</div><div id="ptab"></div>`;
+  view.innerHTML = `<div class="seg" role="tablist">${[['perf', 'Perfs'], ['bilan', 'Bilan'], ['corps', 'Corps'], ['photos', 'Photos']].map(([k, l]) => `<button class="${tab === k ? 'on' : ''}" data-act="ptab" data-t="${k}">${l}</button>`).join('')}</div><div id="ptab"></div>`;
   const el = $('#ptab', view);
   if (tab === 'perf') await perf(el);
   if (tab === 'corps') await corps(el);
+  if (tab === 'bilan') el.innerHTML = await reviewHtml();
   if (tab === 'photos') await gallery(el);
   bindCharts(view);
 }
@@ -99,6 +102,7 @@ async function corps(el) {
     ${goalBF ? `<div class="goal"><span>Objectif masse grasse : ${num(goalBF)} %</span><div class="pbar"><i style="width:${pb ?? 0}%"></i></div></div>` : ''}
     ${!goalW && !goalBF ? '<p class="muted small">Fixe un poids et un % de masse grasse cibles dans ton profil pour suivre ta progression vers ton corps idéal.</p>' : ''}
   </section>
+  ${bfGoalCard(entries)}
   <section class="card"><div class="chips">${METRICS.map(([k, l]) => `<button class="chip ${k === bodyMetric ? 'on' : ''}" data-act="bmetric" data-m="${k}">${l}</button>`).join('')}</div>
     ${lineChart(pts, { unit: m[2] })}</section>
   <section class="card"><h3>Historique des mesures</h3>
@@ -184,6 +188,7 @@ async function compareView(ids) {
 }
 
 export async function onProgressAction(act, el, rerender) {
+  if (['setbf', 'setgoal', 'review-week'].includes(act)) return onFeatureAction(act, el, rerender);
   if (act === 'ptab') { tab = el.dataset.t; compareSel = []; return rerender(); }
   if (act === 'bmetric') { bodyMetric = el.dataset.m; return rerender(); }
   if (act === 'body-add') return bodyForm(null, rerender);

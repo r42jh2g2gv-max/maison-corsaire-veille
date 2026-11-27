@@ -1,6 +1,6 @@
 // FORGE — menu de la semaine : recettes maison / Thermomix ou produits tout prêts,
 // portions calculées pour coller aux calories du jour, « mangé » → journal, courses.
-import { S, esc, $, $$, toast, sheet, confirmBox, today, num, targets, fmtDate } from './ui.js';
+import { S, esc, $, $$, toast, sheet, confirmBox, today, num, targets, fmtDate, defTime } from './ui.js';
 import { kv, food, recipes, uid } from './db.js';
 import { MEALS } from './data.js';
 import { foodPicker, recipeFood } from './nutrition.js';
@@ -49,7 +49,7 @@ export async function toggleEaten(date, meal) {
   if (e.done) { await food.del(e.done); e.done = null; await save(); return; }
   const pr = portionFor(e, date, meal);
   const id = uid('f');
-  await food.put({ id, date, meal, name: e.name, grams: pr.grams || null, portions: pr.unit === 'portion' ? pr.qty : null, kcal: Math.round(pr.kcal), p: +pr.p.toFixed(1), c: +pr.c.toFixed(1), f: +pr.f.toFixed(1), src: 'menu',
+  await food.put({ id, date, meal, time: defTime(date, meal), name: e.name, grams: pr.grams || null, portions: pr.unit === 'portion' ? pr.qty : null, kcal: Math.round(pr.kcal), p: +pr.p.toFixed(1), c: +pr.c.toFixed(1), f: +pr.f.toFixed(1), src: 'menu',
     per100: e.type === 'product' ? { kcal: e.kcal, p: e.p, c: e.c, f: e.f, brand: e.brand || '', src: 'off' } : null });
   e.done = id; await save();
 }
@@ -135,31 +135,81 @@ async function autofill() {
   toast(n ? `${n} repas planifiés` : 'Aucun créneau libre ou recette adaptée (indique le repas sur tes recettes)');
 }
 
-async function shopping() {
+// ————— Liste de courses par rayon —————
+const AISLES = [
+  ['🥦 Fruits & légumes', /oignon|ail\b|échalote|carotte|tomate|courgette|poivron|brocoli|épinard|salade|champignon|pomme de terre|patate|citron|banane|pomme|fruits? rouges?|framboise|myrtille|fraise|avocat|concombre|haricots? verts?|poireau|chou|persil|coriandre|basilic|ciboulette|menthe|gingembre|aubergine|potiron|butternut|courge|céleri|kiwi|orange|mangue|ananas|poire|raisin|légume|fruit/i],
+  ['🥩 Viandes & poissons', /poulet|dinde|bœuf|boeuf|steak|haché|porc|jambon|lardon|saumon|thon|cabillaud|colin|crevette|poisson|viande|merguez|saucisse|veau|agneau|chorizo|filet/i],
+  ['🧀 Crèmerie & œufs', /lait(?! de coco)|crème|beurre|fromage|parmesan|emmental|gruyère|mozzarella|feta|chèvre|ricotta|yaourt|skyr|œuf|oeuf/i],
+  ['🍝 Féculents & céréales', /riz|pâtes|spaghetti|penne|quinoa|semoule|farine|flocons|avoine|lentille|pois chiche|haricots? (rouges?|blancs?)|pain|tortilla|wrap|boulgour|nouilles|polenta|patate douce/i],
+  ['🥫 Épicerie & condiments', /huile|vinaigre|sauce|moutarde|concentré|coulis|bouillon|cube|épice|sel\b|poivre|curry|paprika|cumin|curcuma|lait de coco|coco|miel|sucre|levure|chocolat|cacao|beurre de cacahuète|amande|noix|noisette|graine|whey|protéine|ketchup|soja|olive|câpre|conserve|boîte/i],
+  ['🧊 Surgelés', /surgel/i],
+  ['🥤 Boissons', /\beau\b|jus|café|thé|boisson|soda|vin|bière/i],
+];
+const aisleOf = (txt) => (AISLES.find(([, re]) => re.test(txt)) || ['🛒 Autres'])[0];
+
+// « 600 g de poulet » → { q: 600, u: 'g', n: 'poulet' }
+const UNIT = /^(\d+(?:[.,]\d+)?|\d+\/\d+)\s*(kg|g|mg|ml|cl|dl|l|c\.? ?à ?s\.?|c\.? ?à ?c\.?|cs|cc|càs|càc|cuillères? à (?:soupe|café)|pincées?|tranches?|boîtes?|sachets?|gousses?|pièces?|bottes?|brins?|pots?|briques?|verres?)?\.?\s+(?:de |d’|d')?(.+)$/i;
+function parseIng(line) {
+  const m = line.trim().replace(/^[-•]\s*/, '').match(UNIT);
+  if (!m) return { n: line.trim().replace(/^[-•]\s*/, ''), q: null, u: '' };
+  const q = m[1].includes('/') ? (+m[1].split('/')[0] / +m[1].split('/')[1]) : +m[1].replace(',', '.');
+  return { q, u: (m[2] || '').toLowerCase(), n: m[3].trim() };
+}
+const fmtQ = (q, u) => { if (q == null) return ''; let v = q, uu = u; if (['g', 'ml', 'mg'].includes(u)) v = Math.ceil(v / 10) * 10; else if (['kg', 'l', 'cl', 'dl'].includes(u)) v = Math.ceil(v * 10) / 10; else v = Math.ceil(v * 2) / 2 >= 1 && !/c\.|cs|cc|càs|càc|cuill/.test(u) ? Math.ceil(v) : Math.ceil(v * 2) / 2; if (u === 'g' && v >= 1000) { v /= 1000; uu = 'kg'; } if (u === 'ml' && v >= 1000) { v /= 1000; uu = 'l'; } return `${(Math.round(v * 10) / 10).toLocaleString('fr-FR')}${uu ? ' ' + uu : ''}`; };
+
+async function buildShopping() {
   const days = weekDays(weekOffset);
   const rr = Object.fromEntries((await recipes.all()).map(r => [r.id, r]));
-  const rec = {}, prod = {};
+  const rec = {}, items = {}, batch = [];
   for (const d of days) for (const [m] of MEALS) {
     const e = plannedFor(d, m); if (!e) continue;
     const pr = portionFor(e, d, m);
-    if (e.type === 'recipe') { (rec[e.recipeId || e.name] ||= { e, q: 0 }).q += pr.qty; }
-    if (e.type === 'product') { (prod[e.name] ||= { e, g: 0 }).g += pr.grams; }
+    if (e.type === 'recipe') (rec[e.recipeId || e.name] ||= { e, q: 0 }).q += pr.qty;
+    if (e.type === 'product') { const k = 'p|' + e.name.toLowerCase(); (items[k] ||= { label: e.name + (e.brand ? ` (${e.brand})` : ''), q: 0, u: 'g', aisle: aisleOf(e.name) }).q += pr.grams; }
   }
-  const lines = [];
-  let html = '';
   for (const { e, q } of Object.values(rec)) {
     const r = rr[e.recipeId];
-    const factor = r?.portions ? q / r.portions : null;
-    html += `<div class="hist-ex"><b>🍲 ${esc(e.name)}</b><span>${num(q, 2)} portions cette semaine${factor ? ` → cuisiner <b>${num(factor, 2)} ×</b> la recette (${r.portions} portions)` : ''}</span>
-      ${r?.ingredients?.length ? `<ul class="small">${r.ingredients.map(i => `<li>${esc(i)}${factor && Math.abs(factor - 1) > 0.05 ? ` <i>× ${num(factor, 2)}</i>` : ''}</li>`).join('')}</ul>` : ''}</div>`;
-    lines.push(`${e.name} — ${factor ? 'recette × ' + num(factor, 2) : num(q, 2) + ' portions'}`, ...(r?.ingredients || []).map(i => `  - ${i}${factor && Math.abs(factor - 1) > 0.05 ? ' (× ' + num(factor, 2) + ')' : ''}`));
+    const factor = r?.portions ? q / r.portions : 1;
+    batch.push({ name: e.name, q, factor, portions: r?.portions });
+    for (const line of r?.ingredients || []) {
+      const p = parseIng(line);
+      const k = p.n.toLowerCase() + '|' + p.u;
+      if (p.q == null) { items[k] ||= { label: p.n, q: null, u: '', aisle: aisleOf(p.n) }; continue; }
+      (items[k] ||= { label: p.n, q: 0, u: p.u, aisle: aisleOf(p.n) }).q += p.q * factor;
+    }
   }
-  for (const { e, g } of Object.values(prod)) {
-    html += `<div class="hist-ex"><b>🛒 ${esc(e.name)}${e.brand ? ` <small>${esc(e.brand)}</small>` : ''}</b><span>${Math.round(g)} g au total${e.serving ? ` (≈ ${Math.ceil(g / e.serving)} portions)` : ''}</span></div>`;
-    lines.push(`${e.name}${e.brand ? ' (' + e.brand + ')' : ''} — ${Math.round(g)} g`);
-  }
-  const w = sheet(`<h3>Courses & batch cooking</h3>${html || '<p class="muted">Rien de planifié cette semaine.</p>'}${lines.length ? '<button class="btn block" id="scopy">Copier la liste</button>' : ''}`);
-  if (lines.length) $('#scopy', w).onclick = async () => { const t = 'Courses FORGE\n' + lines.join('\n'); try { if (navigator.share) await navigator.share({ text: t }); else { await navigator.clipboard.writeText(t); toast('Liste copiée'); } } catch (e) { await navigator.clipboard.writeText(t).catch(() => { }); } };
+  return { batch, items };
+}
+
+async function shopping() {
+  const wk = weekDays(weekOffset)[0];
+  const store = (await kv.get('shop')) || {};
+  const st = store[wk] ||= { checked: [], extra: [] };
+  const { batch, items } = await buildShopping();
+  for (const x of st.extra) items['x|' + x] = { label: x, q: null, u: '', aisle: aisleOf(x), extra: true };
+  const groups = {};
+  for (const [k, it] of Object.entries(items)) (groups[it.aisle] ||= []).push([k, it]);
+  const order = [...AISLES.map(a => a[0]), '🛒 Autres'].filter(a => groups[a]);
+  const save = async () => { store[wk] = st; await kv.set('shop', store); };
+  const w = sheet(`<h3>🧾 Courses de la semaine</h3>
+    ${batch.length ? `<details class="batch"><summary>🍲 Batch cooking : ${batch.length} recette${batch.length > 1 ? 's' : ''} à préparer</summary>${batch.map(b => `<div class="hist-ex"><b>${esc(b.name)}</b><span>${num(b.q, 2)} portions → ${b.portions ? `cuisiner <b>${num(b.factor, 2)} ×</b> la recette (${b.portions} portions)` : 'à préparer'}</span></div>`).join('')}</details>` : ''}
+    <div id="shopl">${order.length ? order.map(a => `<div class="aisle"><div class="eyebrow">${a}</div>${groups[a].map(([k, it]) => `<label class="shopi ${st.checked.includes(k) ? 'done' : ''}"><input type="checkbox" data-k="${esc(k)}" ${st.checked.includes(k) ? 'checked' : ''}><span>${it.q != null ? `<b>${fmtQ(it.q, it.u)}</b> ` : ''}${esc(it.label)}</span></label>`).join('')}</div>`).join('') : '<p class="muted">Planifie des repas dans le menu de la semaine pour générer ta liste.</p>'}</div>
+    <div class="row gap"><input class="grow" id="shopadd" placeholder="Ajouter un article (ex : éponges)"><button class="btn" id="shopaddb">+</button></div>
+    <div class="row gap"><button class="btn grow" id="shopshare">📤 Partager / Drive</button><button class="btn ghost grow" id="shopclear">Décocher tout</button></div>
+    <p class="muted small">« Partager » envoie la liste triée par rayon vers Notes, Rappels, WhatsApp, Google Drive… ou le copie pour ta commande drive.</p>`);
+  $('#shopl', w).addEventListener('change', async (e) => {
+    const k = e.target.dataset.k; if (!k) return;
+    st.checked = e.target.checked ? [...new Set([...st.checked, k])] : st.checked.filter(x => x !== k);
+    e.target.closest('.shopi').classList.toggle('done', e.target.checked); await save();
+  });
+  const add = async () => { const v = $('#shopadd', w).value.trim(); if (!v) return; st.extra.push(v); await save(); w.close(); setTimeout(shopping, 260); };
+  $('#shopaddb', w).onclick = add; $('#shopadd', w).onkeydown = (e) => { if (e.key === 'Enter') add(); };
+  $('#shopclear', w).onclick = async () => { st.checked = []; await save(); w.close(); setTimeout(shopping, 260); };
+  $('#shopshare', w).onclick = async () => {
+    const txt = 'Courses FORGE — semaine du ' + fmtDate(wk, { day: 'numeric', month: 'long' }) + '\n' + order.map(a => '\n' + a.replace(/^\S+\s/, '').toUpperCase() + '\n' + groups[a].filter(([k]) => !st.checked.includes(k)).map(([, it]) => `☐ ${it.q != null ? fmtQ(it.q, it.u) + ' ' : ''}${it.label}`).join('\n')).join('\n');
+    try { if (navigator.share) { await navigator.share({ title: 'Liste de courses', text: txt }); return; } } catch (e) { if (e.name === 'AbortError') return; }
+    try { await navigator.clipboard.writeText(txt); toast('Liste copiée : colle-la où tu veux'); } catch (e) { toast('Copie impossible'); }
+  };
 }
 
 export async function onPlanAction(act, el, rerender) {

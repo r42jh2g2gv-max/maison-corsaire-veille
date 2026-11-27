@@ -1,5 +1,5 @@
 // FORGE — écarts : alcool, fast-food, repas lourd, grignotage + plan de compensation.
-import { S, esc, $, $$, toast, sheet, today, num, targets, bmr } from './ui.js';
+import { S, esc, $, $$, toast, sheet, today, num, targets, bmr, defTime, mealTimeFields, bindMealTime } from './ui.js';
 import { food, kv, uid } from './db.js';
 import { MEALS } from './data.js';
 
@@ -47,8 +47,9 @@ export function ecartSheet(date = today(), rerender) {
     <div class="chips" id="ecats">${Object.entries(CATS).map(([k, c]) => `<button class="chip ${k === cat ? 'on' : ''}" data-c="${k}">${c.label}</button>`).join('')}</div>
     <div id="eitems" class="eitems"></div>
     <div class="etotal" id="etot"></div>
-    <label class="field">Repas<select id="emeal">${MEALS.map(([k, l]) => `<option value="${k}" ${k === 'soir' ? 'selected' : ''}>${l}</option>`).join('')}</select></label>
+    ${mealTimeFields('soir', defTime(date, 'soir'), ['emeal', 'etime'])}
     <button class="btn block" id="eadd">Ajouter au journal</button>`, { onClose: rerender });
+  bindMealTime(w, ['emeal', 'etime']);
   const all = Object.values(CATS).flatMap(c => c.items);
   const total = () => Object.entries(qty).reduce((a, [n, q]) => { const it = all.find(x => x[0] === n); return { kcal: a.kcal + it[1] * q, alc: a.alc + it[3] * q }; }, { kcal: 0, alc: 0 });
   const draw = () => {
@@ -62,10 +63,10 @@ export function ecartSheet(date = today(), rerender) {
   $('#eitems', w).onclick = (e) => { const b = e.target.closest('[data-n]'); if (!b) return; const n = b.dataset.n; qty[n] = Math.max(0, (qty[n] || 0) + +b.dataset.d); if (!qty[n]) delete qty[n]; draw(); };
   $('#eadd', w).onclick = async () => {
     const t = total(); if (!t.kcal) return toast('Ajoute au moins un élément');
-    const meal = $('#emeal', w).value;
+    const meal = $('#emeal', w).value, time = $('#etime', w).value || null;
     for (const [n, q] of Object.entries(qty)) {
       const it = all.find(x => x[0] === n), k = it[1] * q, m = macros(k, it[2], it[3] * q);
-      await food.put({ id: uid('f'), date, meal, name: (q > 1 ? q + ' × ' : '') + n, kcal: k, ...m, alc: it[3] * q, ecart: true, src: 'ecart' });
+      await food.put({ id: uid('f'), date, meal, time, name: (q > 1 ? q + ' × ' : '') + n, kcal: k, ...m, alc: it[3] * q, ecart: true, src: 'ecart' });
     }
     w.close();
     setTimeout(() => compensation(date, t.alc, rerender), 280);
