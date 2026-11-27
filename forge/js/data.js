@@ -219,6 +219,7 @@ export function weekInfo(program, date = new Date()) {
   const total = program.weeks || 12;
   const week = Math.min(total, Math.max(1, Math.floor(diff / 7) + 1));
   const block = Math.min(3, Math.ceil(week / 4));
+  if (program.periodize === false) return { week, block: 1, phase: 'Programme libre', deload: false, total, off: true };
   const deload = week % 4 === 0;
   const phase = deload ? 'Décharge' : ['Accumulation', 'Intensification', 'Réalisation'][block - 1];
   return { week, block, phase, deload, total };
@@ -227,6 +228,7 @@ export function weekInfo(program, date = new Date()) {
 // Applique le bloc en cours à une prescription.
 export function applyBlock(item, info) {
   const it = { ...item };
+  if (info.off) return it;
   if (it.role === 'cardio' || it.role === 'hiit') {
     if (it.role === 'hiit' && info.block >= 2 && !info.deload) it.rounds = (it.rounds || 8) + 2;
     if (it.role === 'cardio' && info.block >= 2 && !info.deload) it.minutes = Math.round((it.minutes || 30) * 1.15);

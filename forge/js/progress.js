@@ -17,9 +17,20 @@ export async function renderProgress(view) {
 
 function weekStart(d) { const x = new Date(d); x.setHours(0, 0, 0, 0); x.setDate(x.getDate() - ((x.getDay() + 6) % 7)); return x; }
 
+function healthCharts() {
+  const h = Object.entries(S.health || {}).sort((a, b) => a[0].localeCompare(b[0])).slice(-60);
+  if (!h.length) return '';
+  const steps = h.filter(([, v]) => v.steps != null).map(([d, v]) => ({ x: d, y: v.steps }));
+  const rhr = h.filter(([, v]) => v.rhr != null).map(([d, v]) => ({ x: d, y: v.rhr }));
+  const act = h.filter(([, v]) => v.active != null).map(([d, v]) => ({ x: d, y: v.active }));
+  return `${steps.length ? `<section class="card"><h3>⌚ Pas par jour</h3>${lineChart(steps, { unit: 'pas', area: true })}</section>` : ''}
+    ${act.length ? `<section class="card"><h3>⌚ Calories actives (montre)</h3>${lineChart(act, { unit: 'kcal' })}</section>` : ''}
+    ${rhr.length ? `<section class="card"><h3>❤ FC au repos</h3>${lineChart(rhr, { unit: 'bpm', area: false })}<p class="muted small">Une FC de repos qui baisse = cardio qui progresse. Une hausse soudaine de 5+ bpm = fatigue : allège la séance.</p></section>` : ''}`;
+}
+
 async function perf(el) {
   const list = await allSessions();
-  if (!list.length) { el.innerHTML = `<section class="card hero"><h2>Rien à afficher… pour l’instant</h2><p>Termine ta première séance pour voir tes courbes de progression.</p></section>`; return; }
+  if (!list.length) { el.innerHTML = `<section class="card hero"><h2>Rien à afficher… pour l’instant</h2><p>Termine ta première séance pour voir tes courbes de progression.</p></section>${healthCharts()}`; return; }
   const now = Date.now();
   const last30 = list.filter(s => now - new Date(s.date) < 30 * 86400000);
   // semaines
@@ -60,6 +71,7 @@ async function perf(el) {
   <section class="card"><h3>Volume soulevé par semaine</h3>${barChart(weeks.map(w => ({ label: w.label, y: Math.round(w.vol / 100) / 10 })), { unit: 't' })}</section>
   <section class="card"><h3>Minutes de cardio par semaine</h3>${barChart(weeks.map(w => ({ label: w.label, y: w.cardio })), { unit: 'min' })}</section>
   <section class="card"><h3>Séances par semaine</h3>${barChart(weeks.map(w => ({ label: w.label, y: w.n })), { unit: 'séances' })}</section>
+  ${healthCharts()}
   ${records.length ? `<section class="card"><h3>🏆 Records</h3><div class="table">${records.map(r => `<div class="tr"><span>${esc(exById(r.id).name)}</span><b>${num(r.best)} kg</b><small class="${r.best > r.first ? 'up' : ''}">${r.best > r.first ? '+' + num(r.best - r.first) : '='}</small></div>`).join('')}</div></section>` : ''}`;
 }
 

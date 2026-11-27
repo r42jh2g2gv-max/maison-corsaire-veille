@@ -1,5 +1,5 @@
 // FORGE — programme, séance en direct, minuteurs de repos et d'intervalles, historique.
-import { S, esc, $, $$, exById, saveProgram, saveActive, toast, sheet, confirmBox, beep, unlockAudio, fmtTime, fmtDur, fmtDate, num, round, e1rm, sessionKcal } from './ui.js';
+import { S, esc, $, $$, exById, saveProgram, archiveProgram, WEEKDAYS, saveActive, toast, sheet, confirmBox, beep, unlockAudio, fmtTime, fmtDur, fmtDate, num, round, e1rm, sessionKcal } from './ui.js';
 import { sessions, kv, uid } from './db.js';
 import { EXERCISES, MUSCLES, makeItem, weekInfo, applyBlock, generateProgram } from './data.js';
 import { hr, parseActivity } from './devices.js';
@@ -57,7 +57,7 @@ function lastText(last) {
 // ————— Écran Entraînement —————
 export async function renderTrain(view) {
   if (!S.program) {
-    view.innerHTML = `<section class="card hero"><h2>Pas encore de programme</h2><p>Complète ton profil pour générer ton programme hybride sur mesure.</p><a class="btn" href="#/profil">Créer mon profil</a></section>`;
+    view.innerHTML = `<section class="card hero"><h2>Pas encore de programme</h2><p>Complète ton profil pour générer ton programme hybride sur mesure.</p><a class="btn" href="#/profil">Créer mon profil</a>${S.programs?.length ? '<button class="btn ghost block" data-act="programs">📚 Mes programmes</button>' : ''}</section>`;
     return;
   }
   const info = weekInfo(S.program);
@@ -68,15 +68,16 @@ export async function renderTrain(view) {
   ${S.active ? `<a class="card resume" href="#/seance"><b>▶ Séance en cours</b><span>${esc(S.active.name)}</span></a>` : ''}
   <section class="card">
     <div class="row between"><div><div class="eyebrow">Semaine ${info.week} / ${info.total} · Bloc ${info.block}</div><h2>${esc(S.program.name)}</h2></div>
-    <button class="icon-btn" data-act="prog-menu" aria-label="Options du programme">⋯</button></div>
-    <div class="phase ${info.deload ? 'deload' : ''}">${info.phase}${info.deload ? ' — semaine allégée pour récupérer' : info.block === 1 ? ' — on construit le volume' : info.block === 2 ? ' — charges plus lourdes, moins de reps' : ' — on exprime la force et la forme'}</div>
+    <button class="icon-btn" data-act="prog-menu" aria-label="Réglages du programme">⚙︎</button></div>
+    <div class="phase ${info.deload ? 'deload' : ''}">${info.phase}${info.off ? ' — tes séries et reps, sans cycle automatique' : info.deload ? ' — semaine allégée pour récupérer' : info.block === 1 ? ' — on construit le volume' : info.block === 2 ? ' — charges plus lourdes, moins de reps' : ' — on exprime la force et la forme'}</div>
+    <div class="row gap wrap prog-actions"><button class="btn sm ghost grow" data-act="programs">📚 Mes programmes</button><button class="btn sm ghost grow" data-act="prog-menu">✎ Modifier</button><a class="btn sm ghost grow" href="#/coach">🤖 Adapter</a></div>
     <div class="weekbar">${Array.from({ length: info.total }, (_, i) => `<i class="${i + 1 < info.week ? 'past' : i + 1 === info.week ? 'now' : ''} ${(i + 1) % 4 === 0 ? 'dl' : ''}"></i>`).join('')}</div>
   </section>
   <h3 class="sec">Séances du programme</h3>
   ${S.program.days.map(d => `
     <section class="card day ${doneThisWeek.has(d.id) ? 'done' : ''}">
       <div class="row between"><div><h3>${esc(d.name)}</h3><div class="muted">${esc(d.focus || '')} · ${d.items.length} exercices${doneThisWeek.has(d.id) ? ' · ✓ fait cette semaine' : ''}</div></div>
-      <button class="icon-btn" data-act="edit-day" data-id="${d.id}" aria-label="Modifier">✎</button></div>
+      <button class="btn sm ghost" data-act="edit-day" data-id="${d.id}">✎ Modifier</button></div>
       <ul class="exlist">${d.items.map(it => { const e = exById(it.exId); const b = applyBlock(it, info); return `<li><span>${esc(e.name)}</span><small>${prescription(b)}</small></li>`; }).join('')}</ul>
       <button class="btn block" data-act="start" data-id="${d.id}">Démarrer</button>
     </section>`).join('')}
@@ -99,6 +100,7 @@ export async function onTrainAction(act, el, rerender) {
     await saveProgram(); rerender(); return editDay(S.program.days[S.program.days.length - 1].id, rerender);
   }
   if (act === 'prog-menu') return programMenu(rerender);
+  if (act === 'programs') return programsSheet(rerender);
   if (act === 'hist') return showSession(el.dataset.id, rerender);
 }
 
@@ -116,16 +118,67 @@ export async function onTrainChange(act, el, rerender) {
 }
 
 function programMenu(rerender) {
-  const w = sheet(`<h3>Programme</h3>
-    <label class="field">Date de début (semaine 1)<input type="date" id="pstart" value="${S.program.startDate}"></label>
-    <label class="field">Nom<input id="pname" value="${esc(S.program.name)}"></label>
+  const P = S.program;
+  const w = sheet(`<h3>Modifier le programme</h3>
+    <label class="field">Nom<input id="pname" value="${esc(P.name)}"></label>
+    <div class="grid2"><label class="mini">Début (semaine 1)<input type="date" id="pstart" value="${P.startDate}"></label>
+    <label class="mini">Durée<select id="pweeks">${[4, 6, 8, 10, 12, 16].map(n => `<option value="${n}" ${n === (P.weeks || 12) ? 'selected' : ''}>${n} semaines</option>`).join('')}</select></label></div>
+    <label class="field">Progression par blocs<select id="pperiod"><option value="on" ${P.periodize !== false ? 'selected' : ''}>Oui : volume → force → pic, décharge toutes les 4 sem.</option><option value="off" ${P.periodize === false ? 'selected' : ''}>Non : toujours les séries/reps que je définis</option></select></label>
+    <h3 class="sec">Jours (ordre avec ↑ ↓)</h3>
+    <div id="pdays"></div>
+    <button class="btn ghost block" id="padd">+ Ajouter un jour</button>
     <button class="btn block" id="psave">Enregistrer</button>
-    <hr><button class="btn ghost block" id="pregen">Régénérer depuis mon profil</button>
-    <a class="btn ghost block" href="#/coach" data-close>Adapter avec Claude</a>`);
-  $('#psave', w).onclick = async () => { S.program.startDate = $('#pstart', w).value; S.program.name = $('#pname', w).value; await saveProgram(); w.close(); rerender(); };
+    <hr>
+    <button class="btn ghost block" id="pdup">⧉ Dupliquer ce programme</button>
+    <button class="btn ghost block" id="pregen">↻ Nouveau programme depuis mon profil</button>
+    <button class="btn ghost block" id="pblank">＋ Programme vide (je construis tout)</button>
+    <p class="muted small">L’ancien programme est rangé dans « Mes programmes » : tu peux y revenir à tout moment.</p>`, { onClose: rerender });
+  const days = [...P.days];
+  const draw = () => { $('#pdays', w).innerHTML = days.map((d, i) => `<div class="edit-item row between"><span class="grow"><b>${esc(d.name)}</b><br><small class="muted">${d.items.length} exercices</small></span>
+    <button class="icon-btn sm" data-mv="-1" data-i="${i}" aria-label="Monter">↑</button><button class="icon-btn sm" data-mv="1" data-i="${i}" aria-label="Descendre">↓</button><button class="icon-btn sm" data-ed="${i}" aria-label="Modifier">✎</button><button class="icon-btn sm" data-cp="${i}" aria-label="Dupliquer">⧉</button><button class="icon-btn sm danger" data-rm="${i}" aria-label="Supprimer">✕</button></div>`).join(''); };
+  draw();
+  const commit = async () => { P.days = days; P.name = $('#pname', w).value; P.startDate = $('#pstart', w).value; P.weeks = +$('#pweeks', w).value; P.periodize = $('#pperiod', w).value === 'on'; await saveProgram(); };
+  $('#pdays', w).onclick = async (e) => {
+    const b = e.target.closest('button'); if (!b) return; const i = +b.dataset.i;
+    if (b.dataset.mv) { const j = i + +b.dataset.mv; if (j >= 0 && j < days.length) [days[i], days[j]] = [days[j], days[i]]; draw(); }
+    if (b.dataset.cp) { const d = days[+b.dataset.cp]; days.splice(+b.dataset.cp + 1, 0, { ...JSON.parse(JSON.stringify(d)), id: uid('d'), name: d.name + ' (copie)' }); draw(); }
+    if (b.dataset.rm) { if (await confirmBox('Supprimer ce jour ?', 'Supprimer')) { days.splice(+b.dataset.rm, 1); draw(); } }
+    if (b.dataset.ed) { await commit(); w.close(); setTimeout(() => editDay(days[+b.dataset.ed].id, rerender), 260); }
+  };
+  $('#padd', w).onclick = () => { days.push({ id: uid('d'), name: `J${days.length + 1} · Nouvelle séance`, focus: 'Perso', items: [] }); draw(); };
+  $('#psave', w).onclick = async () => { await commit(); toast('Programme enregistré'); w.close(); };
+  $('#pdup', w).onclick = async () => { await commit(); const copy = { ...JSON.parse(JSON.stringify(P)), id: uid('p'), name: P.name + ' (copie)', archived: new Date().toISOString() }; S.programs.unshift(copy); await kv.set('programs', S.programs); toast('Copie rangée dans Mes programmes'); };
   $('#pregen', w).onclick = async () => {
-    if (!(await confirmBox('Remplacer le programme actuel par un nouveau ? L’historique est conservé.', 'Régénérer'))) return;
-    S.program = generateProgram(S.profile); await saveProgram(); w.close(); rerender(); toast('Nouveau programme généré');
+    if (!S.profile) return toast('Crée d’abord ton profil');
+    await commit(); await archiveProgram(); S.program = generateProgram(S.profile); await saveProgram(); w.close(); toast('Nouveau programme généré (l’ancien est dans Mes programmes)');
+  };
+  $('#pblank', w).onclick = async () => {
+    await commit(); await archiveProgram();
+    S.program = { id: uid('p'), name: 'Mon programme', created: new Date().toISOString(), startDate: new Date().toISOString().slice(0, 10), weeks: 12, periodize: false, days: [{ id: uid('d'), name: 'J1 · Séance A', focus: 'Perso', items: [] }] };
+    await saveProgram(); w.close(); toast('Programme vide créé : ajoute tes exercices');
+  };
+}
+
+function programsSheet(rerender) {
+  const w = sheet(`<h3>📚 Mes programmes</h3><div id="plist"></div>`, { onClose: rerender });
+  const draw = () => {
+    $('#plist', w).innerHTML = (S.program ? `<div class="edit-item"><div class="eyebrow">Actif</div><b>${esc(S.program.name)}</b><br><small class="muted">${S.program.days.length} jours · ${S.program.weeks || 12} semaines</small></div>` : '') +
+      (S.programs.length ? S.programs.map((p, i) => `<div class="edit-item"><b>${esc(p.name)}</b><br><small class="muted">${p.days.length} jours · rangé le ${fmtDate(p.archived || p.created)}</small>
+        <div class="row gap"><button class="btn sm grow" data-on="${i}">Activer</button><button class="btn sm ghost grow" data-ren="${i}">Renommer</button><button class="btn sm ghost danger" data-del="${i}">✕</button></div></div>`).join('') : '<p class="muted">Aucun autre programme enregistré. Quand tu régénères ou importes un programme de Claude, l’ancien arrive ici.</p>');
+  };
+  draw();
+  $('#plist', w).onclick = async (e) => {
+    const b = e.target.closest('button'); if (!b) return;
+    if (b.dataset.on) {
+      const i = +b.dataset.on, p = S.programs[i];
+      S.programs.splice(i, 1);
+      if (S.program) S.programs.unshift({ ...S.program, archived: new Date().toISOString() });
+      S.program = p; delete S.program.archived;
+      if (await confirmBox('Repartir de la semaine 1 aujourd’hui ?', 'Oui, semaine 1')) S.program.startDate = new Date().toISOString().slice(0, 10);
+      await kv.set('programs', S.programs); await saveProgram(); toast('Programme activé'); w.close();
+    }
+    if (b.dataset.ren) { const p = S.programs[+b.dataset.ren]; const n = prompt('Nouveau nom', p.name); if (n) { p.name = n; await kv.set('programs', S.programs); draw(); } }
+    if (b.dataset.del) { if (await confirmBox('Supprimer ce programme ?', 'Supprimer')) { S.programs.splice(+b.dataset.del, 1); await kv.set('programs', S.programs); draw(); } }
   };
 }
 
@@ -165,7 +218,7 @@ export function defaultRole(ex) { return ex.kind === 'cardio' ? 'cardio' : ex.ki
 // ————— Édition d'un jour —————
 function editDay(id, rerender) {
   const day = S.program.days.find(d => d.id === id); if (!day) return;
-  const w = sheet(`<h3>Modifier la séance</h3><label class="field">Nom<input id="dn" value="${esc(day.name)}"></label><div id="items"></div>
+  const w = sheet(`<h3>Modifier la séance</h3><div class="grid2"><label class="mini">Nom<input id="dn" value="${esc(day.name)}"></label><label class="mini">Type / objectif<input id="df" value="${esc(day.focus || '')}" placeholder="ex : Force, Cardio…"></label></div><div id="items"></div>
     <button class="btn ghost block" id="addx">+ Ajouter un exercice</button>
     <div class="row gap"><button class="btn danger ghost grow" id="deld">Supprimer ce jour</button><button class="btn grow" id="saved">Enregistrer</button></div>`, { onClose: rerender });
   const num = (label, key, it, i, step = 1) => `<label class="mini">${label}<input type="number" inputmode="decimal" step="${step}" data-i="${i}" data-k="${key}" value="${it[key] ?? ''}"></label>`;
@@ -198,7 +251,7 @@ function editDay(id, rerender) {
     if (b.dataset.sw !== undefined) pickExercise(ex => { const old = day.items[+b.dataset.sw]; const n = makeItem(ex, defaultRole(ex)); if (old.sets && n.sets) Object.assign(n, { sets: old.sets, rest: old.rest }); day.items[+b.dataset.sw] = n; draw(); });
   });
   $('#addx', w).onclick = () => pickExercise(ex => { day.items.push(makeItem(ex, defaultRole(ex))); draw(); });
-  $('#saved', w).onclick = async () => { day.name = $('#dn', w).value; await saveProgram(); toast('Séance enregistrée'); w.close(); };
+  $('#saved', w).onclick = async () => { day.name = $('#dn', w).value; day.focus = $('#df', w).value; await saveProgram(); toast('Séance enregistrée'); w.close(); };
   $('#deld', w).onclick = async () => { if (!(await confirmBox('Supprimer ce jour du programme ?', 'Supprimer'))) return; S.program.days = S.program.days.filter(d => d.id !== id); await saveProgram(); w.close(); };
 }
 

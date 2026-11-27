@@ -1,5 +1,6 @@
 // FORGE — point d'entrée : navigation, accueil, profil & réglages.
-import { S, loadState, esc, $, toast, confirmBox, targets, today, num, fmtDate, ACTIVITY, unlockAudio, exById } from './ui.js';
+import { S, loadState, esc, $, $$, toast, sheet, confirmBox, targets, today, num, fmtDate, ACTIVITY, unlockAudio, exById, GOALS, WEEKDAYS, defaultTrainingDays } from './ui.js';
+import { healthCard, importFromClipboard, runShortcut, exportDayText, SHORTCUT_GUIDE, SC_IN, SC_OUT } from './health.js';
 import { kv, body, food, exportAll, importAll, wipe } from './db.js';
 import { generateProgram, weekInfo, applyBlock } from './data.js';
 import { renderTrain, onTrainAction, onTrainChange, renderSession, onSessionAction, onSessionInput, allSessions, stopRest, adjustRest, prescription } from './train.js';
@@ -38,6 +39,7 @@ document.addEventListener('click', async (e) => {
   if (!el || el.tagName === 'INPUT' || el.tagName === 'SELECT' || el.tagName === 'FORM') return;
   if (!$('#view').contains(el)) return;
   e.preventDefault();
+  if (el.dataset.act === 'hsync') return healthSync();
   const r = route();
   if (r.action) await r.action(el.dataset.act, el, rerender);
 });
@@ -61,7 +63,7 @@ document.addEventListener('submit', async (e) => {
 document.addEventListener('keydown', (e) => {
   if (e.key === 'Enter' && !e.shiftKey && e.target.id === 'msg') { e.preventDefault(); e.target.form.requestSubmit(); }
 });
-window.addEventListener('hashchange', () => { window.scrollTo(0, 0); render(); });
+window.addEventListener('hashchange', () => { document.querySelectorAll('.sheet-wrap').forEach(s => s.close ? s.close() : s.remove()); window.scrollTo(0, 0); render(); });
 document.addEventListener('pointerdown', unlockAudio, { once: true });
 
 // barre de repos
@@ -73,7 +75,7 @@ $('#restbar').addEventListener('click', (e) => {
 // ————— Accueil —————
 async function renderHome(view) {
   if (!S.profile) { view.innerHTML = welcome(); return; }
-  const p = S.profile, t = targets(p);
+  const p = S.profile, t = targets(p, today());
   const list = await allSessions();
   const info = weekInfo(S.program);
   const ws = new Date(); ws.setHours(0, 0, 0, 0); ws.setDate(ws.getDate() - ((ws.getDay() + 6) % 7));
@@ -108,6 +110,7 @@ async function renderHome(view) {
     <a class="qbtn" href="#/coach">🤖<span>Coach</span></a>
     <a class="qbtn" href="#/profil">⚙️<span>Réglages</span></a>
   </div>
+  ${healthCard()}
   ${tip(info, thisWeek.length, prot, t)}`;
 }
 
@@ -149,13 +152,16 @@ function renderProfile(view) {
       <label class="mini">Niveau${sel('level', [['debutant', 'Débutant'], ['inter', 'Intermédiaire'], ['avance', 'Avancé']], p.level)}</label>
     </div>
     <h3>Objectif</h3>
-    <label class="field">Priorité${sel('goal', [['seche', 'Perdre du gras (sèche)'], ['recompo', 'Recomposition : muscle + perte de gras'], ['maintien', 'Tonifier / maintenir'], ['prise', 'Prendre du muscle']], p.goal)}</label>
+    <label class="field">Priorité${sel('goal', Object.entries(GOALS).map(([k, g]) => [k, g.label]), p.goal)}</label>
+    <p class="muted small">${(GOALS[p.goal] || GOALS.recompo).desc}</p>
+    <label class="check-row"><input type="checkbox" name="carbCycle" ${p.carbCycle !== false ? 'checked' : ''}> Plus de glucides les jours d’entraînement, moins les jours de repos (perte, sèche, recompo)</label>
     <div class="grid2"><label class="mini">Poids cible kg<input type="number" step="0.1" name="goalWeight" value="${p.goalWeight || ''}"></label><label class="mini">% MG cible<input type="number" step="0.1" name="goalBF" value="${p.goalBF || ''}"></label></div>
     <h3>Entraînement</h3>
     <div class="grid2">
       <label class="mini">Séances / semaine${sel('days', [[2, '2'], [3, '3'], [4, '4'], [5, '5'], [6, '6']], p.days)}</label>
       <label class="mini">Matériel${sel('equipment', [['salle', 'Salle de sport'], ['maison', 'Maison (haltères, barre de traction)'], ['pdc', 'Poids du corps']], p.equipment)}</label>
     </div>
+    <div class="field">Jours d’entraînement<div class="wdays">${WEEKDAYS.map((d, i) => `<label><input type="checkbox" name="td" value="${i}" ${(p.trainingDays?.length ? p.trainingDays : defaultTrainingDays(+p.days || 4)).includes(i) ? 'checked' : ''}><span>${d}</span></label>`).join('')}</div></div>
     <label class="field">Activité quotidienne${sel('activity', Object.entries(ACTIVITY), p.activity)}</label>
     <label class="field">Notes pour le coach (blessures, préférences…)<textarea name="notes" rows="2">${esc(p.notes || '')}</textarea></label>
     <button class="btn block" data-act="psave">${S.profile ? 'Enregistrer' : 'Créer mon programme'}</button>
@@ -170,7 +176,12 @@ function renderProfile(view) {
     <button class="btn ghost block" data-act="savekey">Enregistrer</button>
   </section>
 
-  <section class="card"><h2>Appareils connectés</h2>
+  <section class="card" id="watch"><h2>⌚ Apple Watch & Apple Santé</h2>
+    <div class="row gap wrap"><button class="btn grow" data-act="hsync">Synchroniser maintenant</button><button class="btn ghost grow" data-act="hout">Journal → Santé</button></div>
+    <label class="check-row"><input type="checkbox" id="usewatch" data-act="usewatch" ${p.useWatch ? 'checked' : ''}> Caler mes calories du jour sur la dépense réelle mesurée par la montre</label>
+    <details class="guidebox"><summary>Installer les raccourcis (une fois)</summary>${SHORTCUT_GUIDE}</details>
+  </section>
+  <section class="card"><h2>Autres appareils</h2>
     <div class="dev"><b>❤ Ceinture / montre cardio Bluetooth</b><p class="small muted">Polar H10, Garmin HRM, Wahoo, Coospo, montres en mode « diffusion FC »… La fréquence cardiaque s’affiche pendant la séance et est enregistrée (FC moyenne et max). ${isIOS ? 'Sur iPhone, Safari ne gère pas le Bluetooth : ouvre FORGE dans l’app gratuite « Bluefy ».' : 'Fonctionne avec Chrome sur Android et ordinateur.'}</p>
       <button class="btn ghost block" data-act="hr">${hr.device ? `Connecté · ${hr.bpm ?? '…'} bpm — déconnecter` : 'Connecter un capteur'}</button></div>
     <div class="dev"><b>⌚ Montres & applis (Garmin, Strava, Apple Watch, Polar, Coros…)</b><p class="small muted">Exporte une activité en <b>GPX</b> ou <b>TCX</b> (Strava : ⋯ → Exporter GPX ; Garmin Connect : ⚙ → Exporter TCX ; Apple Santé : via l’app « HealthFit » ou « RunGap ») puis importe-la : durée, distance, FC et calories sont ajoutées à ton historique.</p>
@@ -192,9 +203,11 @@ function renderProfile(view) {
 
 function readProfile() {
   const f = $('#pform'); const o = {};
-  for (const el of f.elements) { if (!el.name) continue; o[el.name] = el.type === 'number' ? (el.value === '' ? null : +el.value) : el.value; }
+  for (const el of f.elements) { if (!el.name || el.type === 'checkbox') continue; o[el.name] = el.type === 'number' ? (el.value === '' ? null : +el.value) : el.value; }
   o.days = +o.days; o.activity = +o.activity;
-  return o;
+  o.carbCycle = f.elements.carbCycle.checked;
+  o.trainingDays = $$('input[name=td]:checked', f).map(x => +x.value);
+  return { ...(S.profile || {}), ...o }; // conserve les réglages hors formulaire
 }
 
 async function onProfileAction(act, el) {
@@ -203,6 +216,7 @@ async function onProfileAction(act, el) {
     if (!p.age || !p.height || !p.weight) return toast('Âge, taille et poids sont nécessaires');
     const isNew = !S.profile;
     S.profile = p; await kv.set('profile', p);
+    if (!p.trainingDays.length) p.trainingDays = defaultTrainingDays(p.days);
     if (isNew) await body.put({ id: 'b' + Date.now().toString(36), date: today(), weight: p.weight, bf: p.bodyfat || null, lean: p.bodyfat ? Math.round(p.weight * (1 - p.bodyfat / 100) * 10) / 10 : null });
     if (!S.program || act === 'pregen') {
       if (act === 'pregen' && !(await confirmBox('Remplacer ton programme par un nouveau généré depuis ce profil ?', 'Régénérer'))) return;
@@ -210,6 +224,11 @@ async function onProfileAction(act, el) {
       toast('Programme hybride créé 💪'); location.hash = '#/entrainement'; return;
     }
     toast('Profil enregistré');
+  }
+  if (act === 'hout') {
+    const txt = await exportDayText();
+    try { await navigator.clipboard.writeText(txt); } catch (e) { }
+    toast('Journal du jour copié → raccourci « ' + SC_OUT + ' »'); setTimeout(() => runShortcut(SC_OUT), 500);
   }
   if (act === 'savekey') {
     const k = $('#apikey').value.trim();
@@ -237,11 +256,26 @@ async function onProfileAction(act, el) {
 }
 
 async function onProfileChange(act, el) {
+  if (el.id === 'usewatch') { if (!S.profile) return; S.profile.useWatch = el.checked; await kv.set('profile', S.profile); toast(el.checked ? 'Calories calées sur ta montre (une fois synchronisée)' : 'Calories calculées depuis ton profil'); return; }
   if (act === 'import' && el.files[0]) {
     try { await importAll(JSON.parse(await el.files[0].text())); await loadState(); toast('Sauvegarde restaurée ✓'); render(); }
     catch (e) { toast('Restauration impossible : ' + e.message, 5000); }
   }
   if (act === 'import-activity') return onTrainChange(act, el, () => { location.hash = '#/entrainement'; });
+}
+
+// ————— Synchro Apple Santé —————
+function healthSync() {
+  const w = sheet(`<h3>⌚ Synchroniser Apple Santé</h3>
+    <p class="small">1. Lance le raccourci : il lit ta montre dans Santé et copie les valeurs.<br>2. Reviens dans FORGE et colle.</p>
+    <button class="btn block" id="hrun">1 · Lancer « ${SC_IN} »</button>
+    <button class="btn block" id="hpaste">2 · Coller les données</button>
+    <p class="muted small">Raccourci pas encore créé ? Profil → Apple Watch → « Installer les raccourcis ».</p>`, { onClose: render });
+  $('#hrun', w).onclick = () => runShortcut(SC_IN);
+  $('#hpaste', w).onclick = async () => {
+    try { const h = await importFromClipboard(); if (h) { toast(`Santé importée : ${h.steps ?? '–'} pas, ${h.active ?? '–'} kcal actives${h.weight ? ', ' + h.weight + ' kg' : ''}`, 4000); w.close(); } }
+    catch (e) { toast(e.message, 4000); }
+  };
 }
 
 // ————— Démarrage —————

@@ -1,7 +1,7 @@
 // FORGE — service worker : l'app fonctionne hors connexion.
-const CACHE = 'forge-v2';
+const CACHE = 'forge-v3';
 const FILES = ['./', 'index.html', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png',
-  'js/app.js', 'js/ui.js', 'js/db.js', 'js/data.js', 'js/charts.js', 'js/train.js', 'js/progress.js', 'js/nutrition.js', 'js/coach.js', 'js/claude.js', 'js/devices.js'];
+  'js/app.js', 'js/ui.js', 'js/db.js', 'js/data.js', 'js/charts.js', 'js/train.js', 'js/progress.js', 'js/nutrition.js', 'js/coach.js', 'js/claude.js', 'js/devices.js', 'js/plan.js', 'js/health.js'];
 
 self.addEventListener('install', (e) => { e.waitUntil(caches.open(CACHE).then(c => c.addAll(FILES)).then(() => self.skipWaiting())); });
 self.addEventListener('activate', (e) => { e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k !== CACHE).map(k => caches.delete(k)))).then(() => self.clients.claim())); });

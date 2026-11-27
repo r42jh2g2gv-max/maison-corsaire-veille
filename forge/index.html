@@ -210,6 +210,29 @@ img.full { width: 100%; border-radius: 12px; }
 .dev { padding: 8px 0 12px; border-bottom: 1px solid var(--line); } .dev:last-child { border: 0; }
 .prs { background: var(--accent-soft); border-radius: 12px; padding: 10px 12px; margin: 10px 0; font-size: 14px; } .prs small { color: var(--text2); }
 
+/* objectifs, menu semaine, santé */
+.goalcard .chips { padding-top: 0; }
+.adapt { border-color: var(--warn); } .adapt b { color: var(--warn); }
+.photo-cta { font-size: 16px; }
+.planned { display: flex; align-items: center; justify-content: space-between; gap: 10px; background: var(--accent-soft); border-radius: 12px; padding: 9px 11px; margin: 8px 0; }
+.planned small { display: block; color: var(--text2); font-size: 12px; } .planned b { display: block; }
+.pday.today { border-color: var(--accent); }
+.pslot { display: flex; align-items: center; gap: 8px; border-top: 1px solid var(--line); padding: 6px 0; }
+.pmain { flex: 1; min-width: 0; appearance: none; background: none; border: 0; color: var(--text); text-align: left; font: inherit; padding: 4px 0; cursor: pointer; }
+.pmain small { display: block; color: var(--text2); font-size: 12px; } .pmain b { display: block; font-size: 15px; }
+.pslot .check.on { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.pslot.done .pmain b { text-decoration: line-through; color: var(--text2); }
+.rv-item { display: flex; align-items: center; gap: 8px; padding: 8px 0; border-bottom: 1px solid var(--line); } .rv-item small { display: block; color: var(--text2); font-size: 12px; } .rvg { width: 76px; flex: none; }
+.check-row { display: flex; gap: 10px; align-items: flex-start; font-size: 14px; margin: 10px 0; color: var(--text); } .check-row input { width: 20px; height: 20px; flex: none; margin-top: 1px; accent-color: var(--accent); }
+.wdays { display: flex; gap: 5px; margin-top: 6px; } .wdays label { flex: 1; } .wdays input { display: none; }
+.wdays span { display: block; text-align: center; padding: 9px 0; border-radius: 10px; border: 1px solid var(--line); background: var(--surface2); color: var(--text2); font-weight: 600; font-size: 13px; cursor: pointer; }
+.wdays input:checked + span { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.guidebox summary, .guide-sum { cursor: pointer; color: var(--accent); font-weight: 600; margin: 8px 0; }
+.guidebox details { margin: 8px 0; } .guide li { margin: 5px 0; } .guidebox code { background: var(--surface2); padding: 1px 4px; border-radius: 4px; font-size: 12px; }
+.health .stats4.inner { margin-top: 8px; } .health .stat { padding: 8px; } .health .stat b { font-size: 17px; }
+.tr.cur { background: var(--accent-soft); border-radius: 8px; padding-left: 6px; } .tr span small { display: block; color: var(--text2); text-align: left; }
+.prog-actions { margin-top: 10px; }
+
 /* feuilles & toasts */
 .sheet-wrap { position: fixed; inset: 0; z-index: 50; background: rgba(0,0,0,0); display: flex; align-items: flex-end; justify-content: center; transition: background .25s; }
 .sheet-wrap.open { background: rgba(0,0,0,.55); }

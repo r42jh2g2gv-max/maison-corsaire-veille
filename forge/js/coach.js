@@ -1,9 +1,9 @@
 // FORGE — Coach Claude : abonnement (copier/coller) ou clé API (intégré).
-import { S, esc, $, $$, toast, sheet, confirmBox, contextText, targets, saveProgram, exById } from './ui.js';
+import { S, esc, $, toast, sheet, confirmBox, contextText, saveProgram, archiveProgram } from './ui.js';
 import { kv, recipes, uid } from './db.js';
 import { EXERCISES, makeItem } from './data.js';
 import { chat, structured, extractJSON, FORMAT_HINT, PROGRAM_SCHEMA, RECIPES_SCHEMA, FOOD_SCHEMA, fileToBase64 } from './claude.js';
-import { addFoodItems, guessMeal } from './nutrition.js';
+import { foodReview, guessMeal } from './nutrition.js';
 import { defaultRole } from './train.js';
 
 let history = null, busy = false;
@@ -143,8 +143,9 @@ async function importProgram(data) {
       days.push({ id: uid('d' + i), name: d.name, focus: d.focus || '', items });
     }
     const keepStart = S.program?.startDate;
+    await archiveProgram();
     S.program = { id: uid('p'), name: data.name || 'Programme Claude', created: new Date().toISOString(), startDate: keepStart || new Date().toISOString().slice(0, 10), weeks: 12, days, source: 'claude' };
-    await saveProgram(); w.close(); toast('Programme mis à jour ✓'); location.hash = '#/entrainement';
+    await saveProgram(); w.close(); toast('Programme mis à jour ✓ (l’ancien est dans Mes programmes)'); location.hash = '#/entrainement';
   };
 }
 
@@ -158,13 +159,7 @@ async function importRecipes(data) {
 async function importFood(data) {
   const items = data?.items || [];
   if (!items.length) throw new Error('Aucun aliment trouvé');
-  const tot = items.reduce((a, i) => a + (+i.kcal || 0), 0);
-  const w = sheet(`<h3>Repas estimé : ${Math.round(tot)} kcal</h3>
-    ${items.map(i => `<div class="hist-ex"><b>${esc(i.name)}${i.grams ? ` <small>${Math.round(i.grams)} g</small>` : ''}</b><span>${Math.round(i.kcal)} kcal · P ${Math.round(i.protein)} · G ${Math.round(i.carbs)} · L ${Math.round(i.fat)}</span></div>`).join('')}
-    ${data.comment ? `<p class="small">${esc(data.comment)}</p>` : ''}
-    <label class="field">Repas<select id="fm">${[['matin', 'Petit-déjeuner'], ['midi', 'Déjeuner'], ['collation', 'Collation'], ['soir', 'Dîner']].map(([k, l]) => `<option value="${k}" ${k === guessMeal() ? 'selected' : ''}>${l}</option>`).join('')}</select></label>
-    <button class="btn block" id="fadd">Ajouter au journal d’aujourd’hui</button>`);
-  $('#fadd', w).onclick = async () => { await addFoodItems(items, $('#fm', w).value); w.close(); toast('Ajouté au journal ✓'); };
+  foodReview(items, data.comment, guessMeal(), null, new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 10));
 }
 
 function importAny(data) {
