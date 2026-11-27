@@ -1,6 +1,6 @@
 // FORGE — point d'entrée : navigation, accueil, profil & réglages.
 import { S, loadState, esc, $, $$, toast, sheet, confirmBox, targets, today, num, fmtDate, ACTIVITY, unlockAudio, exById, GOALS, WEEKDAYS, defaultTrainingDays } from './ui.js';
-import { healthCard, importFromClipboard, runShortcut, exportDayText, SHORTCUT_GUIDE, SC_IN, SC_OUT } from './health.js';
+import { healthCard, importFromClipboard, runShortcut, exportDayText, SHORTCUT_GUIDE_V2, SHORTCUT_TEMPLATE, SC_IN, SC_OUT } from './health.js';
 import { kv, body, food, exportAll, importAll, wipe } from './db.js';
 import { generateProgram, weekInfo, applyBlock, dayForDate, dayMinutes, WEEKDAY_LONG, fitProgramToTime } from './data.js';
 import { initOffline } from './offline.js';
@@ -200,7 +200,9 @@ async function renderProfile(view) {
   <section class="card" id="watch"><h2>⌚ Apple Watch & Apple Santé</h2>
     <div class="row gap wrap"><button class="btn grow" data-act="hsync">Synchroniser maintenant</button><button class="btn ghost grow" data-act="hout">Journal → Santé</button></div>
     <label class="check-row"><input type="checkbox" id="usewatch" data-act="usewatch" ${p.useWatch ? 'checked' : ''}> Caler mes calories du jour sur la dépense réelle mesurée par la montre</label>
-    <details class="guidebox"><summary>Installer les raccourcis (une fois)</summary>${SHORTCUT_GUIDE}</details>
+    <details class="guidebox" ${Object.keys(S.health || {}).length ? '' : 'open'}><summary>Créer le raccourci (une fois)</summary>${SHORTCUT_GUIDE_V2}
+      <button class="btn block" data-act="hcopytpl">⧉ Copier le modèle de texte</button>
+      <p class="muted small center"><code>${SHORTCUT_TEMPLATE}</code></p></details>
   </section>
   <section class="card"><h2>Autres appareils</h2>
     <div class="dev"><b>❤ Ceinture / montre cardio Bluetooth</b><p class="small muted">Polar H10, Garmin HRM, Wahoo, Coospo, montres en mode « diffusion FC »… La fréquence cardiaque s’affiche pendant la séance et est enregistrée (FC moyenne et max). ${isIOS ? 'Sur iPhone, Safari ne gère pas le Bluetooth : ouvre FORGE dans l’app gratuite « Bluefy ».' : 'Fonctionne avec Chrome sur Android et ordinateur.'}</p>
@@ -251,6 +253,11 @@ async function onProfileAction(act, el) {
       toast(`Séances ajustées à ${p.sessionMinutes} min max ✓`); return;
     }
     toast('Profil enregistré');
+  }
+  if (act === 'hcopytpl') {
+    try { await navigator.clipboard.writeText(SHORTCUT_TEMPLATE); toast('Modèle copié : colle-le dans l’action Texte'); }
+    catch (e) { toast(SHORTCUT_TEMPLATE, 6000); }
+    return;
   }
   if (act === 'hout') {
     const txt = await exportDayText();
@@ -308,7 +315,7 @@ function healthSync() {
     <p class="small">1. Lance le raccourci : il lit ta montre dans Santé et copie les valeurs.<br>2. Reviens dans FORGE et colle.</p>
     <button class="btn block" id="hrun">1 · Lancer « ${SC_IN} »</button>
     <button class="btn block" id="hpaste">2 · Coller les données</button>
-    <p class="muted small">Raccourci pas encore créé ? Profil → Apple Watch → « Installer les raccourcis ».</p>`, { onClose: render });
+    <a class="btn ghost block" href="#/profil" data-close>Raccourci pas encore créé ? Le guide</a>`, { onClose: render });
   $('#hrun', w).onclick = () => runShortcut(SC_IN);
   $('#hpaste', w).onclick = async () => {
     try { const h = await importFromClipboard(); if (h) { toast(`Santé importée : ${h.steps ?? '–'} pas, ${h.active ?? '–'} kcal actives${h.weight ? ', ' + h.weight + ' kg' : ''}`, 4000); w.close(); } }

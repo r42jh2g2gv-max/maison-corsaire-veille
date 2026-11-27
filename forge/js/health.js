@@ -70,7 +70,8 @@ export function runShortcut(name) {
 export async function exportDayText(date = today()) {
   const es = (await food.all()).filter(f => f.date === date);
   const s = es.reduce((a, e) => ({ k: a.k + (+e.kcal || 0), p: a.p + (+e.p || 0), c: a.c + (+e.c || 0), f: a.f + (+e.f || 0) }), { k: 0, p: 0, c: 0, f: 0 });
-  return `kcal=${Math.round(s.k)};proteines=${Math.round(s.p)};glucides=${Math.round(s.c)};lipides=${Math.round(s.f)};eau=${((S.water[date] || 0) * 0.25).toFixed(2)}`;
+  // simples nombres séparés par « ; » : kcal ; protéines ; glucides ; lipides ; eau (L)
+  return `${Math.round(s.k)};${Math.round(s.p)};${Math.round(s.c)};${Math.round(s.f)};${((S.water[date] || 0) * 0.25).toFixed(2)}`;
 }
 
 export function healthCard(date = today()) {
@@ -85,6 +86,35 @@ export function healthCard(date = today()) {
       <div class="stat"><b>${h.sleep ? num(h.sleep) + ' h' : h.hrv ? h.hrv + ' ms' : '—'}</b><small>${h.sleep ? 'sommeil' : 'VFC'}</small></div>
     </div>${t.watch ? '<p class="muted small">Tes calories du jour suivent ta dépense réelle mesurée par la montre.</p>' : ''}</section>`;
 }
+
+export const SHORTCUT_TEMPLATE = 'FORGE;pas=;actif=;fcrepos=;poids=;vfc=';
+
+export const SHORTCUT_GUIDE_V2 = `
+<h3>Créer le raccourci « ${SC_IN} » (≈ 5 min, une seule fois)</h3>
+<p class="small">Apple réserve Santé aux apps de l’App Store : l’app <b>Raccourcis</b> (déjà sur ton iPhone) sert de pont entre ta montre et FORGE.</p>
+<ol class="small guide">
+<li>Ouvre <b>Raccourcis</b> → <b>+</b> en haut à droite. Touche le nom en haut → <b>Renommer</b> → tape exactement <code>${SC_IN}</code>.</li>
+<li><b>Pas</b> : ajoute l’action <b>Rechercher des échantillons de santé</b>. Type : <i>Pas</i> (ou <i>Nombre de pas</i>). Touche <i>Ajouter un filtre</i> → <i>Date de début</i> <i>est aujourd’hui</i>.<br>Ajoute <b>Calculer les statistiques</b> → <i>Somme</i>.</li>
+<li><b>Calories</b> : refais exactement la même chose avec le type <i>Énergie active</i> (+ <b>Calculer les statistiques</b> → <i>Somme</i>).</li>
+<li><b>FC au repos</b> : <b>Rechercher des échantillons de santé</b>, type <i>Fréquence cardiaque au repos</i>, <i>Trier par</i> Date de début, <i>Ordre</i> Plus récent d’abord, <i>Limite</i> activée → 1.</li>
+<li><b>Poids</b> : pareil avec le type <i>Poids</i> (trier, plus récent, limite 1). Si tu veux : idem avec <i>Variabilité de la fréquence cardiaque</i>.</li>
+<li>Ajoute l’action <b>Texte</b>. Colle le modèle (bouton « Copier le modèle » ci-dessous), puis place le curseur <b>juste après chaque « = »</b> et touche <i>Sélectionner une variable</i> → touche le résultat de l’action correspondante (Somme des pas, Somme des calories, FC repos, Poids, VFC).</li>
+<li>Ajoute <b>Copier dans le presse-papiers</b>. Termine.</li>
+<li>Lance-le une première fois : iPhone demande l’accès à Santé → <b>Autoriser</b> tout.</li>
+</ol>
+<p class="small"><b>Ensuite, à chaque fois</b> : dans FORGE, ⌚ <b>Synchroniser</b> → « 1 · Lancer » (le raccourci s’exécute) → reviens dans FORGE → « 2 · Coller ».</p>
+<details><summary><b>Automatique chaque soir</b> (optionnel)</summary>
+<p class="small">Raccourcis → <b>Automatisation</b> → <b>+</b> → <i>Heure de la journée</i> → 21:00, Quotidien → <i>Exécuter immédiatement</i> → choisis « ${SC_IN} ». Le soir, ouvre FORGE et touche simplement « Coller ».</p></details>
+<details><summary><b>Raccourci « ${SC_OUT} »</b> (FORGE → Santé, optionnel)</summary>
+<ol class="small guide">
+<li>Nouveau raccourci nommé exactement <code>${SC_OUT}</code>.</li>
+<li><b>Obtenir le presse-papiers</b>, puis <b>Diviser le texte</b> → séparateur <i>Personnalisé</i> : <code>;</code></li>
+<li><b>Obtenir l’élément de la liste</b> → <i>Premier élément</i>, puis <b>Enregistrer un échantillon de santé</b> → <i>Énergie alimentaire</i>, valeur = l’élément, unité kcal.</li>
+<li>Recommence avec <i>Élément à l’index</i> 2 → <i>Protéines</i> (g), 3 → <i>Glucides</i> (g), 4 → <i>Lipides totaux</i> (g), 5 → <i>Eau</i> (L).</li>
+</ol>
+<p class="small">Dans FORGE : Profil → « Journal → Santé » envoie ton journal du jour dans Santé.</p></details>
+<details><summary><b>Pendant tes séances</b></summary>
+<p class="small">Lance l’exercice <b>Renforcement musculaire traditionnel</b> sur ta montre en même temps que la séance FORGE : FC et calories sont enregistrées dans Santé et récupérées à la synchro.</p></details>`;
 
 export const SHORTCUT_GUIDE = `
 <h3>Relier ton Apple Watch (une seule fois, ~5 min)</h3>
