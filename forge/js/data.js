@@ -175,6 +175,16 @@ function pick(slot, equipment, used) {
   return null;
 }
 
+// Exercices équivalents (même mouvement, même muscle) faisables avec le matériel.
+export function alternatives(exId, equipment = 'salle', custom = [], n = 3) {
+  const ex = exById(exId, custom); if (!ex) return [];
+  const out = [];
+  const add = (id) => { const e = exById(id, custom); if (e && e.id !== exId && !out.includes(e) && eqAllowed(e, equipment)) out.push(e); };
+  for (const list of Object.values(SLOT)) if (list.includes(exId)) list.forEach(add);
+  for (const e of [...EXERCISES, ...custom]) if (e.muscle === ex.muscle && (e.kind === ex.kind || (ex.kind !== 'cardio' && e.kind !== 'cardio' && e.kind !== 'hiit'))) add(e.id);
+  return out.slice(0, n);
+}
+
 export function makeItem(ex, role) {
   const r = ROLE[role] || ROLE.hyper;
   const base = { exId: ex.id, role };

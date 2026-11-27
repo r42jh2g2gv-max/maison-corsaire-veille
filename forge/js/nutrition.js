@@ -69,15 +69,15 @@ async function journal(el) {
     <section class="card meal"><div class="row between"><h3>${l}</h3><span class="muted">${Math.round(s.kcal)} kcal</span></div>
     ${pl && !pl.done ? `<div class="planned"><div><small>Prévu au menu</small><b>${esc(pl.name)}</b><small>${plannedLabel(pl, day, k)}</small></div><button class="btn sm" data-act="eat" data-meal="${k}">✓ Mangé</button></div>` : ''}
     ${es.map(e => `<button class="fitem" data-act="fedit" data-id="${e.id}"><div><b>${esc(e.name)}</b><small>${e.time ? `<span class="ftime">${e.time}</span> · ` : ''}${e.grams ? Math.round(e.grams) + ' g' : e.portions ? num(e.portions, 2) + ' portion(s)' : ''} · P ${num(e.p, 0)} · G ${num(e.c, 0)} · L ${num(e.f, 0)}</small></div><span>${e.pending ? '⏳' : Math.round(e.kcal)}</span></button>`).join('')}
-    <button class="btn ghost sm block" data-act="fadd" data-meal="${k}">+ Ajouter</button></section>`; }).join('')}
+    <div class="row gap"><button class="btn ghost sm grow" data-act="fadd" data-meal="${k}">+ Ajouter</button>${es.length ? `<button class="btn ghost sm" data-act="savetpl" data-meal="${k}">⭐ Repas type</button>` : ''}</div></section>`; }).join('')}
   ${healthCard(day)}
   <button class="btn ghost block" data-act="copyday">⧉ Copier les repas de la veille</button>`;
 }
 
 // ————— Sélecteur d'aliment générique —————
 // onPick(f) : f = aliment pour 100 g, ou { recipe: true, ... } (valeurs par portion)
-export function foodPicker({ title, onPick, onClose, offlineMeal = null, tabs: only = ['search', 'scan', 'recipes', 'manual'] }) {
-  const LBL = { search: 'Rechercher', scan: 'Scanner', recipes: 'Recettes', manual: 'Manuel' };
+export function foodPicker({ title, onPick, onClose, onTemplate = null, offlineMeal = null, tabs: only = ['search', 'favs', 'scan', 'recipes', 'manual'] }) {
+  const LBL = { search: 'Chercher', favs: '⭐', scan: 'Scanner', recipes: 'Recettes', manual: 'Manuel' };
   const w = sheet(`<h3>${esc(title)}</h3>
     <div class="seg sm">${only.map((k, i) => `<button class="${i ? '' : 'on'}" data-t="${k}">${LBL[k]}</button>`).join('')}</div>
     <div id="addbody"></div>`, { onClose: () => { stopScan(); onClose && onClose(); } });
@@ -119,6 +119,15 @@ export function foodPicker({ title, onPick, onClose, offlineMeal = null, tabs: o
       $('#bcgo', w).onclick = () => { const c = $('#bc', w).value.trim(); if (c) lookup(c); };
       startScan($('#vid', w), lookup).catch(e => { $('#scanst', w).textContent = 'Caméra indisponible : ' + e.message + '. Tape le code à la main.'; });
     },
+    favs: async () => {
+      const fv = await getFavs();
+      const tpl = onTemplate ? fv.meals : [];
+      bodyEl.innerHTML = (tpl.length ? `<div class="eyebrow">Repas types</div><div class="pick-list">${tpl.map((t, i) => `<button class="pick" data-t="${i}"><b>🍽 ${esc(t.name)}</b><small>${t.items.length} aliment${t.items.length > 1 ? 's' : ''} · ${Math.round(t.items.reduce((a, x) => a + x.kcal, 0))} kcal</small></button>`).join('')}</div>` : '')
+        + (fv.foods.length ? `<div class="eyebrow">Aliments favoris</div>` + fv.foods.map((f, i) => foodRow(f, 'v' + i)).join('') : '')
+        + (!tpl.length && !fv.foods.length ? '<p class="muted small">Pas encore de favoris. Touche ☆ quand tu ajoutes un aliment, ou « ⭐ Repas type » sous un repas du journal pour l’enregistrer en entier.</p>' : '');
+      bindPick(fv.foods, 'v');
+      bodyEl.querySelectorAll('[data-t]').forEach(b => { b.onclick = () => { onTemplate(tpl[+b.dataset.t], w); }; });
+    },
     recipes: async () => {
       const rr = (await recipes.all()).sort((a, b) => a.name.localeCompare(b.name));
       bodyEl.innerHTML = rr.length ? `<div class="pick-list">${rr.map((r, i) => `<button class="pick" data-r="${i}"><b>${esc(r.name)}</b><small>${r.kcal} kcal · P ${r.protein} g / portion${r.source === 'cookidoo' ? ' · Cookidoo' : ''}</small></button>`).join('')}</div>` : '<p class="muted">Aucune recette. Ajoute-les dans Nutrition → Recettes.</p>';
@@ -153,19 +162,32 @@ async function recents() {
 }
 
 function addSheet(meal, rerender) {
-  foodPicker({ title: 'Ajouter — ' + MEALS.find(m => m[0] === meal)[1], onPick: (f, w) => quantity(f, meal, w), onClose: rerender, offlineMeal: meal });
+  foodPicker({ title: 'Ajouter — ' + MEALS.find(m => m[0] === meal)[1], onPick: (f, w) => quantity(f, meal, w), onClose: rerender, offlineMeal: meal,
+    onTemplate: async (t, w) => {
+      const time = defTime(day, meal);
+      for (const x of t.items) await food.put({ ...x, id: uid('f'), date: day, meal, time });
+      toast(`${t.name} ajouté (${t.items.length} aliments)`); w.close();
+    } });
 }
 
 function quantity(f, meal, parent, date = day) {
   const isRecipe = !!f.recipe;
   const def = isRecipe ? 1 : (f.lastGrams || f.serving || 100);
-  const w = sheet(`<h3>${esc(f.name)}</h3>${f.brand ? `<p class="muted">${esc(f.brand)}</p>` : ''}
+  const w = sheet(`<div class="row between qhead"><h3>${esc(f.name)}</h3><button class="icon-btn sm fav" id="qfav" aria-label="Favori">☆</button></div>${f.brand ? `<p class="muted">${esc(f.brand)}</p>` : ''}
     <label class="field">${isRecipe ? 'Portions' : 'Quantité (g)'}<input type="number" inputmode="decimal" id="qty" value="${def}" step="${isRecipe ? 0.25 : 5}"></label>
     ${!isRecipe ? `<div class="chips">${[30, 50, 100, 150, 200, 250].map(g => `<button class="chip" data-g="${g}">${g} g</button>`).join('')}${f.serving ? `<button class="chip" data-g="${f.serving}">1 portion (${f.serving} g)</button>` : ''}</div>` : `<div class="chips">${[0.5, 0.75, 1, 1.25, 1.5, 2].map(g => `<button class="chip" data-g="${g}">${String(g).replace('.', ',')}</button>`).join('')}</div>`}
     <div class="stats4" id="qprev"></div>
     ${mealTimeFields(meal, defTime(date, meal))}
     <button class="btn block" id="qadd">Ajouter au journal</button>`);
   bindMealTime(w);
+  const fkey = (x) => (x.name + '|' + (x.brand || '')).toLowerCase();
+  getFavs().then(fv => { if (fv.foods.some(x => fkey(x) === fkey(f))) $('#qfav', w).textContent = '★'; });
+  $('#qfav', w).onclick = async () => {
+    const fv = await getFavs(); const i = fv.foods.findIndex(x => fkey(x) === fkey(f));
+    if (i >= 0) { fv.foods.splice(i, 1); $('#qfav', w).textContent = '☆'; toast('Retiré des favoris'); }
+    else { const { lastGrams, ...clean } = f; fv.foods.unshift(clean); $('#qfav', w).textContent = '★'; toast('Ajouté aux favoris ⭐'); }
+    await kv.set('favs', fv);
+  };
   const k = () => (+$('#qty', w).value || 0) / (isRecipe ? 1 : 100);
   const prev = () => { const m = k(); $('#qprev', w).innerHTML = `<div class="stat"><b>${Math.round(f.kcal * m)}</b><small>kcal${isRecipe && f.gpp ? ' · ' + Math.round(f.gpp * (+$('#qty', w).value || 0)) + ' g' : ''}</small></div><div class="stat"><b>${num(f.p * m)}</b><small>prot.</small></div><div class="stat"><b>${num(f.c * m)}</b><small>gluc.</small></div><div class="stat"><b>${num(f.f * m)}</b><small>lip.</small></div>`; };
   $('#qty', w).oninput = prev; prev();
@@ -456,6 +478,18 @@ export async function onNutritionAction(act, el, rerender) {
   if (act === 'dnext') { day = shift(day, 1); return rerender(); }
   if (act === 'fadd') return addSheet(el.dataset.meal, rerender);
   if (act === 'fphoto') return photoSheet(guessMeal(), rerender);
+  if (act === 'savetpl') {
+    const meal = el.dataset.meal, es = (await food.all()).filter(e => e.date === day && e.meal === meal && !e.pending);
+    const lbl = MEALS.find(m => m[0] === meal)[1];
+    const w = sheet(`<h3>⭐ Enregistrer comme repas type</h3><p class="small muted">${es.map(e => esc(e.name)).join(' · ')}</p>
+      <label class="field">Nom<input id="tn" value="Mon ${lbl.toLowerCase()} habituel"></label><button class="btn block" id="tok">Enregistrer</button>`, { onClose: rerender });
+    $('#tok', w).onclick = async () => {
+      const fv = await getFavs();
+      fv.meals.unshift({ id: uid('t'), name: $('#tn', w).value || lbl, meal, items: es.map(({ id, date, time, meal: _m, ...x }) => x) });
+      await kv.set('favs', fv); toast('Repas type enregistré : retrouve-le dans ⭐ en ajoutant un aliment'); w.close();
+    };
+    return;
+  }
   if (act === 'ecart') return ecartSheet(day, rerender);
   if (act === 'comp-check') return compensation(day, 0, rerender);
   if (act === 'comp-cancel') { delete S.comp[day]; await kv.set('comp', S.comp); return rerender(); }
@@ -514,3 +548,6 @@ registerHandler('photo', async (t) => {
   await food.del(t.foodId);
   for (const i of data.items) await food.put({ id: uid('f'), date: t.date, meal: t.meal, time: t.time || null, name: i.name, grams: i.grams || null, kcal: Math.round(i.kcal), p: +(+i.protein).toFixed(1), c: +(+i.carbs).toFixed(1), f: +(+i.fat).toFixed(1), src: 'photo' });
 });
+
+// ————— Favoris & repas types —————
+export async function getFavs() { const f = (await kv.get('favs')) || {}; return { foods: f.foods || [], meals: f.meals || [] }; }

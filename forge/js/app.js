@@ -4,9 +4,10 @@ import { healthCard, importFromClipboard, saveHealth, runShortcut, exportDayText
 import { kv, body, food, exportAll, importAll, wipe } from './db.js';
 import { generateProgram, weekInfo, applyBlock, dayForDate, dayMinutes, WEEKDAY_LONG, fitProgramToTime } from './data.js';
 import { initOffline } from './offline.js';
+import { missedCard, onFeatureAction, setReviewOffset } from './features.js';
 import { PRICES } from './claude.js';
 import { chronoSheet, renderTrain, onTrainAction, onTrainChange, renderSession, onSessionAction, onSessionInput, allSessions, stopRest, adjustRest, prescription } from './train.js';
-import { renderProgress, onProgressAction, onProgressChange } from './progress.js';
+import { renderProgress, onProgressAction, onProgressChange, setProgressTab } from './progress.js';
 import { renderNutrition, onNutritionAction } from './nutrition.js';
 import { renderCoach, onCoachAction, onCoachChange, onCoachSubmit } from './coach.js';
 import { hr } from './devices.js';
@@ -45,6 +46,7 @@ document.addEventListener('click', async (e) => {
   const r = route();
   if (r.action) await r.action(el.dataset.act, el, rerender);
 });
+document.addEventListener('click', (e) => { if (e.target.closest('[data-review]')) { setProgressTab('bilan'); setReviewOffset(new Date().getDay() === 0 ? 0 : -1); } }, true);
 document.addEventListener('change', async (e) => {
   const el = e.target;
   if (!$('#view').contains(el)) return;
@@ -82,7 +84,7 @@ async function renderHome(view) {
   const info = weekInfo(S.program);
   const ws = new Date(); ws.setHours(0, 0, 0, 0); ws.setDate(ws.getDate() - ((ws.getDay() + 6) % 7));
   const thisWeek = list.filter(s => new Date(s.date) >= ws);
-  const doneIds = new Set(thisWeek.map(s => s.dayId));
+  const doneIds = new Set(thisWeek.flatMap(s => [s.dayId, ...(s.dayIds || [])]));
   const scheduled = S.program?.days.some(d => d.weekday != null);
   const todayDay = dayForDate(S.program);
   let next = todayDay || S.program?.days.find(d => !doneIds.has(d.id)) || S.program?.days[0];
@@ -92,7 +94,7 @@ async function renderHome(view) {
     const up = [...S.program.days].filter(d => d.weekday != null).sort((a, b) => ((a.weekday - wd + 7) % 7) - ((b.weekday - wd + 7) % 7))[0];
     if (up) { next = up; nextLabel = `Repos aujourd’hui · prochaine : ${WEEKDAY_LONG[up.weekday].toLowerCase()}`; }
   }
-  const doneToday = todayDay && thisWeek.some(s => s.dayId === todayDay.id && new Date(s.date).toDateString() === new Date().toDateString());
+  const doneToday = todayDay && thisWeek.some(s => (s.dayId === todayDay.id || (s.dayIds || []).includes(todayDay.id)) && new Date(s.date).toDateString() === new Date().toDateString());
   const todayFood = (await food.all()).filter(f => f.date === today());
   const kcal = todayFood.reduce((a, f) => a + (+f.kcal || 0), 0), prot = todayFood.reduce((a, f) => a + (+f.p || 0), 0);
   const bodies = (await body.all()).sort((a, b) => a.date.localeCompare(b.date));
@@ -103,6 +105,8 @@ async function renderHome(view) {
   <section class="greet"><div class="eyebrow">${fmtDate(new Date().toISOString(), { weekday: 'long', day: 'numeric', month: 'long' })}</div>
     <h1>${h < 12 ? 'Bonjour' : h < 18 ? 'Salut' : 'Bonsoir'} ${esc(p.name || '')} 👊</h1></section>
   ${S.active ? `<a class="card resume" href="#/seance"><b>▶ Reprendre la séance</b><span>${esc(S.active.name)}</span></a>` : ''}
+  ${await missedCard()}
+  ${[0, 1].includes(new Date().getDay()) ? `<a class="card review-cta" href="#/progres" data-review="1"><b>📊 Ton bilan de la semaine est prêt</b><span>›</span></a>` : ''}
   ${next ? `<section class="card next">
     <div class="eyebrow">${nextLabel} · Semaine ${info.week} · ${info.phase}</div>
     <h2>${esc(next.name)}${doneToday ? ' ✓' : ''}</h2>
@@ -354,4 +358,4 @@ function healthSync() {
 })();
 
 // l'accueil réutilise l'action « démarrer » de l'entraînement
-ROUTES[''].action = ROUTES.accueil.action = (act, el, rr) => act === 'start' ? onTrainAction(act, el, rr) : null;
+ROUTES[''].action = ROUTES.accueil.action = async (act, el, rr) => { if (act === 'start') return onTrainAction(act, el, rr); return onFeatureAction(act, el, rr); };

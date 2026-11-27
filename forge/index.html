@@ -257,6 +257,17 @@ input[type="time"] { min-height: 40px; }
 .express { background: var(--accent-soft); border: 1px solid var(--accent); border-radius: 12px; padding: 10px 12px; margin: 10px 0; }
 .manual summary { cursor: pointer; color: var(--accent); font-weight: 600; margin: 12px 0 6px; }
 
+/* v5 : fiches, objectif MG, bilan, rattrapage, favoris, courses */
+.tech > div { background: var(--surface2); border-radius: 12px; padding: 9px 11px; margin: 6px 0; } .tech p { margin: 3px 0 0; font-size: 14px; color: var(--text2); }
+.exlist li[data-act] { cursor: pointer; } .info { font-style: normal; color: var(--text3); font-size: 12px; }
+.bfgoal .pbar { margin: 6px 0; } .bfgoal.done { border-color: var(--ok); }
+.missed { border-color: var(--warn); } .missed h3 { color: var(--warn); }
+.review-cta { display: flex; justify-content: space-between; align-items: center; border-color: var(--accent); }
+.aisle { margin: 10px 0; } .shopi { display: flex; gap: 10px; align-items: center; padding: 8px 2px; border-bottom: 1px solid var(--line); font-size: 15px; }
+.shopi input { width: 20px; height: 20px; flex: none; accent-color: var(--accent); } .shopi.done span { text-decoration: line-through; color: var(--text3); }
+.batch summary { cursor: pointer; font-weight: 600; color: var(--accent); margin: 6px 0; }
+.fav { font-size: 18px; color: var(--warn); } .qhead { padding-right: 44px; } .qhead h3 { padding-right: 0; }
+
 /* feuilles & toasts */
 .sheet-wrap { position: fixed; inset: 0; z-index: 50; background: rgba(0,0,0,0); display: flex; align-items: flex-end; justify-content: center; transition: background .25s; }
 .sheet-wrap.open { background: rgba(0,0,0,.55); }
