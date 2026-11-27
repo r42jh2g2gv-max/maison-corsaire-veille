@@ -544,7 +544,10 @@ async function showSession(id, rerender) {
 
 // ————— Minuteur de repos (barre flottante) —————
 let restInt;
-export function startRest(sec, label = '') {
+export const SC_REST = 'FORGE Repos';
+export function startRest(sec, label = '', { watch = true } = {}) {
+  // Apple Watch : on lance aussi un minuteur iPhone via Raccourcis (il s'affiche et vibre sur la montre)
+  if (watch && S.settings.restWatch) location.href = 'shortcuts://run-shortcut?name=' + encodeURIComponent(SC_REST) + '&input=text&text=' + Math.round(sec);
   const bar = $('#restbar');
   S.rest = { end: Date.now() + sec * 1000, total: sec, label };
   bar.hidden = false;

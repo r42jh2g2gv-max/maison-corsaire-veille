@@ -189,6 +189,17 @@ async function renderProfile(view) {
     <label class="check-row"><input type="checkbox" data-act="set-restAuto" ${st.restAuto !== false ? 'checked' : ''}> Lancer le repos automatiquement quand je valide une série</label>
     <label class="check-row"><input type="checkbox" data-act="set-restSound" ${st.restSound !== false ? 'checked' : ''}> Bip (décompte 3-2-1 et fin du repos)</label>
     <label class="check-row"><input type="checkbox" data-act="set-restVibe" ${st.restVibe !== false ? 'checked' : ''}> Vibration (Android ; l’iPhone ne vibre pas depuis une app web)</label>
+    <label class="check-row"><input type="checkbox" data-act="set-restWatch" ${st.restWatch ? 'checked' : ''}> ⌚ Lancer aussi le repos sur mon <b>Apple Watch</b> (raccourci « FORGE Repos »)</label>
+    <details class="guidebox" ${st.restWatch ? '' : 'open'}><summary>Créer le raccourci « FORGE Repos » (1 min)</summary>
+      <ol class="small guide">
+        <li>Ouvre <b>Raccourcis</b> → <b>+</b>. Dans « Décrire un raccourci », tape :<br><code>Démarre un minuteur dont la durée en secondes est le texte reçu en entrée</code> puis Entrée ↵.</li>
+        <li>Touche le <b>⌄</b> à côté du nom en haut → <b>Renommer</b> → <code>FORGE Repos</code>.</li>
+        <li>Reviens ici, coche la case ci-dessus et touche « Tester » : l’app Horloge doit lancer un minuteur de 30 s.</li>
+        <li>Sur la montre, le minuteur s’affiche dans le Smart Stack (tourne la Digital Crown) et la montre <b>vibre à la fin du repos</b>, iPhone verrouillé ou dans la poche.</li>
+      </ol>
+      <p class="small muted">À chaque série validée, l’iPhone passe une seconde par Raccourcis : touche « ◀ » en haut à gauche pour revenir dans FORGE. Le chrono FORGE continue en parallèle.</p>
+    </details>
+    <button class="btn ghost block" data-act="testwatch">⌚ Tester (minuteur de 30 s)</button>
     <p class="muted small">Le temps de repos de chaque exercice se règle dans Entraînement → ✎ Modifier. Le bouton ⏱ en haut de l’écran ouvre un minuteur et un chronomètre à tout moment. L’écran reste allumé pendant la séance.</p>
   </section>
 
@@ -262,6 +273,7 @@ async function onProfileAction(act, el) {
     toast('Profil enregistré');
   }
   if (act === 'reboot') return hardReload();
+  if (act === 'testwatch') { location.href = 'shortcuts://run-shortcut?name=' + encodeURIComponent('FORGE Repos') + '&input=text&text=30'; return; }
   if (act === 'hcopytpl') {
     try { await navigator.clipboard.writeText(SHORTCUT_TEMPLATE); toast('Modèle copié : colle-le dans l’action Texte'); }
     catch (e) { toast(SHORTCUT_TEMPLATE, 6000); }
@@ -318,7 +330,7 @@ async function onProfileChange(act, el) {
 }
 
 // ————— Rechargement forcé (garde les données) —————
-const APP_VERSION = 'v9';
+const APP_VERSION = 'v11';
 export async function hardReload() {
   if (!navigator.onLine) return toast('Il faut du réseau pour télécharger la nouvelle version');
   toast('Mise à jour de FORGE…');
