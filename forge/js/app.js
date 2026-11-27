@@ -225,7 +225,10 @@ async function renderProfile(view) {
     <label class="btn ghost grow">⇧ Restaurer<input type="file" accept="application/json,.json" data-act="import" hidden></label></div>
     <button class="btn ghost danger block" data-act="wipe">Tout effacer</button>
   </section>
-  <p class="muted small center">FORGE · v1.0</p>`;
+  <section class="card"><h2>🔄 Mise à jour</h2>
+    <p class="small muted">Si l’app semble ancienne ou bloquée : FORGE retélécharge sa dernière version. <b>Tes données (séances, repas, photos…) ne sont pas touchées.</b></p>
+    <button class="btn block" data-act="reboot">🔄 Recharger FORGE</button></section>
+  <p class="muted small center">FORGE · ${APP_VERSION}</p>`;
 }
 
 function readProfile() {
@@ -258,6 +261,7 @@ async function onProfileAction(act, el) {
     }
     toast('Profil enregistré');
   }
+  if (act === 'reboot') return hardReload();
   if (act === 'hcopytpl') {
     try { await navigator.clipboard.writeText(SHORTCUT_TEMPLATE); toast('Modèle copié : colle-le dans l’action Texte'); }
     catch (e) { toast(SHORTCUT_TEMPLATE, 6000); }
@@ -313,6 +317,16 @@ async function onProfileChange(act, el) {
   if (act === 'import-activity') return onTrainChange(act, el, () => { location.hash = '#/entrainement'; });
 }
 
+// ————— Rechargement forcé (garde les données) —————
+const APP_VERSION = 'v9';
+export async function hardReload() {
+  if (!navigator.onLine) return toast('Il faut du réseau pour télécharger la nouvelle version');
+  toast('Mise à jour de FORGE…');
+  try { for (const r of (await navigator.serviceWorker?.getRegistrations()) || []) if (r.scope.includes('/forge/')) await r.unregister(); } catch (e) { }
+  try { for (const k of await caches.keys()) if (k.startsWith('forge')) await caches.delete(k); } catch (e) { }
+  setTimeout(() => location.replace(location.pathname + '?v=' + Date.now() + '#/'), 400);
+}
+
 // ————— Synchro Apple Santé —————
 function healthSync() {
   const w = sheet(`<h3>⌚ Synchroniser Apple Santé</h3>
@@ -348,6 +362,10 @@ function healthSync() {
 (async () => {
   await loadState();
   $('#chronoBtn').onclick = () => chronoSheet();
+  if (/[?&]reboot\b/.test(location.search) && navigator.onLine) { history.replaceState(null, '', location.pathname + location.hash); hardReload(); return; }
+  let lp; const t = $('#title');
+  t.addEventListener('pointerdown', () => { lp = setTimeout(async () => { if (await confirmBox('Recharger FORGE (dernière version) ? Tes données sont conservées.', 'Recharger')) hardReload(); }, 900); });
+  ['pointerup', 'pointerleave', 'pointercancel'].forEach(ev => t.addEventListener(ev, () => clearTimeout(lp)));
   window.addEventListener('forge:refresh', () => { if (!document.querySelector('.sheet-wrap')) render(); });
   if (location.hash.startsWith('#/seance') && !S.active) location.hash = '#/';
   await render();
