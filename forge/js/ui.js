@@ -1,0 +1,159 @@
+// FORGE — outils d'interface partagés + état global.
+import { kv, sessions, body, food, recipes } from './db.js';
+import { exById as exByIdBase } from './data.js';
+
+export const S = { profile: null, program: null, custom: [], settings: {}, active: null, water: {} };
+
+export async function loadState() {
+  S.profile = await kv.get('profile');
+  S.program = await kv.get('program');
+  S.custom = (await kv.get('customExercises')) || [];
+  S.settings = (await kv.get('settings')) || {};
+  S.active = await kv.get('active');
+  S.water = (await kv.get('water')) || {};
+}
+export const saveProgram = () => kv.set('program', S.program);
+export const saveActive = () => kv.set('active', S.active);
+export const exById = (id) => exByIdBase(id, S.custom) || { id, name: id, muscle: '—', unit: 'kg', kind: 'hyper', inc: 2.5, met: 5 };
+
+export const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+export const $ = (sel, root = document) => root.querySelector(sel);
+export const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
+export const today = () => { const d = new Date(); return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10); };
+export const dayKey = (iso) => { const d = new Date(iso); return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10); };
+export const fmtTime = (s) => { s = Math.max(0, Math.round(s)); const m = Math.floor(s / 60), r = s % 60; return `${m}:${String(r).padStart(2, '0')}`; };
+export const fmtDur = (min) => min >= 60 ? `${Math.floor(min / 60)} h ${String(Math.round(min % 60)).padStart(2, '0')}` : `${Math.round(min)} min`;
+export const fmtDate = (iso, opts = { weekday: 'short', day: 'numeric', month: 'short' }) => new Date(iso).toLocaleDateString('fr-FR', opts);
+export const num = (v, d = 1) => (v == null || isNaN(v)) ? '—' : (+(+v).toFixed(d)).toLocaleString('fr-FR');
+export const round = (v, step = 0.5) => Math.round(v / step) * step;
+
+// e1RM (Epley)
+export const e1rm = (w, r) => (!w || !r) ? 0 : r === 1 ? w : w * (1 + r / 30);
+
+export function toast(msg, ms = 2600) {
+  const t = document.createElement('div');
+  t.className = 'toast'; t.textContent = msg;
+  document.body.appendChild(t);
+  requestAnimationFrame(() => t.classList.add('show'));
+  setTimeout(() => { t.classList.remove('show'); setTimeout(() => t.remove(), 300); }, ms);
+}
+
+// Feuille modale. Retourne l'élément ; close() pour fermer.
+export function sheet(html, { onClose } = {}) {
+  const wrap = document.createElement('div');
+  wrap.className = 'sheet-wrap';
+  wrap.innerHTML = `<div class="sheet" role="dialog" aria-modal="true"><button class="sheet-x" data-close aria-label="Fermer">×</button>${html}</div>`;
+  document.body.appendChild(wrap);
+  requestAnimationFrame(() => wrap.classList.add('open'));
+  const close = () => { wrap.classList.remove('open'); setTimeout(() => wrap.remove(), 250); onClose && onClose(); };
+  wrap.addEventListener('click', (e) => { if (e.target === wrap || e.target.closest('[data-close]')) close(); });
+  wrap.close = close;
+  return wrap;
+}
+
+export function confirmBox(msg, okLabel = 'Confirmer') {
+  return new Promise(res => {
+    const w = sheet(`<h3>${esc(msg)}</h3><div class="row gap"><button class="btn ghost grow" data-no>Annuler</button><button class="btn danger grow" data-yes>${esc(okLabel)}</button></div>`, { onClose: () => res(false) });
+    w.querySelector('[data-yes]').onclick = () => { res(true); w.close(); };
+    w.querySelector('[data-no]').onclick = () => { res(false); w.close(); };
+  });
+}
+
+// Bip + vibration (fin de repos)
+let actx;
+export function beep(times = 3) {
+  try {
+    actx = actx || new (window.AudioContext || window.webkitAudioContext)();
+    for (let i = 0; i < times; i++) {
+      const o = actx.createOscillator(), g = actx.createGain();
+      o.frequency.value = i === times - 1 ? 1320 : 880; o.type = 'sine';
+      g.gain.setValueAtTime(0.0001, actx.currentTime + i * 0.25);
+      g.gain.exponentialRampToValueAtTime(0.4, actx.currentTime + i * 0.25 + 0.02);
+      g.gain.exponentialRampToValueAtTime(0.0001, actx.currentTime + i * 0.25 + 0.18);
+      o.connect(g).connect(actx.destination); o.start(actx.currentTime + i * 0.25); o.stop(actx.currentTime + i * 0.25 + 0.2);
+    }
+  } catch (e) { /* audio indisponible */ }
+  if (navigator.vibrate) navigator.vibrate([200, 100, 200, 100, 300]);
+}
+export function unlockAudio() { try { actx = actx || new (window.AudioContext || window.webkitAudioContext)(); actx.resume(); } catch (e) { } }
+
+// — Calculs physiologiques —
+export function bmr(p) {
+  if (!p) return 0;
+  const w = +p.weight, h = +p.height, a = +p.age;
+  if (p.bodyfat) return 370 + 21.6 * (w * (1 - p.bodyfat / 100)); // Katch-McArdle si % MG connu
+  return 10 * w + 6.25 * h - 5 * a + (p.sex === 'f' ? -161 : 5);
+}
+export const ACTIVITY = { 1.3: 'Sédentaire (bureau) + sport', 1.45: 'Peu actif + sport', 1.6: 'Actif (debout, marche) + sport', 1.75: 'Très actif (métier physique) + sport' };
+export function targets(p) {
+  if (!p) return { kcal: 2000, p: 140, c: 200, f: 65, tdee: 2000 };
+  const tdee = bmr(p) * (+p.activity || 1.45);
+  const adj = { seche: -0.2, recompo: -0.1, maintien: 0, prise: 0.1 }[p.goal || 'recompo'];
+  const kcal = Math.round((tdee * (1 + adj)) / 10) * 10;
+  const w = +p.weight;
+  const prot = Math.round(w * (p.goal === 'seche' ? 2.2 : 2));
+  const fat = Math.round(w * 0.9);
+  const carbs = Math.max(50, Math.round((kcal - prot * 4 - fat * 9) / 4));
+  return { kcal, p: prot, c: carbs, f: fat, tdee: Math.round(tdee) };
+}
+// Estimation % masse grasse (méthode US Navy)
+export function navyBF(sex, height, neck, waist, hip) {
+  if (!height || !neck || !waist) return null;
+  if (sex === 'f') { if (!hip) return null; return 163.205 * Math.log10(+waist + +hip - +neck) - 97.684 * Math.log10(+height) - 78.387; }
+  return 86.01 * Math.log10(+waist - +neck) - 70.041 * Math.log10(+height) + 36.76;
+}
+// Dépense d'une séance (MET)
+export function sessionKcal(sess, weightKg) {
+  const w = weightKg || 75;
+  if (sess.kcal) return sess.kcal;
+  let k = 0;
+  for (const ex of sess.exercises || []) {
+    const e = exById(ex.exId);
+    if (ex.cardio) { k += (e.met || 7) * w * ((ex.cardio.minutes || 0) / 60); continue; }
+    if (ex.hiit) { k += (e.met || 10) * w * (((ex.hiit.done || 0) * (ex.hiit.work + ex.hiit.restWork * 0.3)) / 3600); continue; }
+    const done = (ex.sets || []).filter(s => s.done).length;
+    k += (e.met || 5) * w * (done * 1.6 / 60); // ~1 min 40 par série, repos inclus partiellement
+  }
+  return Math.round(k);
+}
+
+// Toutes les données récentes en texte, pour Claude.
+export async function contextText({ days = 21 } = {}) {
+  const p = S.profile || {};
+  const t = targets(p);
+  const since = Date.now() - days * 86400000;
+  const ss = (await sessions.all()).filter(s => new Date(s.date).getTime() >= since).sort((a, b) => a.date.localeCompare(b.date));
+  const bb = (await body.all()).sort((a, b) => a.date.localeCompare(b.date)).slice(-8);
+  const ff = (await food.all()).filter(f => new Date(f.date).getTime() >= since);
+  const byDay = {};
+  for (const f of ff) { const d = byDay[f.date] ||= { kcal: 0, p: 0 }; d.kcal += f.kcal; d.p += f.p; }
+  const lines = [];
+  lines.push(`PROFIL : ${p.name || 'Utilisateur'}, ${p.sex === 'f' ? 'femme' : 'homme'}, ${p.age} ans, ${p.height} cm, ${p.weight} kg${p.bodyfat ? `, ${p.bodyfat} % MG` : ''}. Niveau : ${p.level}. Objectif : ${p.goal}. ${p.days} séances/semaine, matériel : ${p.equipment}. ${p.notes ? 'Notes : ' + p.notes : ''}`);
+  lines.push(`CIBLES NUTRITION : ${t.kcal} kcal/j (dépense estimée ${t.tdee}), protéines ${t.p} g, glucides ${t.c} g, lipides ${t.f} g.`);
+  if (S.program) {
+    lines.push(`PROGRAMME ACTUEL « ${S.program.name} » (début ${S.program.startDate}) :`);
+    for (const d of S.program.days) lines.push(`- ${d.name} : ` + d.items.map(it => {
+      const e = exById(it.exId);
+      if (it.role === 'cardio') return `${e.name} ${it.minutes} min`;
+      if (it.role === 'hiit') return `${e.name} ${it.rounds}×${it.work}s/${it.restWork}s`;
+      return `${e.name} ${it.sets}×${it.secs ? it.secs + 's' : it.repMin + '-' + it.repMax} (repos ${it.rest}s)`;
+    }).join(' ; '));
+  }
+  lines.push(`SÉANCES DES ${days} DERNIERS JOURS (${ss.length}) :`);
+  for (const s of ss) {
+    const ex = (s.exercises || []).map(x => {
+      const e = exById(x.exId);
+      if (x.cardio) return `${e.name} ${x.cardio.minutes || 0} min${x.cardio.km ? ' ' + x.cardio.km + ' km' : ''}`;
+      if (x.hiit) return `${e.name} ${x.hiit.done || 0} rounds`;
+      const sets = (x.sets || []).filter(z => z.done).map(z => z.secs ? z.secs + 's' : `${z.w || 0}×${z.r || 0}`).join(', ');
+      return sets ? `${e.name} [${sets}]` : '';
+    }).filter(Boolean).join(' ; ');
+    lines.push(`- ${s.date.slice(0, 10)} ${s.name} (${s.minutes || '?'} min${s.rpe ? ', ressenti ' + s.rpe + '/10' : ''}) : ${ex}${s.note ? ' — note : ' + s.note : ''}`);
+  }
+  if (bb.length) lines.push('CORPS : ' + bb.map(b => `${b.date} ${b.weight ?? '?'} kg${b.waist ? ' taille ' + b.waist + ' cm' : ''}${b.bf ? ' ' + num(b.bf) + ' % MG' : ''}`).join(' | '));
+  const dd = Object.entries(byDay).sort().slice(-10);
+  if (dd.length) lines.push('NUTRITION (kcal / protéines) : ' + dd.map(([d, v]) => `${d} ${Math.round(v.kcal)} kcal ${Math.round(v.p)} g P`).join(' | '));
+  const rr = await recipes.all();
+  if (rr.length) lines.push('RECETTES ENREGISTRÉES (Cookidoo / perso) : ' + rr.slice(0, 30).map(r => `${r.name} (${r.kcal} kcal/portion)`).join(', '));
+  return lines.join('\n');
+}
