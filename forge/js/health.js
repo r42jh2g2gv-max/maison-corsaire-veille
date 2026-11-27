@@ -23,7 +23,16 @@ export function parseHealthText(txt) {
     if (!key || !rest.length) continue;
     const v = rest.join('=').trim();
     if (key === 'date') { const m = v.match(/(\d{4})-(\d{2})-(\d{2})/) || v.match(/(\d{2})\/(\d{2})\/(\d{4})/); out.date = m ? (m[1].length === 4 ? `${m[1]}-${m[2]}-${m[3]}` : `${m[3]}-${m[2]}-${m[1]}`) : today(); continue; }
-    const n = numOf(v); if (n != null) out[key] = n;
+    let n = numOf(v); if (n == null) continue;
+    if (key === 'weight') {
+      // Santé peut renvoyer le poids en grammes (« 95 000 g ») ou en livres
+      if (/\blb|livre/i.test(v)) n = n * 0.4536;
+      else if (n > 400 || (/\dg\b|\d\s*g$/i.test(v.trim()) && !/kg/i.test(v))) n = n / 1000;
+      if (n < 25 || n > 400) continue; // valeur incohérente : ignorée
+      n = Math.round(n * 10) / 10;
+    }
+    if (key === 'bf' && n > 0 && n < 1) n = n * 100; // 0,22 → 22 %
+    out[key] = n;
   }
   if (!out.date) out.date = today();
   if (out.sleep > 24) out.sleep = Math.round(out.sleep / 60 * 10) / 10; // minutes → heures
