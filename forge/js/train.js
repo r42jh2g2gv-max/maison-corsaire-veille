@@ -1,7 +1,7 @@
 // FORGE — programme, séance en direct, minuteurs de repos et d'intervalles, historique.
 import { S, esc, $, $$, exById, saveProgram, archiveProgram, WEEKDAYS, saveActive, toast, sheet, confirmBox, beep, unlockAudio, fmtTime, fmtDur, fmtDate, num, round, e1rm, sessionKcal } from './ui.js';
 import { sessions, kv, uid } from './db.js';
-import { EXERCISES, MUSCLES, makeItem, weekInfo, applyBlock, generateProgram, PRESETS, dayMinutes, WEEKDAY_LONG } from './data.js';
+import { EXERCISES, MUSCLES, makeItem, weekInfo, applyBlock, generateProgram, PRESETS, dayMinutes, WEEKDAY_LONG, fitProgramToTime, fitDayToTime } from './data.js';
 import { hr, parseActivity } from './devices.js';
 
 const ROLE_LABEL = { force: 'Force', hyper: 'Hypertrophie', iso: 'Isolation', core: 'Gainage', cardio: 'Cardio', hiit: 'HIIT' };
@@ -76,7 +76,7 @@ export async function renderTrain(view) {
   <h3 class="sec">Séances du programme</h3>
   ${S.program.days.map(d => `
     <section class="card day ${doneThisWeek.has(d.id) ? 'done' : ''}">
-      <div class="row between"><div><h3>${esc(d.name)}</h3><div class="muted">${esc(d.focus || '')} · ${d.items.length} exercices · ≈ ${dayMinutes(d)} min${doneThisWeek.has(d.id) ? ' · ✓ fait cette semaine' : ''}</div></div>
+      <div class="row between"><div><h3>${esc(d.name)}</h3><div class="muted">${esc(d.focus || '')} · ${d.items.length} exercices · ≈ ${dayMinutes(d, S.program.periodize !== false)} min${S.program.minutes && dayMinutes(d, S.program.periodize !== false) > S.program.minutes + 2 ? ' ⚠️' : ''}${doneThisWeek.has(d.id) ? ' · ✓ fait cette semaine' : ''}</div></div>
       <button class="btn sm ghost" data-act="edit-day" data-id="${d.id}">✎ Modifier</button></div>
       <ul class="exlist">${d.items.map(it => { const e = exById(it.exId); const b = applyBlock(it, info); return `<li><span>${esc(e.name)}</span><small>${prescription(b)}</small></li>`; }).join('')}</ul>
       <button class="btn block" data-act="start" data-id="${d.id}">Démarrer</button>
@@ -123,6 +123,7 @@ function programMenu(rerender) {
   const w = sheet(`<h3>Modifier le programme</h3>
     <label class="field">Nom<input id="pname" value="${esc(P.name)}"></label>
     <div class="grid2"><label class="mini">Début (semaine 1)<input type="date" id="pstart" value="${P.startDate}"></label>
+    <label class="mini">Temps max / séance (min)<input type="number" id="pmin" inputmode="numeric" min="20" max="180" step="5" value="${P.minutes || S.profile?.sessionMinutes || 60}"></label>
     <label class="mini">Durée<select id="pweeks">${[4, 6, 8, 10, 12, 16].map(n => `<option value="${n}" ${n === (P.weeks || 12) ? 'selected' : ''}>${n} semaines</option>`).join('')}</select></label></div>
     <label class="field">Progression par blocs<select id="pperiod"><option value="on" ${P.periodize !== false ? 'selected' : ''}>Oui : volume → force → pic, décharge toutes les 4 sem.</option><option value="off" ${P.periodize === false ? 'selected' : ''}>Non : toujours les séries/reps que je définis</option></select></label>
     <h3 class="sec">Jours (ordre avec ↑ ↓)</h3>
@@ -138,7 +139,11 @@ function programMenu(rerender) {
   const draw = () => { $('#pdays', w).innerHTML = days.map((d, i) => `<div class="edit-item row between"><span class="grow"><b>${esc(d.name)}</b><br><small class="muted">${d.items.length} exercices</small></span>
     <button class="icon-btn sm" data-mv="-1" data-i="${i}" aria-label="Monter">↑</button><button class="icon-btn sm" data-mv="1" data-i="${i}" aria-label="Descendre">↓</button><button class="icon-btn sm" data-ed="${i}" aria-label="Modifier">✎</button><button class="icon-btn sm" data-cp="${i}" aria-label="Dupliquer">⧉</button><button class="icon-btn sm danger" data-rm="${i}" aria-label="Supprimer">✕</button></div>`).join(''); };
   draw();
-  const commit = async () => { P.days = days; P.name = $('#pname', w).value; P.startDate = $('#pstart', w).value; P.weeks = +$('#pweeks', w).value; P.periodize = $('#pperiod', w).value === 'on'; await saveProgram(); };
+  const commit = async () => {
+    const mn = Math.min(180, Math.max(20, Math.round((+$('#pmin', w).value || 60) / 5) * 5));
+    P.days = days; P.periodize = $('#pperiod', w).value === 'on';
+    if (mn !== P.minutes) { fitProgramToTime(P, mn, S.profile?.goal); if (S.profile) { S.profile.sessionMinutes = mn; await kv.set('profile', S.profile); } toast(`Séances ajustées à ${mn} min max`); }
+    P.name = $('#pname', w).value; P.startDate = $('#pstart', w).value; P.weeks = +$('#pweeks', w).value; P.periodize = $('#pperiod', w).value === 'on'; await saveProgram(); };
   $('#pdays', w).onclick = async (e) => {
     const b = e.target.closest('button'); if (!b) return; const i = +b.dataset.i;
     if (b.dataset.mv) { const j = i + +b.dataset.mv; if (j >= 0 && j < days.length) [days[i], days[j]] = [days[j], days[i]]; draw(); }
@@ -191,7 +196,7 @@ function catalogSheet(rerender) {
   let tdays = (p.trainingDays?.length ? p.trainingDays : [0, 2, 4]).slice();
   const w = sheet(`<h3>📋 Programmes prédéfinis</h3>
     <p class="muted small">Choisis ton temps maximum et tes jours : chaque séance est calculée pour tenir dedans (échauffement compris).</p>
-    <div class="field">Temps max par séance<div class="chips" id="cmin">${[30, 45, 60, 75, 90, 120].map(m => `<button class="chip ${m === minutes ? 'on' : ''}" data-m="${m}">${m < 60 ? m + ' min' : m === 60 ? '1 h' : Math.floor(m / 60) + ' h ' + String(m % 60).padStart(2, '0')}</button>`).join('')}</div></div>
+    <div class="field">Temps max par séance<div class="row gap"><div class="chips grow" id="cmin">${[30, 45, 50, 60, 75, 90].map(m => `<button class="chip ${m === minutes ? 'on' : ''}" data-m="${m}">${m} min</button>`).join('')}</div><label class="mini cminl">ou<input type="number" id="cmini" inputmode="numeric" min="20" max="180" step="5" value="${minutes}"></label></div></div>
     <div class="field">Jours d’entraînement<div class="wdays" id="cdays">${WEEKDAYS.map((d, i) => `<label><input type="checkbox" value="${i}" ${tdays.includes(i) ? 'checked' : ''}><span>${d}</span></label>`).join('')}</div></div>
     <div id="cpresets" class="presets"></div>
     <div id="cprev"></div>
@@ -202,10 +207,11 @@ function catalogSheet(rerender) {
     $('#cpresets', w).innerHTML = Object.entries(PRESETS).map(([k, v]) => `<button class="preset ${k === preset ? 'on' : ''}" data-p="${k}"><b>${v.label}</b><small>${v.desc}</small></button>`).join('');
     if (!tdays.length) { $('#cprev', w).innerHTML = '<p class="muted">Coche au moins un jour.</p>'; return; }
     prog = generateProgram(p, { preset, minutes, trainingDays: tdays });
-    $('#cprev', w).innerHTML = `<h3 class="sec">Aperçu · ${tdays.length} séance${tdays.length > 1 ? 's' : ''} / semaine</h3>` + prog.days.map(d => `<div class="edit-item"><div class="row between"><b>${esc(d.name)}</b><span class="tag">≈ ${dayMinutes(d)} min</span></div><small class="muted">${d.items.map(it => esc(exById(it.exId).name)).join(' · ')}</small></div>`).join('');
+    $('#cprev', w).innerHTML = `<h3 class="sec">Aperçu · ${tdays.length} séance${tdays.length > 1 ? 's' : ''} / semaine</h3>` + prog.days.map(d => `<div class="edit-item"><div class="row between"><b>${esc(d.name)}</b><span class="tag">≈ ${dayMinutes(d)} min max</span></div><small class="muted">${d.items.map(it => esc(exById(it.exId).name)).join(' · ')}</small></div>`).join('');
   };
   draw();
-  $('#cmin', w).onclick = (e) => { const b = e.target.closest('[data-m]'); if (!b) return; minutes = +b.dataset.m; $$('#cmin .chip', w).forEach(c => c.classList.toggle('on', c === b)); draw(); };
+  $('#cmin', w).onclick = (e) => { const b = e.target.closest('[data-m]'); if (!b) return; minutes = +b.dataset.m; $('#cmini', w).value = minutes; $$('#cmin .chip', w).forEach(c => c.classList.toggle('on', c === b)); draw(); };
+  $('#cmini', w).onchange = (e) => { minutes = Math.min(180, Math.max(20, Math.round((+e.target.value || 60) / 5) * 5)); e.target.value = minutes; $$('#cmin .chip', w).forEach(c => c.classList.toggle('on', +c.dataset.m === minutes)); draw(); };
   $('#cdays', w).onchange = () => { tdays = $$('#cdays input:checked', w).map(x => +x.value); draw(); };
   $('#cpresets', w).onclick = (e) => { const b = e.target.closest('[data-p]'); if (!b) return; preset = b.dataset.p; draw(); };
   $('#cgo', w).onclick = async () => {
@@ -273,7 +279,7 @@ function editDay(id, rerender) {
         <div class="row gap wrap">${f}<label class="mini">Type<select data-i="${i}" data-k="role">${Object.entries(ROLE_LABEL).map(([k, v]) => `<option value="${k}" ${k === it.role ? 'selected' : ''}>${v}</option>`).join('')}</select></label></div></div>`;
     }).join('') || '<p class="muted">Aucun exercice.</p>';
   };
-  const _draw = draw; const drawAll = () => { _draw(); dur(); }; const dur = () => { const m = dayMinutes(day); const lim = S.program.minutes || S.profile?.sessionMinutes; $('#ddur', w).innerHTML = `⏱ Durée estimée : <b>${m} min</b>${lim ? ` / ${lim} min max` : ''}${lim && m > lim + 5 ? ' · <span class="warn">trop long</span>' : ''}`; };
+  const _draw = draw; const drawAll = () => { _draw(); dur(); }; const dur = () => { const per = S.program.periodize !== false; const m = dayMinutes(day, per); const lim = S.program.minutes || S.profile?.sessionMinutes; $('#ddur', w).innerHTML = `⏱ Durée estimée : <b>${m} min</b>${per ? ' (semaine la plus chargée)' : ''}${lim ? ` / ${lim} min max` : ''}${lim && m > lim + 2 ? ` · <span class="warn">trop long</span> <button class="btn sm" id="dfit">Ajuster à ${lim} min</button>` : ''}`; const f = $('#dfit', w); if (f) f.onclick = () => { fitDayToTime(day, lim, S.profile?.goal, per); drawAll(); toast(`Séance ajustée à ${lim} min max`); }; };
   drawAll();
   $('#items', w).addEventListener('change', (e) => {
     const t = e.target; if (!t.dataset.k) return;

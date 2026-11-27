@@ -250,6 +250,10 @@ img.full { width: 100%; border-radius: 12px; }
 .netbadge.off { background: var(--warn); color: #1a1200; } .netbadge.wait { background: var(--surface2); color: var(--text2); border: 1px solid var(--line); }
 .updbar { position: fixed; left: 10px; right: 10px; top: calc(var(--safe-t) + 70px); z-index: 70; background: var(--text); color: var(--bg); border-radius: 14px; padding: 10px 12px; display: flex; align-items: center; justify-content: space-between; gap: 10px; max-width: 660px; margin: 0 auto; font-weight: 600; font-size: 14px; }
 
+.ftime { color: var(--accent); font-weight: 700; font-variant-numeric: tabular-nums; }
+.cminl { width: 76px; flex: none; }
+input[type="time"] { min-height: 40px; }
+
 /* feuilles & toasts */
 .sheet-wrap { position: fixed; inset: 0; z-index: 50; background: rgba(0,0,0,0); display: flex; align-items: flex-end; justify-content: center; transition: background .25s; }
 .sheet-wrap.open { background: rgba(0,0,0,.55); }

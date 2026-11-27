@@ -2,7 +2,7 @@
 import { S, loadState, esc, $, $$, toast, sheet, confirmBox, targets, today, num, fmtDate, ACTIVITY, unlockAudio, exById, GOALS, WEEKDAYS, defaultTrainingDays } from './ui.js';
 import { healthCard, importFromClipboard, runShortcut, exportDayText, SHORTCUT_GUIDE, SC_IN, SC_OUT } from './health.js';
 import { kv, body, food, exportAll, importAll, wipe } from './db.js';
-import { generateProgram, weekInfo, applyBlock, dayForDate, dayMinutes, WEEKDAY_LONG } from './data.js';
+import { generateProgram, weekInfo, applyBlock, dayForDate, dayMinutes, WEEKDAY_LONG, fitProgramToTime } from './data.js';
 import { initOffline } from './offline.js';
 import { PRICES } from './claude.js';
 import { chronoSheet, renderTrain, onTrainAction, onTrainChange, renderSession, onSessionAction, onSessionInput, allSessions, stopRest, adjustRest, prescription } from './train.js';
@@ -106,7 +106,7 @@ async function renderHome(view) {
   ${next ? `<section class="card next">
     <div class="eyebrow">${nextLabel} · Semaine ${info.week} · ${info.phase}</div>
     <h2>${esc(next.name)}${doneToday ? ' ✓' : ''}</h2>
-    <div class="muted small">≈ ${dayMinutes(next)} min · ${next.items.length} exercices</div>
+    <div class="muted small">≈ ${dayMinutes(next, S.program.periodize !== false)} min max · ${next.items.length} exercices</div>
     <ul class="exlist">${next.items.slice(0, 6).map(it => `<li><span>${esc(exById(it.exId).name)}</span><small>${prescription(applyBlock(it, info))}</small></li>`).join('')}</ul>
     <button class="btn block" data-act="start" data-id="${next.id}">Démarrer maintenant</button>
   </section>` : ''}
@@ -171,7 +171,7 @@ async function renderProfile(view) {
     <div class="grid2"><label class="mini">Poids cible kg<input type="number" step="0.1" name="goalWeight" value="${p.goalWeight || ''}"></label><label class="mini">% MG cible<input type="number" step="0.1" name="goalBF" value="${p.goalBF || ''}"></label></div>
     <h3>Entraînement</h3>
     <div class="grid2">
-      <label class="mini">Temps max par séance${sel('sessionMinutes', [[30, '30 min'], [45, '45 min'], [60, '1 h'], [75, '1 h 15'], [90, '1 h 30'], [120, '2 h']], p.sessionMinutes || 60)}</label>
+      <label class="mini">Temps max par séance (min)<input type="number" name="sessionMinutes" inputmode="numeric" min="20" max="180" step="5" value="${p.sessionMinutes || 60}"></label>
       <label class="mini">Matériel${sel('equipment', [['salle', 'Salle de sport'], ['maison', 'Maison (haltères, barre de traction)'], ['pdc', 'Poids du corps']], p.equipment)}</label>
     </div>
     <div class="field">Jours d’entraînement (le programme suit ces jours)<div class="wdays">${WEEKDAYS.map((d, i) => `<label><input type="checkbox" name="td" value="${i}" ${(p.trainingDays?.length ? p.trainingDays : defaultTrainingDays(+p.days || 4)).includes(i) ? 'checked' : ''}><span>${d}</span></label>`).join('')}</div></div>
@@ -225,7 +225,7 @@ async function renderProfile(view) {
 function readProfile() {
   const f = $('#pform'); const o = {};
   for (const el of f.elements) { if (!el.name || el.type === 'checkbox') continue; o[el.name] = el.type === 'number' ? (el.value === '' ? null : +el.value) : el.value; }
-  o.activity = +o.activity; o.sessionMinutes = +o.sessionMinutes || 60;
+  o.activity = +o.activity; o.sessionMinutes = Math.min(180, Math.max(20, Math.round((+o.sessionMinutes || 60) / 5) * 5));
   o.carbCycle = f.elements.carbCycle.checked;
   o.trainingDays = $$('input[name=td]:checked', f).map(x => +x.value);
   if (!o.trainingDays.length) o.trainingDays = defaultTrainingDays(+(S.profile?.days) || 4);
@@ -238,12 +238,17 @@ async function onProfileAction(act, el) {
     const p = readProfile();
     if (!p.age || !p.height || !p.weight) return toast('Âge, taille et poids sont nécessaires');
     const isNew = !S.profile;
+    const oldMin = S.profile?.sessionMinutes;
     S.profile = p; await kv.set('profile', p);
     if (isNew) await body.put({ id: 'b' + Date.now().toString(36), date: today(), weight: p.weight, bf: p.bodyfat || null, lean: p.bodyfat ? Math.round(p.weight * (1 - p.bodyfat / 100) * 10) / 10 : null });
     if (!S.program || act === 'pregen') {
       if (act === 'pregen' && !(await confirmBox('Remplacer ton programme par un nouveau généré depuis ce profil ?', 'Régénérer'))) return;
       S.program = generateProgram(p); await kv.set('program', S.program);
       toast('Programme hybride créé 💪'); location.hash = '#/entrainement'; return;
+    }
+    if (S.program && act === 'psave' && oldMin !== p.sessionMinutes && await confirmBox(`Adapter les séances de ton programme actuel à ${p.sessionMinutes} min max ?`, 'Adapter')) {
+      fitProgramToTime(S.program, p.sessionMinutes, p.goal); await kv.set('program', S.program);
+      toast(`Séances ajustées à ${p.sessionMinutes} min max ✓`); return;
     }
     toast('Profil enregistré');
   }

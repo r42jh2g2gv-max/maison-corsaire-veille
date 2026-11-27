@@ -1,6 +1,6 @@
 // FORGE — menu de la semaine : recettes maison / Thermomix ou produits tout prêts,
 // portions calculées pour coller aux calories du jour, « mangé » → journal, courses.
-import { S, esc, $, $$, toast, sheet, confirmBox, today, num, targets, fmtDate } from './ui.js';
+import { S, esc, $, $$, toast, sheet, confirmBox, today, num, targets, fmtDate, defTime } from './ui.js';
 import { kv, food, recipes, uid } from './db.js';
 import { MEALS } from './data.js';
 import { foodPicker, recipeFood } from './nutrition.js';
@@ -49,7 +49,7 @@ export async function toggleEaten(date, meal) {
   if (e.done) { await food.del(e.done); e.done = null; await save(); return; }
   const pr = portionFor(e, date, meal);
   const id = uid('f');
-  await food.put({ id, date, meal, name: e.name, grams: pr.grams || null, portions: pr.unit === 'portion' ? pr.qty : null, kcal: Math.round(pr.kcal), p: +pr.p.toFixed(1), c: +pr.c.toFixed(1), f: +pr.f.toFixed(1), src: 'menu',
+  await food.put({ id, date, meal, time: defTime(date, meal), name: e.name, grams: pr.grams || null, portions: pr.unit === 'portion' ? pr.qty : null, kcal: Math.round(pr.kcal), p: +pr.p.toFixed(1), c: +pr.c.toFixed(1), f: +pr.f.toFixed(1), src: 'menu',
     per100: e.type === 'product' ? { kcal: e.kcal, p: e.p, c: e.c, f: e.f, brand: e.brand || '', src: 'off' } : null });
   e.done = id; await save();
 }

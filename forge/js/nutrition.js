@@ -1,6 +1,6 @@
 // FORGE — nutrition : journal, objectifs (perte / sèche / prise), photo de repas, Open Food Facts, scanner,
 // menu de la semaine, recettes Cookidoo / Thermomix, calculateur.
-import { S, esc, $, $$, toast, sheet, confirmBox, today, num, targets, bmr, ACTIVITY, fmtDate, dayKey, GOALS, goalOf, adaptiveAdvice, contextText } from './ui.js';
+import { S, esc, $, $$, toast, sheet, confirmBox, today, num, defTime, nowTime, mealTimeFields, bindMealTime, targets, bmr, ACTIVITY, fmtDate, dayKey, GOALS, goalOf, adaptiveAdvice, contextText } from './ui.js';
 import { food, recipes, body, kv, uid } from './db.js';
 import { BASE_FOODS, MEALS } from './data.js';
 import { allSessions } from './train.js';
@@ -65,10 +65,10 @@ async function journal(el) {
   ${tot.kcal > t.kcal + 150 ? `<button class="btn ghost sm block" data-act="comp-check">Tu dépasses de ${Math.round(tot.kcal - t.kcal)} kcal : comment rattraper ?</button>` : ''}
   <section class="card water"><div class="row between"><b>💧 Eau</b><span>${(water * 0.25).toLocaleString('fr-FR')} L / ${Math.max(2, Math.round((+p?.weight || 70) * 0.035 * 4) / 4).toLocaleString('fr-FR')} L</span></div>
     <div class="row gap"><button class="btn ghost sm" data-act="water" data-d="-1">−</button><div class="glasses">${Array.from({ length: Math.max(8, water) }, (_, i) => `<i class="${i < water ? 'on' : ''}"></i>`).join('')}</div><button class="btn sm" data-act="water" data-d="1">+ 25 cl</button></div></section>
-  ${MEALS.map(([k, l]) => { const es = entries.filter(e => e.meal === k), s = sum(es); const pl = plannedFor(day, k); return `
+  ${MEALS.map(([k, l]) => { const es = entries.filter(e => e.meal === k).sort((a, b) => (a.time || '99').localeCompare(b.time || '99')), s = sum(es); const pl = plannedFor(day, k); return `
     <section class="card meal"><div class="row between"><h3>${l}</h3><span class="muted">${Math.round(s.kcal)} kcal</span></div>
     ${pl && !pl.done ? `<div class="planned"><div><small>Prévu au menu</small><b>${esc(pl.name)}</b><small>${plannedLabel(pl, day, k)}</small></div><button class="btn sm" data-act="eat" data-meal="${k}">✓ Mangé</button></div>` : ''}
-    ${es.map(e => `<button class="fitem" data-act="fedit" data-id="${e.id}"><div><b>${esc(e.name)}</b><small>${e.grams ? Math.round(e.grams) + ' g' : e.portions ? num(e.portions, 2) + ' portion(s)' : ''} · P ${num(e.p, 0)} · G ${num(e.c, 0)} · L ${num(e.f, 0)}</small></div><span>${e.pending ? '⏳' : Math.round(e.kcal)}</span></button>`).join('')}
+    ${es.map(e => `<button class="fitem" data-act="fedit" data-id="${e.id}"><div><b>${esc(e.name)}</b><small>${e.time ? `<span class="ftime">${e.time}</span> · ` : ''}${e.grams ? Math.round(e.grams) + ' g' : e.portions ? num(e.portions, 2) + ' portion(s)' : ''} · P ${num(e.p, 0)} · G ${num(e.c, 0)} · L ${num(e.f, 0)}</small></div><span>${e.pending ? '⏳' : Math.round(e.kcal)}</span></button>`).join('')}
     <button class="btn ghost sm block" data-act="fadd" data-meal="${k}">+ Ajouter</button></section>`; }).join('')}
   ${healthCard(day)}
   <button class="btn ghost block" data-act="copyday">⧉ Copier les repas de la veille</button>`;
@@ -163,15 +163,16 @@ function quantity(f, meal, parent, date = day) {
     <label class="field">${isRecipe ? 'Portions' : 'Quantité (g)'}<input type="number" inputmode="decimal" id="qty" value="${def}" step="${isRecipe ? 0.25 : 5}"></label>
     ${!isRecipe ? `<div class="chips">${[30, 50, 100, 150, 200, 250].map(g => `<button class="chip" data-g="${g}">${g} g</button>`).join('')}${f.serving ? `<button class="chip" data-g="${f.serving}">1 portion (${f.serving} g)</button>` : ''}</div>` : `<div class="chips">${[0.5, 0.75, 1, 1.25, 1.5, 2].map(g => `<button class="chip" data-g="${g}">${String(g).replace('.', ',')}</button>`).join('')}</div>`}
     <div class="stats4" id="qprev"></div>
-    <label class="field">Repas<select id="qmeal">${MEALS.map(([k, l]) => `<option value="${k}" ${k === meal ? 'selected' : ''}>${l}</option>`).join('')}</select></label>
+    ${mealTimeFields(meal, defTime(date, meal))}
     <button class="btn block" id="qadd">Ajouter au journal</button>`);
+  bindMealTime(w);
   const k = () => (+$('#qty', w).value || 0) / (isRecipe ? 1 : 100);
   const prev = () => { const m = k(); $('#qprev', w).innerHTML = `<div class="stat"><b>${Math.round(f.kcal * m)}</b><small>kcal${isRecipe && f.gpp ? ' · ' + Math.round(f.gpp * (+$('#qty', w).value || 0)) + ' g' : ''}</small></div><div class="stat"><b>${num(f.p * m)}</b><small>prot.</small></div><div class="stat"><b>${num(f.c * m)}</b><small>gluc.</small></div><div class="stat"><b>${num(f.f * m)}</b><small>lip.</small></div>`; };
   $('#qty', w).oninput = prev; prev();
   w.addEventListener('click', (e) => { const g = e.target.closest('[data-g]'); if (g) { $('#qty', w).value = g.dataset.g; prev(); } });
   $('#qadd', w).onclick = async () => {
     const m = k(), q = +$('#qty', w).value;
-    await food.put({ id: uid('f'), date, meal: $('#qmeal', w).value, name: f.name, grams: isRecipe ? (f.gpp ? Math.round(f.gpp * q) : null) : q, portions: isRecipe ? q : null,
+    await food.put({ id: uid('f'), date, meal: $('#qmeal', w).value, time: $('#qtime', w).value || null, name: f.name, grams: isRecipe ? (f.gpp ? Math.round(f.gpp * q) : null) : q, portions: isRecipe ? q : null,
       kcal: Math.round(f.kcal * m), p: +(f.p * m).toFixed(1), c: +(f.c * m).toFixed(1), f: +(f.f * m).toFixed(1), src: f.src, per100: isRecipe ? null : { kcal: f.kcal, p: f.p, c: f.c, f: f.f, brand: f.brand || '', src: f.src } });
     toast(`${f.name} ajouté`); w.close(); parent?.close();
   };
@@ -236,8 +237,9 @@ export function foodReview(items, comment, meal = guessMeal(), rerender, date = 
     <div id="rv"></div>
     ${comment ? `<p class="small muted">${esc(comment)}</p>` : ''}
     <p class="small muted">Corrige les grammes si besoin : les calories suivent.</p>
-    <label class="field">Repas<select id="fm">${MEALS.map(([k, l]) => `<option value="${k}" ${k === meal ? 'selected' : ''}>${l}</option>`).join('')}</select></label>
+    ${mealTimeFields(meal, defTime(date, meal), ['fm', 'ftm'])}
     <button class="btn block" id="fadd">Ajouter au journal</button>`, { onClose: rerender });
+  bindMealTime(w, ['fm', 'ftm']);
   const scaled = (i) => { const k = i.g0 ? (+i.grams || 0) / i.g0 : 1; return { kcal: i.kcal * k, protein: i.protein * k, carbs: i.carbs * k, fat: i.fat * k }; };
   const draw = () => {
     const tot = base.reduce((a, i) => a + scaled(i).kcal, 0);
@@ -248,7 +250,7 @@ export function foodReview(items, comment, meal = guessMeal(), rerender, date = 
   $('#rv', w).addEventListener('change', (e) => { const n = e.target.dataset.n; if (n != null) { base[+n].grams = +e.target.value; draw(); } });
   $('#rv', w).addEventListener('click', (e) => { const b = e.target.closest('[data-rm]'); if (b) { base.splice(+b.dataset.rm, 1); draw(); } });
   $('#fadd', w).onclick = async () => {
-    for (const i of base) { const s = scaled(i); await food.put({ id: uid('f'), date, meal: $('#fm', w).value, name: i.name, grams: i.grams || null, kcal: Math.round(s.kcal), p: +s.protein.toFixed(1), c: +s.carbs.toFixed(1), f: +s.fat.toFixed(1), src: 'photo' }); }
+    for (const i of base) { const s = scaled(i); await food.put({ id: uid('f'), date, meal: $('#fm', w).value, time: $('#ftm', w).value || null, name: i.name, grams: i.grams || null, kcal: Math.round(s.kcal), p: +s.protein.toFixed(1), c: +s.carbs.toFixed(1), f: +s.fat.toFixed(1), src: 'photo' }); }
     w.close(); toast('Ajouté au journal ✓');
   };
 }
@@ -480,15 +482,21 @@ export async function onNutritionAction(act, el, rerender) {
     const e = await food.get(el.dataset.id);
     const w = sheet(`<h3>${esc(e.name)}</h3><p class="muted">${Math.round(e.kcal)} kcal · P ${num(e.p)} · G ${num(e.c)} · L ${num(e.f)}</p>
       ${e.per100 ? `<label class="field">Quantité (g)<input type="number" id="eg" value="${e.grams}"></label>` : ''}
-      <div class="row gap"><button class="btn ghost danger grow" id="edel">Supprimer</button>${e.per100 ? '<button class="btn grow" id="esave">Enregistrer</button>' : ''}</div>`, { onClose: rerender });
+      ${mealTimeFields(e.meal, e.time || '', ['emeal', 'etime'])}
+      <div class="row gap"><button class="btn ghost danger grow" id="edel">Supprimer</button><button class="btn grow" id="esave">Enregistrer</button></div>`, { onClose: rerender });
+    bindMealTime(w, ['emeal', 'etime']); $('#etime', w).dataset.touched = '1';
     $('#edel', w).onclick = async () => { await food.del(e.id); for (const pl of Object.values(S.plan)) if (pl.done === e.id) pl.done = null; await kv.set('plan', S.plan); w.close(); };
-    if (e.per100) $('#esave', w).onclick = async () => { const g = +$('#eg', w).value || 0, m = g / 100, b = e.per100; Object.assign(e, { grams: g, kcal: Math.round(b.kcal * m), p: +(b.p * m).toFixed(1), c: +(b.c * m).toFixed(1), f: +(b.f * m).toFixed(1) }); await food.put(e); w.close(); };
+    $('#esave', w).onclick = async () => {
+      if (e.per100) { const g = +$('#eg', w).value || 0, m = g / 100, b = e.per100; Object.assign(e, { grams: g, kcal: Math.round(b.kcal * m), p: +(b.p * m).toFixed(1), c: +(b.c * m).toFixed(1), f: +(b.f * m).toFixed(1) }); }
+      e.meal = $('#emeal', w).value; e.time = $('#etime', w).value || null;
+      await food.put(e); w.close();
+    };
   }
 }
 
 // Utilisé par le coach
 export async function addFoodItems(items, meal = guessMeal(), date = today()) {
-  for (const it of items) await food.put({ id: uid('f'), date, meal, name: it.name, grams: it.grams || null, kcal: Math.round(it.kcal), p: +it.protein || 0, c: +it.carbs || 0, f: +it.fat || 0, src: 'claude' });
+  for (const it of items) await food.put({ id: uid('f'), date, meal, time: defTime(date, meal), name: it.name, grams: it.grams || null, kcal: Math.round(it.kcal), p: +it.protein || 0, c: +it.carbs || 0, f: +it.fat || 0, src: 'claude' });
 }
 
 // ————— Tâches en attente (salle sans réseau) —————
@@ -504,5 +512,5 @@ registerHandler('photo', async (t) => {
   if (!S.settings.apiKey) throw new Error('clé API absente');
   const data = await structured(PHOTO_PROMPT + (t.desc ? ' Précisions : ' + t.desc : ''), FOOD_SCHEMA, await contextText({ days: 3 }), { images: [t.img], effort: 'medium' });
   await food.del(t.foodId);
-  for (const i of data.items) await food.put({ id: uid('f'), date: t.date, meal: t.meal, name: i.name, grams: i.grams || null, kcal: Math.round(i.kcal), p: +(+i.protein).toFixed(1), c: +(+i.carbs).toFixed(1), f: +(+i.fat).toFixed(1), src: 'photo' });
+  for (const i of data.items) await food.put({ id: uid('f'), date: t.date, meal: t.meal, time: t.time || null, name: i.name, grams: i.grams || null, kcal: Math.round(i.kcal), p: +(+i.protein).toFixed(1), c: +(+i.carbs).toFixed(1), f: +(+i.fat).toFixed(1), src: 'photo' });
 });
