@@ -41,6 +41,18 @@ d'affirmation sans source.
    - **Points de vigilance** : sites inaccessibles, informations à vérifier.
 5. **Envoyer** : envoyer le rapport par Gmail à Maisoncorsaire.rhum@gmail.com,
    objet « Veille Maison Corsaire — semaine du JJ/MM ».
+6. **Bilan du mois** (uniquement le dernier lundi du mois, c'est-à-dire quand
+   le lundi suivant tombe le mois d'après) : lancer `python corentin.py month`
+   pour récupérer toutes les observations des 31 derniers jours, puis envoyer
+   un second e-mail, objet « Veille Maison Corsaire — bilan de MOIS AAAA » :
+   - **Le mois en 5 points** : les faits les plus marquants.
+   - **Tableau des prix** : les prix relevés par concurrent et par produit.
+   - **Tendances** : ce qui revient chez plusieurs concurrents (parfums,
+     formats, éditions limitées, circuits de vente).
+   - **Bilan par concurrent** : 2 ou 3 lignes chacun.
+   - **Recommandations du mois** : 3 actions concrètes pour Maison Corsaire,
+     classées par priorité.
+   - **À surveiller le mois prochain**.
 
 ## Règles
 - Ne jamais inventer d'information : chaque observation a une source.

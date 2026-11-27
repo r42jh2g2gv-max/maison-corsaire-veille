@@ -354,6 +354,10 @@ def main(argv):
         print(collect())
     elif command == "report":
         print(weekly_report())
+    elif command == "month":
+        print(weekly_report(days=31).replace(
+            "# Veille concurrentielle Maison Corsaire",
+            "# Bilan mensuel — veille Maison Corsaire", 1))
     elif command == "competitors":
         try:
             for competitor in competitors():
