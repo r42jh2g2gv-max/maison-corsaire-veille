@@ -2,8 +2,10 @@
 import { S, loadState, esc, $, $$, toast, sheet, confirmBox, targets, today, num, fmtDate, ACTIVITY, unlockAudio, exById, GOALS, WEEKDAYS, defaultTrainingDays } from './ui.js';
 import { healthCard, importFromClipboard, runShortcut, exportDayText, SHORTCUT_GUIDE, SC_IN, SC_OUT } from './health.js';
 import { kv, body, food, exportAll, importAll, wipe } from './db.js';
-import { generateProgram, weekInfo, applyBlock } from './data.js';
-import { renderTrain, onTrainAction, onTrainChange, renderSession, onSessionAction, onSessionInput, allSessions, stopRest, adjustRest, prescription } from './train.js';
+import { generateProgram, weekInfo, applyBlock, dayForDate, dayMinutes, WEEKDAY_LONG } from './data.js';
+import { initOffline } from './offline.js';
+import { PRICES } from './claude.js';
+import { chronoSheet, renderTrain, onTrainAction, onTrainChange, renderSession, onSessionAction, onSessionInput, allSessions, stopRest, adjustRest, prescription } from './train.js';
 import { renderProgress, onProgressAction, onProgressChange } from './progress.js';
 import { renderNutrition, onNutritionAction } from './nutrition.js';
 import { renderCoach, onCoachAction, onCoachChange, onCoachSubmit } from './coach.js';
@@ -81,7 +83,16 @@ async function renderHome(view) {
   const ws = new Date(); ws.setHours(0, 0, 0, 0); ws.setDate(ws.getDate() - ((ws.getDay() + 6) % 7));
   const thisWeek = list.filter(s => new Date(s.date) >= ws);
   const doneIds = new Set(thisWeek.map(s => s.dayId));
-  const next = S.program?.days.find(d => !doneIds.has(d.id)) || S.program?.days[0];
+  const scheduled = S.program?.days.some(d => d.weekday != null);
+  const todayDay = dayForDate(S.program);
+  let next = todayDay || S.program?.days.find(d => !doneIds.has(d.id)) || S.program?.days[0];
+  let nextLabel = todayDay ? 'Séance du jour' : 'Prochaine séance';
+  if (scheduled && !todayDay) {
+    const wd = (new Date().getDay() + 6) % 7;
+    const up = [...S.program.days].filter(d => d.weekday != null).sort((a, b) => ((a.weekday - wd + 7) % 7) - ((b.weekday - wd + 7) % 7))[0];
+    if (up) { next = up; nextLabel = `Repos aujourd’hui · prochaine : ${WEEKDAY_LONG[up.weekday].toLowerCase()}`; }
+  }
+  const doneToday = todayDay && thisWeek.some(s => s.dayId === todayDay.id && new Date(s.date).toDateString() === new Date().toDateString());
   const todayFood = (await food.all()).filter(f => f.date === today());
   const kcal = todayFood.reduce((a, f) => a + (+f.kcal || 0), 0), prot = todayFood.reduce((a, f) => a + (+f.p || 0), 0);
   const bodies = (await body.all()).sort((a, b) => a.date.localeCompare(b.date));
@@ -93,8 +104,9 @@ async function renderHome(view) {
     <h1>${h < 12 ? 'Bonjour' : h < 18 ? 'Salut' : 'Bonsoir'} ${esc(p.name || '')} 👊</h1></section>
   ${S.active ? `<a class="card resume" href="#/seance"><b>▶ Reprendre la séance</b><span>${esc(S.active.name)}</span></a>` : ''}
   ${next ? `<section class="card next">
-    <div class="eyebrow">Prochaine séance · Semaine ${info.week} · ${info.phase}</div>
-    <h2>${esc(next.name)}</h2>
+    <div class="eyebrow">${nextLabel} · Semaine ${info.week} · ${info.phase}</div>
+    <h2>${esc(next.name)}${doneToday ? ' ✓' : ''}</h2>
+    <div class="muted small">≈ ${dayMinutes(next)} min · ${next.items.length} exercices</div>
     <ul class="exlist">${next.items.slice(0, 6).map(it => `<li><span>${esc(exById(it.exId).name)}</span><small>${prescription(applyBlock(it, info))}</small></li>`).join('')}</ul>
     <button class="btn block" data-act="start" data-id="${next.id}">Démarrer maintenant</button>
   </section>` : ''}
@@ -134,7 +146,8 @@ function welcome() {
 }
 
 // ————— Profil & réglages —————
-function renderProfile(view) {
+async function renderProfile(view) {
+  S.usage = (await kv.get('usage')) || {};
   const p = S.profile || { sex: 'h', age: 30, height: 178, weight: 80, goal: 'recompo', level: 'inter', days: 4, equipment: 'salle', activity: 1.45 };
   const st = S.settings;
   const sel = (name, opts, val) => `<select name="${name}">${opts.map(([k, l]) => `<option value="${k}" ${String(k) === String(val) ? 'selected' : ''}>${l}</option>`).join('')}</select>`;
@@ -158,15 +171,22 @@ function renderProfile(view) {
     <div class="grid2"><label class="mini">Poids cible kg<input type="number" step="0.1" name="goalWeight" value="${p.goalWeight || ''}"></label><label class="mini">% MG cible<input type="number" step="0.1" name="goalBF" value="${p.goalBF || ''}"></label></div>
     <h3>Entraînement</h3>
     <div class="grid2">
-      <label class="mini">Séances / semaine${sel('days', [[2, '2'], [3, '3'], [4, '4'], [5, '5'], [6, '6']], p.days)}</label>
+      <label class="mini">Temps max par séance${sel('sessionMinutes', [[30, '30 min'], [45, '45 min'], [60, '1 h'], [75, '1 h 15'], [90, '1 h 30'], [120, '2 h']], p.sessionMinutes || 60)}</label>
       <label class="mini">Matériel${sel('equipment', [['salle', 'Salle de sport'], ['maison', 'Maison (haltères, barre de traction)'], ['pdc', 'Poids du corps']], p.equipment)}</label>
     </div>
-    <div class="field">Jours d’entraînement<div class="wdays">${WEEKDAYS.map((d, i) => `<label><input type="checkbox" name="td" value="${i}" ${(p.trainingDays?.length ? p.trainingDays : defaultTrainingDays(+p.days || 4)).includes(i) ? 'checked' : ''}><span>${d}</span></label>`).join('')}</div></div>
+    <div class="field">Jours d’entraînement (le programme suit ces jours)<div class="wdays">${WEEKDAYS.map((d, i) => `<label><input type="checkbox" name="td" value="${i}" ${(p.trainingDays?.length ? p.trainingDays : defaultTrainingDays(+p.days || 4)).includes(i) ? 'checked' : ''}><span>${d}</span></label>`).join('')}</div></div>
     <label class="field">Activité quotidienne${sel('activity', Object.entries(ACTIVITY), p.activity)}</label>
     <label class="field">Notes pour le coach (blessures, préférences…)<textarea name="notes" rows="2">${esc(p.notes || '')}</textarea></label>
     <button class="btn block" data-act="psave">${S.profile ? 'Enregistrer' : 'Créer mon programme'}</button>
     ${S.profile ? '<button class="btn ghost block" data-act="pregen">Enregistrer et régénérer le programme</button>' : ''}
   </form>
+
+  <section class="card"><h2>⏱ Temps de repos</h2>
+    <label class="check-row"><input type="checkbox" data-act="set-restAuto" ${st.restAuto !== false ? 'checked' : ''}> Lancer le repos automatiquement quand je valide une série</label>
+    <label class="check-row"><input type="checkbox" data-act="set-restSound" ${st.restSound !== false ? 'checked' : ''}> Bip (décompte 3-2-1 et fin du repos)</label>
+    <label class="check-row"><input type="checkbox" data-act="set-restVibe" ${st.restVibe !== false ? 'checked' : ''}> Vibration (Android ; l’iPhone ne vibre pas depuis une app web)</label>
+    <p class="muted small">Le temps de repos de chaque exercice se règle dans Entraînement → ✎ Modifier. Le bouton ⏱ en haut de l’écran ouvre un minuteur et un chronomètre à tout moment. L’écran reste allumé pendant la séance.</p>
+  </section>
 
   <section class="card"><h2>Claude</h2>
     <p class="small"><b>Avec ton abonnement Claude</b> : rien à configurer. Dans l’onglet Coach, FORGE copie tes données ; tu les colles dans l’app Claude.</p>
@@ -174,6 +194,7 @@ function renderProfile(view) {
     <label class="field">Clé API<input type="password" id="apikey" placeholder="sk-ant-…" value="${esc(st.apiKey || '')}" autocomplete="off"></label>
     <label class="field">Modèle<select id="model">${[['claude-opus-5-5', 'Claude Opus 5.5 (recommandé)'], ['claude-sonnet-5-5', 'Claude Sonnet 5.5 (moins cher)'], ['claude-haiku-5-5', 'Claude Haiku 5.5 (très économique)']].map(([k, l]) => `<option value="${k}" ${k === (st.model || 'claude-opus-5-5') ? 'selected' : ''}>${l}</option>`).join('')}</select></label>
     <button class="btn ghost block" data-act="savekey">Enregistrer</button>
+    ${costBlock()}
   </section>
 
   <section class="card" id="watch"><h2>⌚ Apple Watch & Apple Santé</h2>
@@ -204,9 +225,11 @@ function renderProfile(view) {
 function readProfile() {
   const f = $('#pform'); const o = {};
   for (const el of f.elements) { if (!el.name || el.type === 'checkbox') continue; o[el.name] = el.type === 'number' ? (el.value === '' ? null : +el.value) : el.value; }
-  o.days = +o.days; o.activity = +o.activity;
+  o.activity = +o.activity; o.sessionMinutes = +o.sessionMinutes || 60;
   o.carbCycle = f.elements.carbCycle.checked;
   o.trainingDays = $$('input[name=td]:checked', f).map(x => +x.value);
+  if (!o.trainingDays.length) o.trainingDays = defaultTrainingDays(+(S.profile?.days) || 4);
+  o.days = o.trainingDays.length;
   return { ...(S.profile || {}), ...o }; // conserve les réglages hors formulaire
 }
 
@@ -216,7 +239,6 @@ async function onProfileAction(act, el) {
     if (!p.age || !p.height || !p.weight) return toast('Âge, taille et poids sont nécessaires');
     const isNew = !S.profile;
     S.profile = p; await kv.set('profile', p);
-    if (!p.trainingDays.length) p.trainingDays = defaultTrainingDays(p.days);
     if (isNew) await body.put({ id: 'b' + Date.now().toString(36), date: today(), weight: p.weight, bf: p.bodyfat || null, lean: p.bodyfat ? Math.round(p.weight * (1 - p.bodyfat / 100) * 10) / 10 : null });
     if (!S.program || act === 'pregen') {
       if (act === 'pregen' && !(await confirmBox('Remplacer ton programme par un nouveau généré depuis ce profil ?', 'Régénérer'))) return;
@@ -255,7 +277,18 @@ async function onProfileAction(act, el) {
   }
 }
 
+function costBlock() {
+  const m = new Date().toISOString().slice(0, 7), u = S.usage?.[m];
+  const row = (id, label) => { const p = PRICES[id]; return `<div class="tr"><span>${label}</span><b>${p[0]} $ / ${p[1]} $</b><small>${id === 'claude-haiku-5-5' ? '< 0,01 $' : id === 'claude-sonnet-5-5' ? '~0,01–0,02 $' : '~0,02–0,04 $'}</small></div>`; };
+  return `<h3 class="sec">Combien ça coûte ?</h3>
+    <div class="table"><div class="tr"><span><small>Modèle</small></span><b><small>entrée / sortie par million de tokens</small></b><small>par photo ou message</small></div>
+    ${row('claude-opus-5-5', 'Opus 5.5')}${row('claude-sonnet-5-5', 'Sonnet 5.5')}${row('claude-haiku-5-5', 'Haiku 5.5')}</div>
+    <p class="muted small">Une adaptation complète du programme coûte environ 0,10 à 0,25 $ avec Opus. Usage typique (2 photos par jour + quelques questions) : ~3 à 5 $/mois avec Opus, ~1,5 à 3 $ avec Sonnet, quelques centimes avec Haiku. Crédits prépayés sur console.anthropic.com, avec une limite de dépense que tu fixes toi-même.</p>
+    <p class="small"><b>Ce mois-ci :</b> ${u ? `${u.n} requête${u.n > 1 ? 's' : ''} · ~${u.cost.toFixed(2).replace('.', ',')} $` : 'aucune requête'}</p>`;
+}
+
 async function onProfileChange(act, el) {
+  if (act?.startsWith('set-')) { S.settings[act.slice(4)] = el.checked; await kv.set('settings', S.settings); toast('Réglage enregistré'); return; }
   if (el.id === 'usewatch') { if (!S.profile) return; S.profile.useWatch = el.checked; await kv.set('profile', S.profile); toast(el.checked ? 'Calories calées sur ta montre (une fois synchronisée)' : 'Calories calculées depuis ton profil'); return; }
   if (act === 'import' && el.files[0]) {
     try { await importAll(JSON.parse(await el.files[0].text())); await loadState(); toast('Sauvegarde restaurée ✓'); render(); }
@@ -281,11 +314,14 @@ function healthSync() {
 // ————— Démarrage —————
 (async () => {
   await loadState();
+  $('#chronoBtn').onclick = () => chronoSheet();
+  window.addEventListener('forge:refresh', () => { if (!document.querySelector('.sheet-wrap')) render(); });
   if (location.hash.startsWith('#/seance') && !S.active) location.hash = '#/';
   await render();
   $('#splash')?.remove();
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => { });
   if (navigator.storage?.persist) navigator.storage.persist().catch(() => { });
+  initOffline();
 })();
 
 // l'accueil réutilise l'action « démarrer » de l'entraînement

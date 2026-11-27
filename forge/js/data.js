@@ -134,19 +134,28 @@ const DAY_TEMPLATES = {
   lower_hyper: { name: 'Bas du corps — Volume + Endurance', focus: 'Muscle & endurance', slots: [['hinge_h', 'hyper'], ['squat_h', 'hyper'], ['glute', 'hyper'], ['hamcurl', 'iso'], ['calf', 'iso'], ['z2', 'cardio']] },
   full_force: { name: 'Full body — Force', focus: 'Force', slots: [['squat_f', 'force'], ['hpush_f', 'force'], ['hpull_f', 'force'], ['hinge_h', 'hyper'], ['core1', 'core']] },
   full_hyper: { name: 'Full body — Volume + HIIT', focus: 'Muscle & tonus', slots: [['single', 'hyper'], ['hpush_h', 'hyper'], ['vpull_h', 'hyper'], ['lateral', 'iso'], ['biceps2', 'iso'], ['triceps', 'iso'], ['hiit', 'hiit']] },
+  full_c: { name: 'Full body — Métabolique', focus: 'Force & cardio', slots: [['hinge_f', 'force'], ['hpush_h', 'hyper'], ['hpull_h', 'hyper'], ['single', 'hyper'], ['core3', 'core'], ['metcon', 'hiit']] },
+  push: { name: 'Push — Pecs, épaules, triceps', focus: 'Muscle', slots: [['hpush_f', 'force'], ['vpush_h', 'hyper'], ['hpush_h', 'hyper'], ['lateral', 'iso'], ['triceps', 'iso'], ['hiit', 'hiit']] },
+  pull: { name: 'Pull — Dos, biceps', focus: 'Muscle', slots: [['vpull_f', 'force'], ['hpull_f', 'hyper'], ['vpull_h', 'hyper'], ['rear', 'iso'], ['biceps', 'iso'], ['biceps2', 'iso'], ['core1', 'core']] },
+  legs: { name: 'Legs — Jambes, fessiers', focus: 'Force & muscle', slots: [['squat_f', 'force'], ['hinge_h', 'hyper'], ['single', 'hyper'], ['hamcurl', 'iso'], ['calf', 'iso'], ['core2', 'core']] },
   cardio_z2: { name: 'Endurance zone 2 + Gainage', focus: 'Cardio & endurance', slots: [['z2_long', 'cardio'], ['core3', 'core'], ['core2', 'core']] },
+  hiit_day: { name: 'HIIT + Gainage', focus: 'Cardio & sèche', slots: [['hiit', 'hiit'], ['metcon', 'hiit'], ['core1', 'core'], ['core2', 'core'], ['z2', 'cardio']] },
   conditioning: { name: 'Conditioning — Circuit métabolique', focus: 'Cardio & sèche', slots: [['metcon', 'hiit'], ['single', 'hyper'], ['pushup_any', 'hyper'], ['rear', 'iso'], ['rope', 'cardio'], ['core1', 'core']] },
   arms_shoulders: { name: 'Épaules & bras — Pump', focus: 'Tonus', slots: [['vpush_h', 'hyper'], ['lateral', 'iso'], ['rear', 'iso'], ['fly', 'iso'], ['biceps2', 'iso'], ['triceps', 'iso'], ['z2', 'cardio']] },
 };
 SLOT.pushup_any = ['pushup', 'decline_pushup'];
 
-const SPLITS = {
-  2: ['full_force', 'full_hyper'],
-  3: ['full_force', 'full_hyper', 'cardio_z2'],
-  4: ['upper_force', 'lower_force', 'upper_hyper', 'lower_hyper'],
-  5: ['upper_force', 'lower_force', 'cardio_z2', 'upper_hyper', 'lower_hyper'],
-  6: ['upper_force', 'lower_force', 'conditioning', 'upper_hyper', 'lower_hyper', 'cardio_z2'],
+// Programmes prédéfinis : liste de séances selon le nombre de jours.
+export const PRESETS = {
+  hybride: { label: 'Hybride complet', desc: 'Force + muscle + HIIT + endurance. Le plus polyvalent pour un corps complet.', split: (n) => ({ 1: ['full_c'], 2: ['full_force', 'full_hyper'], 3: ['full_force', 'full_hyper', 'cardio_z2'], 4: ['upper_force', 'lower_force', 'upper_hyper', 'lower_hyper'], 5: ['upper_force', 'lower_force', 'cardio_z2', 'upper_hyper', 'lower_hyper'], 6: ['upper_force', 'lower_force', 'conditioning', 'upper_hyper', 'lower_hyper', 'cardio_z2'], 7: ['upper_force', 'lower_force', 'conditioning', 'upper_hyper', 'lower_hyper', 'cardio_z2', 'hiit_day'] })[n] },
+  fullbody: { label: 'Full body', desc: 'Tout le corps à chaque séance. Idéal avec 2 à 3 jours ou peu de temps.', split: (n) => Array.from({ length: n }, (_, i) => ['full_force', 'full_hyper', 'full_c'][i % 3]) },
+  upperlower: { label: 'Haut / Bas', desc: 'Haut du corps et bas du corps en alternance. Excellent pour la force et le muscle.', split: (n) => Array.from({ length: n }, (_, i) => ['upper_force', 'lower_force', 'upper_hyper', 'lower_hyper', 'cardio_z2', 'conditioning', 'hiit_day'][i]) },
+  ppl: { label: 'Push / Pull / Legs', desc: 'Pousser, tirer, jambes. Pour maximiser la prise de muscle avec 3 ou 6 jours.', split: (n) => n <= 2 ? ['full_force', 'full_hyper'].slice(0, n) : Array.from({ length: n }, (_, i) => ['push', 'pull', 'legs', 'push', 'pull', 'legs', 'cardio_z2'][i]) },
+  seche: { label: 'Sèche / brûle-graisse', desc: 'Musculation pour garder le muscle + beaucoup de cardio et de circuits.', split: (n) => ['full_force', 'conditioning', 'full_hyper', 'cardio_z2', 'hiit_day', 'lower_hyper', 'cardio_z2'].slice(0, n) },
+  endurance: { label: 'Endurance + renfo', desc: 'Priorité cardio (course, vélo, rameur) avec 2 séances de renforcement.', split: (n) => ['cardio_z2', 'full_force', 'hiit_day', 'cardio_z2', 'full_hyper', 'cardio_z2', 'hiit_day'].slice(0, n) },
 };
+
+export const WEEKDAY_LONG = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche'];
 
 export const exById = (id, custom = []) => EXERCISES.find(e => e.id === id) || custom.find(e => e.id === id);
 
@@ -175,23 +184,83 @@ export function makeItem(ex, role) {
   return { ...base, sets: r.sets, repMin: r.repMin, repMax: r.repMax, rest: r.rest };
 }
 
-export function generateProgram(profile) {
-  const days = Math.min(6, Math.max(2, Number(profile.days) || 4));
+// ————— Durée estimée —————
+export function itemMinutes(it) {
+  if (it.role === 'cardio') return +it.minutes || 0;
+  if (it.role === 'hiit') return ((+it.rounds || 0) * ((+it.work || 0) + (+it.restWork || 0))) / 60 + 1;
+  const sets = +it.sets || 0;
+  const work = it.secs ? +it.secs : (((+it.repMin || 8) + (+it.repMax || 12)) / 2) * 3.5;
+  return (sets * (work + (+it.rest || 60))) / 60 + (it.role === 'force' ? 2.5 : 1); // + séries d'approche / installation
+}
+export const WARMUP = 7;
+export const dayMinutes = (day) => Math.round(WARMUP + day.items.reduce((a, it) => a + itemMinutes(it), 0));
+
+// Ajuste une séance pour tenir dans le temps maximum.
+function fitDay(items, budget, isCardioDay, goal) {
+  const est = () => WARMUP + items.reduce((a, it) => a + itemMinutes(it), 0);
+  if (isCardioDay) {
+    const other = items.filter(i => i.role !== 'cardio').reduce((a, it) => a + itemMinutes(it), 0);
+    const c = items.find(i => i.role === 'cardio');
+    if (c) c.minutes = Math.max(15, Math.min(75, Math.round((budget - WARMUP - other) / 5) * 5));
+    while (est() > budget && items.filter(i => i.role === 'core').length > 1) items.splice(items.findLastIndex(i => i.role === 'core'), 1);
+    return items;
+  }
+  if (budget <= 40) for (const i of items) { // séance express : repos courts, enchaînements
+    if (i.role === 'force') { i.sets = Math.min(i.sets, 3); i.rest = 90; }
+    if (i.role === 'hyper' || i.role === 'iso') { i.sets = Math.min(i.sets, 3); i.rest = 50; }
+    if (i.role === 'core') i.rest = 30;
+  }
+  const steps = [
+    () => { const c = items.find(i => i.role === 'cardio' && i.minutes > 8); if (c) { c.minutes = Math.max(8, c.minutes - 5); return true; } },
+    () => { const h = items.find(i => i.role === 'hiit' && i.rounds > 6); if (h) { h.rounds -= 2; return true; } },
+    () => { if (items.filter(i => i.role === 'iso').length > 1) { items.splice(items.findLastIndex(i => i.role === 'iso'), 1); return true; } },
+    () => { const x = items.find(i => (i.role === 'hyper' || i.role === 'iso') && i.rest > 60); if (x) { x.rest -= 15; return true; } },
+    () => { const x = items.find(i => i.role === 'force' && i.rest > 120); if (x) { x.rest -= 30; return true; } },
+    () => { const x = items.find(i => (i.role === 'hyper' || i.role === 'iso' || i.role === 'core') && i.sets > 2); if (x) { x.sets--; return true; } },
+    () => { const c = items.find(i => i.role === 'cardio'); if (c) { items.splice(items.indexOf(c), 1); return true; } },
+    () => { if (items.filter(i => i.role === 'core').length > 0 && items.length > 3) { items.splice(items.findLastIndex(i => i.role === 'core'), 1); return true; } },
+    () => { const x = items.find(i => i.role === 'force' && i.sets > 3); if (x) { x.sets--; return true; } },
+    () => { const h = items.find(i => i.role === 'hiit' && i.rounds > 4); if (h) { h.rounds -= 2; return true; } },
+    () => { if (budget <= 40) { const x = items.find(i => i.sets > 2); if (x) { x.sets--; return true; } } },
+    () => { if (items.length > 2) { const i = items.findLastIndex(x => x.role !== 'force'); items.splice(i >= 0 ? i : items.length - 1, 1); return true; } },
+  ];
+  let guard = 0;
+  while (est() > budget && guard++ < 200) { if (!steps.some(s => s())) break; }
+  // du temps en plus : on enrichit (séries, finisher cardio)
+  guard = 0;
+  while (budget - est() >= 6 && guard++ < 20) {
+    const x = items.find(i => (i.role === 'hyper' && i.sets < 4) || (i.role === 'force' && i.sets < 5));
+    if (x && budget - est() >= 4) { x.sets++; continue; }
+    const c = items.find(i => i.role === 'cardio');
+    if (c && c.minutes < 30) { c.minutes += 5; continue; }
+    if (!c && budget - est() >= 10) { const ex = exById(goal === 'prise' ? 'brisk_walk' : 'incline_walk') || exById('brisk_walk'); items.push({ ...makeItem(ex, 'cardio'), minutes: Math.min(20, Math.floor((budget - est()) / 5) * 5) }); continue; }
+    break;
+  }
+  return items;
+}
+
+// opts : preset, minutes (durée max), trainingDays (jours de la semaine 0=lundi)
+export function generateProgram(profile, opts = {}) {
+  const tdays = (opts.trainingDays || profile.trainingDays || []).slice().sort((a, b) => a - b);
+  const n = Math.min(7, Math.max(1, tdays.length || Number(profile.days) || 4));
   const equipment = profile.equipment || 'salle';
   const level = profile.level || 'inter';
-  const split = SPLITS[days];
+  const presetId = opts.preset || profile.preset || 'hybride';
+  const preset = PRESETS[presetId] || PRESETS.hybride;
+  const budget = +(opts.minutes || profile.sessionMinutes || 60);
+  const split = preset.split(n) || PRESETS.hybride.split(n);
   const program = {
     id: 'p' + Date.now(),
-    name: `Hybride ${days} jours — ${equipment === 'salle' ? 'Salle' : equipment === 'maison' ? 'Maison' : 'Poids du corps'}`,
+    name: `${preset.label} · ${n} j · ${budget} min — ${equipment === 'salle' ? 'Salle' : equipment === 'maison' ? 'Maison' : 'Poids du corps'}`,
     created: new Date().toISOString(),
     startDate: new Date().toISOString().slice(0, 10),
-    weeks: 12,
+    weeks: 12, preset: presetId, minutes: budget, schedule: tdays.length ? tdays : null,
     days: [],
   };
   split.forEach((tpl, i) => {
     const t = DAY_TEMPLATES[tpl];
     const used = new Set();
-    const items = [];
+    let items = [];
     for (const [slot, role] of t.slots) {
       const ex = pick(slot, equipment, used);
       if (!ex) continue;
@@ -200,15 +269,23 @@ export function generateProgram(profile) {
       if (level === 'debutant' && item.sets) item.sets = Math.max(2, item.sets - 1);
       if (level === 'debutant' && role === 'force') { item.repMin = 6; item.repMax = 8; item.rest = 120; }
       if (level === 'avance' && role === 'hyper') item.sets = 4;
-      if (role === 'cardio' && tpl === 'cardio_z2') item.minutes = level === 'debutant' ? 30 : level === 'avance' ? 50 : 40;
       if (role === 'cardio' && tpl !== 'cardio_z2') item.minutes = 15;
       if (tpl === 'conditioning' && role === 'cardio') item.minutes = 8;
-      if (profile.goal === 'seche' && role === 'cardio') item.minutes += 5;
+      if ((profile.goal === 'seche' || profile.goal === 'perte') && role === 'cardio') item.minutes += 5;
       items.push(item);
     }
-    program.days.push({ id: 'd' + i + '_' + Date.now().toString(36), name: `J${i + 1} · ${t.name}`, focus: t.focus, items });
+    items = fitDay(items, budget, tpl === 'cardio_z2', profile.goal);
+    const wd = tdays[i];
+    program.days.push({ id: 'd' + i + '_' + Date.now().toString(36), name: `${wd != null ? WEEKDAY_LONG[wd] : 'J' + (i + 1)} · ${t.name}`, focus: t.focus, items, weekday: wd ?? null });
   });
   return program;
+}
+
+// Séance prévue un jour donné (selon les jours de la semaine du programme).
+export function dayForDate(program, date = new Date()) {
+  if (!program) return null;
+  const wd = (date.getDay() + 6) % 7;
+  return program.days.find(d => d.weekday === wd) || null;
 }
 
 // Périodisation 12 semaines : 3 blocs de 4 semaines, la 4e = décharge.

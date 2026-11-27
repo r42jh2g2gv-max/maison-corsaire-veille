@@ -1,7 +1,7 @@
 // FORGE — programme, séance en direct, minuteurs de repos et d'intervalles, historique.
 import { S, esc, $, $$, exById, saveProgram, archiveProgram, WEEKDAYS, saveActive, toast, sheet, confirmBox, beep, unlockAudio, fmtTime, fmtDur, fmtDate, num, round, e1rm, sessionKcal } from './ui.js';
 import { sessions, kv, uid } from './db.js';
-import { EXERCISES, MUSCLES, makeItem, weekInfo, applyBlock, generateProgram } from './data.js';
+import { EXERCISES, MUSCLES, makeItem, weekInfo, applyBlock, generateProgram, PRESETS, dayMinutes, WEEKDAY_LONG } from './data.js';
 import { hr, parseActivity } from './devices.js';
 
 const ROLE_LABEL = { force: 'Force', hyper: 'Hypertrophie', iso: 'Isolation', core: 'Gainage', cardio: 'Cardio', hiit: 'HIIT' };
@@ -57,7 +57,7 @@ function lastText(last) {
 // ————— Écran Entraînement —————
 export async function renderTrain(view) {
   if (!S.program) {
-    view.innerHTML = `<section class="card hero"><h2>Pas encore de programme</h2><p>Complète ton profil pour générer ton programme hybride sur mesure.</p><a class="btn" href="#/profil">Créer mon profil</a>${S.programs?.length ? '<button class="btn ghost block" data-act="programs">📚 Mes programmes</button>' : ''}</section>`;
+    view.innerHTML = `<section class="card hero"><h2>Pas encore de programme</h2><p>Complète ton profil pour générer ton programme hybride sur mesure.</p>${S.profile ? '<button class="btn block" data-act="catalog">📋 Choisir un programme prédéfini</button>' : '<a class="btn" href="#/profil">Créer mon profil</a>'}${S.programs?.length ? '<button class="btn ghost block" data-act="programs">📚 Mes programmes</button>' : ''}</section>`;
     return;
   }
   const info = weekInfo(S.program);
@@ -70,13 +70,13 @@ export async function renderTrain(view) {
     <div class="row between"><div><div class="eyebrow">Semaine ${info.week} / ${info.total} · Bloc ${info.block}</div><h2>${esc(S.program.name)}</h2></div>
     <button class="icon-btn" data-act="prog-menu" aria-label="Réglages du programme">⚙︎</button></div>
     <div class="phase ${info.deload ? 'deload' : ''}">${info.phase}${info.off ? ' — tes séries et reps, sans cycle automatique' : info.deload ? ' — semaine allégée pour récupérer' : info.block === 1 ? ' — on construit le volume' : info.block === 2 ? ' — charges plus lourdes, moins de reps' : ' — on exprime la force et la forme'}</div>
-    <div class="row gap wrap prog-actions"><button class="btn sm ghost grow" data-act="programs">📚 Mes programmes</button><button class="btn sm ghost grow" data-act="prog-menu">✎ Modifier</button><a class="btn sm ghost grow" href="#/coach">🤖 Adapter</a></div>
+    <div class="row gap wrap prog-actions"><button class="btn sm grow" data-act="catalog">📋 Prédéfinis</button><button class="btn sm ghost grow" data-act="programs">📚 Mes programmes</button><button class="btn sm ghost grow" data-act="prog-menu">✎ Modifier</button><a class="btn sm ghost grow" href="#/coach">🤖 Adapter</a></div>
     <div class="weekbar">${Array.from({ length: info.total }, (_, i) => `<i class="${i + 1 < info.week ? 'past' : i + 1 === info.week ? 'now' : ''} ${(i + 1) % 4 === 0 ? 'dl' : ''}"></i>`).join('')}</div>
   </section>
   <h3 class="sec">Séances du programme</h3>
   ${S.program.days.map(d => `
     <section class="card day ${doneThisWeek.has(d.id) ? 'done' : ''}">
-      <div class="row between"><div><h3>${esc(d.name)}</h3><div class="muted">${esc(d.focus || '')} · ${d.items.length} exercices${doneThisWeek.has(d.id) ? ' · ✓ fait cette semaine' : ''}</div></div>
+      <div class="row between"><div><h3>${esc(d.name)}</h3><div class="muted">${esc(d.focus || '')} · ${d.items.length} exercices · ≈ ${dayMinutes(d)} min${doneThisWeek.has(d.id) ? ' · ✓ fait cette semaine' : ''}</div></div>
       <button class="btn sm ghost" data-act="edit-day" data-id="${d.id}">✎ Modifier</button></div>
       <ul class="exlist">${d.items.map(it => { const e = exById(it.exId); const b = applyBlock(it, info); return `<li><span>${esc(e.name)}</span><small>${prescription(b)}</small></li>`; }).join('')}</ul>
       <button class="btn block" data-act="start" data-id="${d.id}">Démarrer</button>
@@ -101,6 +101,7 @@ export async function onTrainAction(act, el, rerender) {
   }
   if (act === 'prog-menu') return programMenu(rerender);
   if (act === 'programs') return programsSheet(rerender);
+  if (act === 'catalog') return catalogSheet(rerender);
   if (act === 'hist') return showSession(el.dataset.id, rerender);
 }
 
@@ -130,7 +131,7 @@ function programMenu(rerender) {
     <button class="btn block" id="psave">Enregistrer</button>
     <hr>
     <button class="btn ghost block" id="pdup">⧉ Dupliquer ce programme</button>
-    <button class="btn ghost block" id="pregen">↻ Nouveau programme depuis mon profil</button>
+    <button class="btn ghost block" id="pregen">📋 Choisir un programme prédéfini</button>
     <button class="btn ghost block" id="pblank">＋ Programme vide (je construis tout)</button>
     <p class="muted small">L’ancien programme est rangé dans « Mes programmes » : tu peux y revenir à tout moment.</p>`, { onClose: rerender });
   const days = [...P.days];
@@ -150,7 +151,7 @@ function programMenu(rerender) {
   $('#pdup', w).onclick = async () => { await commit(); const copy = { ...JSON.parse(JSON.stringify(P)), id: uid('p'), name: P.name + ' (copie)', archived: new Date().toISOString() }; S.programs.unshift(copy); await kv.set('programs', S.programs); toast('Copie rangée dans Mes programmes'); };
   $('#pregen', w).onclick = async () => {
     if (!S.profile) return toast('Crée d’abord ton profil');
-    await commit(); await archiveProgram(); S.program = generateProgram(S.profile); await saveProgram(); w.close(); toast('Nouveau programme généré (l’ancien est dans Mes programmes)');
+    await commit(); w.close(); setTimeout(() => catalogSheet(rerender), 260);
   };
   $('#pblank', w).onclick = async () => {
     await commit(); await archiveProgram();
@@ -179,6 +180,40 @@ function programsSheet(rerender) {
     }
     if (b.dataset.ren) { const p = S.programs[+b.dataset.ren]; const n = prompt('Nouveau nom', p.name); if (n) { p.name = n; await kv.set('programs', S.programs); draw(); } }
     if (b.dataset.del) { if (await confirmBox('Supprimer ce programme ?', 'Supprimer')) { S.programs.splice(+b.dataset.del, 1); await kv.set('programs', S.programs); draw(); } }
+  };
+}
+
+// ————— Catalogue de programmes prédéfinis (selon temps max et jours) —————
+function catalogSheet(rerender) {
+  if (!S.profile) { toast('Crée d’abord ton profil'); location.hash = '#/profil'; return; }
+  const p = S.profile;
+  let preset = p.preset || 'hybride', minutes = p.sessionMinutes || 60;
+  let tdays = (p.trainingDays?.length ? p.trainingDays : [0, 2, 4]).slice();
+  const w = sheet(`<h3>📋 Programmes prédéfinis</h3>
+    <p class="muted small">Choisis ton temps maximum et tes jours : chaque séance est calculée pour tenir dedans (échauffement compris).</p>
+    <div class="field">Temps max par séance<div class="chips" id="cmin">${[30, 45, 60, 75, 90, 120].map(m => `<button class="chip ${m === minutes ? 'on' : ''}" data-m="${m}">${m < 60 ? m + ' min' : m === 60 ? '1 h' : Math.floor(m / 60) + ' h ' + String(m % 60).padStart(2, '0')}</button>`).join('')}</div></div>
+    <div class="field">Jours d’entraînement<div class="wdays" id="cdays">${WEEKDAYS.map((d, i) => `<label><input type="checkbox" value="${i}" ${tdays.includes(i) ? 'checked' : ''}><span>${d}</span></label>`).join('')}</div></div>
+    <div id="cpresets" class="presets"></div>
+    <div id="cprev"></div>
+    <button class="btn block" id="cgo">Utiliser ce programme</button>
+    <p class="muted small">Ton programme actuel est rangé dans « Mes programmes ». Tout reste modifiable ensuite.</p>`, { onClose: rerender });
+  let prog;
+  const draw = () => {
+    $('#cpresets', w).innerHTML = Object.entries(PRESETS).map(([k, v]) => `<button class="preset ${k === preset ? 'on' : ''}" data-p="${k}"><b>${v.label}</b><small>${v.desc}</small></button>`).join('');
+    if (!tdays.length) { $('#cprev', w).innerHTML = '<p class="muted">Coche au moins un jour.</p>'; return; }
+    prog = generateProgram(p, { preset, minutes, trainingDays: tdays });
+    $('#cprev', w).innerHTML = `<h3 class="sec">Aperçu · ${tdays.length} séance${tdays.length > 1 ? 's' : ''} / semaine</h3>` + prog.days.map(d => `<div class="edit-item"><div class="row between"><b>${esc(d.name)}</b><span class="tag">≈ ${dayMinutes(d)} min</span></div><small class="muted">${d.items.map(it => esc(exById(it.exId).name)).join(' · ')}</small></div>`).join('');
+  };
+  draw();
+  $('#cmin', w).onclick = (e) => { const b = e.target.closest('[data-m]'); if (!b) return; minutes = +b.dataset.m; $$('#cmin .chip', w).forEach(c => c.classList.toggle('on', c === b)); draw(); };
+  $('#cdays', w).onchange = () => { tdays = $$('#cdays input:checked', w).map(x => +x.value); draw(); };
+  $('#cpresets', w).onclick = (e) => { const b = e.target.closest('[data-p]'); if (!b) return; preset = b.dataset.p; draw(); };
+  $('#cgo', w).onclick = async () => {
+    if (!prog) return;
+    await archiveProgram();
+    S.program = prog; await saveProgram();
+    Object.assign(S.profile, { preset, sessionMinutes: minutes, trainingDays: tdays, days: tdays.length }); await kv.set('profile', S.profile);
+    toast('Programme activé 💪'); w.close();
   };
 }
 
@@ -218,7 +253,9 @@ export function defaultRole(ex) { return ex.kind === 'cardio' ? 'cardio' : ex.ki
 // ————— Édition d'un jour —————
 function editDay(id, rerender) {
   const day = S.program.days.find(d => d.id === id); if (!day) return;
-  const w = sheet(`<h3>Modifier la séance</h3><div class="grid2"><label class="mini">Nom<input id="dn" value="${esc(day.name)}"></label><label class="mini">Type / objectif<input id="df" value="${esc(day.focus || '')}" placeholder="ex : Force, Cardio…"></label></div><div id="items"></div>
+  const w = sheet(`<h3>Modifier la séance</h3><div class="grid2"><label class="mini">Nom<input id="dn" value="${esc(day.name)}"></label><label class="mini">Type / objectif<input id="df" value="${esc(day.focus || '')}" placeholder="ex : Force, Cardio…"></label></div>
+    <label class="field">Jour de la semaine<select id="dwd"><option value="">Libre (quand je veux)</option>${WEEKDAY_LONG.map((n, i) => `<option value="${i}" ${day.weekday === i ? 'selected' : ''}>${n}</option>`).join('')}</select></label>
+    <div class="dur" id="ddur"></div><div id="items"></div>
     <button class="btn ghost block" id="addx">+ Ajouter un exercice</button>
     <div class="row gap"><button class="btn danger ghost grow" id="deld">Supprimer ce jour</button><button class="btn grow" id="saved">Enregistrer</button></div>`, { onClose: rerender });
   const num = (label, key, it, i, step = 1) => `<label class="mini">${label}<input type="number" inputmode="decimal" step="${step}" data-i="${i}" data-k="${key}" value="${it[key] ?? ''}"></label>`;
@@ -236,22 +273,23 @@ function editDay(id, rerender) {
         <div class="row gap wrap">${f}<label class="mini">Type<select data-i="${i}" data-k="role">${Object.entries(ROLE_LABEL).map(([k, v]) => `<option value="${k}" ${k === it.role ? 'selected' : ''}>${v}</option>`).join('')}</select></label></div></div>`;
     }).join('') || '<p class="muted">Aucun exercice.</p>';
   };
-  draw();
+  const _draw = draw; const drawAll = () => { _draw(); dur(); }; const dur = () => { const m = dayMinutes(day); const lim = S.program.minutes || S.profile?.sessionMinutes; $('#ddur', w).innerHTML = `⏱ Durée estimée : <b>${m} min</b>${lim ? ` / ${lim} min max` : ''}${lim && m > lim + 5 ? ' · <span class="warn">trop long</span>' : ''}`; };
+  drawAll();
   $('#items', w).addEventListener('change', (e) => {
     const t = e.target; if (!t.dataset.k) return;
     const it = day.items[+t.dataset.i];
-    if (t.dataset.k === 'role') { const n = makeItem(exById(it.exId), t.value); day.items[+t.dataset.i] = n; draw(); return; }
-    it[t.dataset.k] = t.value === '' ? undefined : +t.value;
+    if (t.dataset.k === 'role') { const n = makeItem(exById(it.exId), t.value); day.items[+t.dataset.i] = n; drawAll(); return; }
+    it[t.dataset.k] = t.value === '' ? undefined : +t.value; dur();
   });
   $('#items', w).addEventListener('click', (e) => {
     const b = e.target.closest('button'); if (!b) return;
     const i = +b.dataset.i;
-    if (b.dataset.mv) { const j = i + +b.dataset.mv; if (j < 0 || j >= day.items.length) return; [day.items[i], day.items[j]] = [day.items[j], day.items[i]]; draw(); }
-    if (b.dataset.rm !== undefined) { day.items.splice(+b.dataset.rm, 1); draw(); }
-    if (b.dataset.sw !== undefined) pickExercise(ex => { const old = day.items[+b.dataset.sw]; const n = makeItem(ex, defaultRole(ex)); if (old.sets && n.sets) Object.assign(n, { sets: old.sets, rest: old.rest }); day.items[+b.dataset.sw] = n; draw(); });
+    if (b.dataset.mv) { const j = i + +b.dataset.mv; if (j < 0 || j >= day.items.length) return; [day.items[i], day.items[j]] = [day.items[j], day.items[i]]; drawAll(); }
+    if (b.dataset.rm !== undefined) { day.items.splice(+b.dataset.rm, 1); drawAll(); }
+    if (b.dataset.sw !== undefined) pickExercise(ex => { const old = day.items[+b.dataset.sw]; const n = makeItem(ex, defaultRole(ex)); if (old.sets && n.sets) Object.assign(n, { sets: old.sets, rest: old.rest }); day.items[+b.dataset.sw] = n; drawAll(); });
   });
-  $('#addx', w).onclick = () => pickExercise(ex => { day.items.push(makeItem(ex, defaultRole(ex))); draw(); });
-  $('#saved', w).onclick = async () => { day.name = $('#dn', w).value; day.focus = $('#df', w).value; await saveProgram(); toast('Séance enregistrée'); w.close(); };
+  $('#addx', w).onclick = () => pickExercise(ex => { day.items.push(makeItem(ex, defaultRole(ex))); drawAll(); });
+  $('#saved', w).onclick = async () => { day.name = $('#dn', w).value; day.focus = $('#df', w).value; day.weekday = $('#dwd', w).value === '' ? null : +$('#dwd', w).value; await saveProgram(); toast('Séance enregistrée'); w.close(); };
   $('#deld', w).onclick = async () => { if (!(await confirmBox('Supprimer ce jour du programme ?', 'Supprimer'))) return; S.program.days = S.program.days.filter(d => d.id !== id); await saveProgram(); w.close(); };
 }
 
@@ -293,6 +331,7 @@ export async function renderSession(view) {
     <div class="row gap wrap">
       <button class="chip hrchip" data-act="hr">${hr.device ? `❤ <b id="bpm">${hr.bpm ?? '…'}</b> bpm` : '❤ Connecter cardio'}</button>
       <span class="chip" id="sprog"></span>
+      <button class="chip" data-act="chrono">⏱ Chrono</button>
     </div>
   </section>
   ${a.exercises.map((x, i) => exCard(x, i)).join('')}
@@ -334,7 +373,7 @@ function exCard(x, i) {
         <button class="icon-btn" data-act="hold" data-i="${i}" data-j="${j}" aria-label="Chrono">⏱</button><button class="check" data-act="set" data-i="${i}" data-j="${j}" aria-label="Valider la série">✓</button></div>`
     : `<div class="set ${s.done ? 'done' : ''}"><span class="n">${j + 1}</span>
         <label class="mini grow">${unit === 'pdc' ? 'Lest kg' : 'kg'}<input type="number" inputmode="decimal" step="0.5" data-i="${i}" data-j="${j}" data-f="w" value="${s.w}" placeholder="${unit === 'pdc' ? '0' : '—'}"></label>
-        <label class="mini grow">Reps<input type="number" inputmode="numeric" data-i="${i}" data-j="${j}" data-f="r" value="${s.r}" placeholder="${t.repMin || ''}–${t.repMax || ''}"></label>
+        <label class="mini grow">Reps<input type="number" inputmode="numeric" data-i="${i}" data-j="${j}" data-f="r" value="${s.r}" placeholder="${t.repMin || ''}–${t.repMax || ''}"></label>${s.done && j > 0 && x.sets[j - 1].at && s.at ? `<small class="rr" title="Temps entre les 2 séries">${fmtTime((s.at - x.sets[j - 1].at) / 1000)}</small>` : ''}
         <button class="check" data-act="set" data-i="${i}" data-j="${j}" aria-label="Valider la série">✓</button></div>`).join('');
   const allDone = x.sets.length && x.sets.every(s => s.done);
   return `<section class="card ex ${allDone ? 'all-done' : ''}">${head}<div class="sets">${rows}</div>
@@ -374,10 +413,11 @@ export async function onSessionAction(act, el, rerender) {
     const s = x.sets[+el.dataset.j];
     s.done = !s.done;
     if (s.done && s.secs === undefined && (s.r === '' || s.r == null)) s.r = x.target.repMax || x.target.repMin || 10;
-    if (s.done) { s.at = Date.now(); startRest(x.target.rest || 90, exById(x.exId).name); }
+    if (s.done) { s.at = Date.now(); if (S.settings.restAuto !== false) startRest(x.target.rest || 90, exById(x.exId).name); }
     await saveActive(); refreshCard(i); updateProgress();
   }
   if (act === 'add-set') { const l = x.sets[x.sets.length - 1] || {}; x.sets.push(l.secs !== undefined ? { secs: l.secs, done: false } : { w: l.w ?? '', r: l.r ?? '', done: false }); await saveActive(); refreshCard(i); updateProgress(); }
+  if (act === 'chrono') return chronoSheet();
   if (act === 'rest') startRest(x.target.rest || 90, exById(x.exId).name);
   if (act === 'hold') { const s = x.sets[+el.dataset.j]; intervalTimer({ rounds: 1, work: +s.secs || 30, restWork: 0, title: exById(x.exId).name, onRound: async () => { s.done = true; s.at = Date.now(); await saveActive(); refreshCard(i); updateProgress(); startRest(x.target.rest || 45, exById(x.exId).name); } }); }
   if (act === 'hiit') intervalTimer({ rounds: +x.hiit.rounds, work: +x.hiit.work, restWork: +x.hiit.restWork, title: exById(x.exId).name, start: x.hiit.done, onRound: async (n) => { x.hiit.done = n; await saveActive(); refreshCard(i); updateProgress(); } });
@@ -483,12 +523,52 @@ export function startRest(sec, label = '') {
     $('#restleft').textContent = fmtTime(left);
     $('#restlabel').textContent = 'Repos' + (S.rest.label ? ' · ' + S.rest.label : '');
     $('#restfill').style.width = Math.max(0, Math.min(100, (1 - left / S.rest.total) * 100)) + '%';
+    const sec = Math.ceil(left);
+    if (left > 0 && sec <= 3 && sec !== S.rest.tick) { S.rest.tick = sec; beep(1, false); } // décompte 3-2-1
     if (left <= 0) { beep(3); stopRest(); toast('C’est reparti ! 💥'); }
   };
   upd(); restInt = setInterval(upd, 250);
 }
 export function stopRest() { clearInterval(restInt); S.rest = null; const b = $('#restbar'); if (b) b.hidden = true; }
 export function adjustRest(d) { if (S.rest) { S.rest.end += d * 1000; S.rest.total = Math.max(1, S.rest.total + d); } }
+
+// ————— Chronomètre & minuteur (accessible partout via ⏱) —————
+const SW = { start: null, acc: 0, laps: [] };
+const swNow = () => SW.acc + (SW.start ? Date.now() - SW.start : 0);
+const fmtMs = (ms) => { const t = Math.floor(ms / 100); return `${Math.floor(t / 600)}:${String(Math.floor(t / 10) % 60).padStart(2, '0')}.${t % 10}`; };
+export function chronoSheet() {
+  unlockAudio();
+  let tab = 'cd', custom = S.settings.lastRest || 90;
+  const w = sheet(`<h3>⏱ Chrono</h3>
+    <div class="seg sm" id="ctabs"><button data-t="cd" class="on">Minuteur de repos</button><button data-t="sw">Chronomètre</button></div>
+    <div id="cbody"></div>`, { onClose: () => clearInterval(iv) });
+  let iv;
+  const draw = () => {
+    clearInterval(iv);
+    const b = $('#cbody', w);
+    if (tab === 'cd') {
+      b.innerHTML = `<div class="chips wrapchips">${[30, 45, 60, 75, 90, 120, 150, 180, 240].map(s => `<button class="chip" data-s="${s}">${fmtTime(s)}</button>`).join('')}</div>
+        <div class="row gap center-row"><button class="icon-btn" data-adj="-15">−15</button><div class="bigtime" id="cdv">${fmtTime(custom)}</div><button class="icon-btn" data-adj="15">+15</button></div>
+        <button class="btn block" id="cdgo">Lancer le repos</button>
+        <p class="muted small">Le repos s’affiche en bas de l’écran sur toutes les pages, avec bip et vibration à la fin (décompte 3-2-1).</p>`;
+      b.onclick = async (e) => {
+        const c = e.target.closest('[data-s]'); if (c) { custom = +c.dataset.s; $('#cdv', w).textContent = fmtTime(custom); }
+        const a = e.target.closest('[data-adj]'); if (a) { custom = Math.max(5, custom + +a.dataset.adj); $('#cdv', w).textContent = fmtTime(custom); }
+        if (e.target.id === 'cdgo') { S.settings.lastRest = custom; kv.set('settings', S.settings); startRest(custom, 'Minuteur'); w.close(); }
+      };
+    } else {
+      b.innerHTML = `<div class="bigtime sw" id="swv">${fmtMs(swNow())}</div>
+        <div class="row gap"><button class="btn grow" id="swgo">${SW.start ? 'Pause' : swNow() ? 'Reprendre' : 'Démarrer'}</button><button class="btn ghost grow" id="swlap" ${SW.start ? '' : 'disabled'}>Tour</button><button class="btn ghost grow" id="swrst">Remise à 0</button></div>
+        <div class="table" id="swlaps">${SW.laps.map((l, i) => `<div class="tr"><span>Tour ${i + 1}</span><b>${fmtMs(l - (SW.laps[i - 1] || 0))}</b><small>${fmtMs(l)}</small></div>`).reverse().join('')}</div>`;
+      iv = setInterval(() => { const v = $('#swv', w); if (v) v.textContent = fmtMs(swNow()); }, 100);
+      $('#swgo', w).onclick = () => { if (SW.start) { SW.acc += Date.now() - SW.start; SW.start = null; } else SW.start = Date.now(); draw(); };
+      $('#swlap', w).onclick = () => { SW.laps.push(swNow()); draw(); };
+      $('#swrst', w).onclick = () => { SW.start = null; SW.acc = 0; SW.laps = []; draw(); };
+    }
+  };
+  $('#ctabs', w).onclick = (e) => { const b = e.target.closest('[data-t]'); if (!b) return; tab = b.dataset.t; $$('#ctabs button', w).forEach(x => x.classList.toggle('on', x === b)); draw(); };
+  draw();
+}
 
 // ————— Minuteur d'intervalles plein écran —————
 function intervalTimer({ rounds, work, restWork, title, start = 0, onRound }) {

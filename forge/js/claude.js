@@ -29,6 +29,23 @@ Tu tutoies l'utilisateur, tu es direct, concret et bienveillant. Réponses court
 Pour les repas, privilégie des recettes réalisables au Thermomix (style Cookidoo) quand c'est pertinent, en donnant les macros par portion.
 Ne pose pas de diagnostic médical ; en cas de douleur ou de pathologie, recommande un professionnel de santé.`;
 
+// Prix $ / million de tokens (entrée, sortie, lecture cache)
+export const PRICES = {
+  'claude-opus-5-5': [4, 20, 0.2], 'claude-sonnet-5-5': [2, 10, 0.1], 'claude-haiku-5-5': [0.1, 0.5, 0.01],
+  'claude-opus-5': [5, 25, 0.5], 'claude-sonnet-5': [2, 10, 0.2], 'claude-opus-4-8': [5, 25, 0.5],
+};
+async function track(msg) {
+  try {
+    const u = msg.usage || {}, pr = PRICES[msg.model] || PRICES['claude-opus-5-5'];
+    const cost = ((u.input_tokens || 0) * pr[0] + (u.cache_creation_input_tokens || 0) * pr[0] * 1.25 + (u.cache_read_input_tokens || 0) * pr[2] + (u.output_tokens || 0) * pr[1]) / 1e6;
+    const usage = (await kv.get('usage')) || {};
+    const m = new Date().toISOString().slice(0, 7);
+    const cur = usage[m] || { n: 0, cost: 0 };
+    usage[m] = { n: cur.n + 1, cost: +(cur.cost + cost).toFixed(5) };
+    await kv.set('usage', usage);
+  } catch (e) { }
+}
+
 function checkStop(msg) {
   if (msg.stop_reason === 'refusal') throw new Error('Claude a refusé cette demande.');
   if (msg.stop_reason === 'max_tokens') throw new Error('Réponse trop longue, coupée. Réessaie avec une demande plus courte.');
@@ -51,6 +68,7 @@ export async function chat(history, context, onText) {
   });
   stream.on('text', onText);
   const msg = await stream.finalMessage();
+  track(msg);
   checkStop(msg);
   return msg.content.filter(b => b.type === 'text').map(b => b.text).join('');
 }
@@ -75,6 +93,7 @@ export async function structured(prompt, schema, context, { images = [], effort 
     messages: [{ role: 'user', content }],
   });
   const msg = await stream.finalMessage();
+  track(msg);
   checkStop(msg);
   const text = msg.content.filter(b => b.type === 'text').map(b => b.text).join('');
   return JSON.parse(text);

@@ -233,6 +233,23 @@ img.full { width: 100%; border-radius: 12px; }
 .tr.cur { background: var(--accent-soft); border-radius: 8px; padding-left: 6px; } .tr span small { display: block; color: var(--text2); text-align: left; }
 .prog-actions { margin-top: 10px; }
 
+/* v3 : catalogue, écarts, chrono, hors ligne */
+.presets { display: flex; flex-direction: column; gap: 6px; margin: 8px 0; }
+.preset { appearance: none; text-align: left; background: var(--surface2); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; color: var(--text); font: inherit; cursor: pointer; }
+.preset small { display: block; color: var(--text2); font-size: 12px; margin-top: 2px; } .preset.on { border-color: var(--accent); background: var(--accent-soft); }
+.dur { font-size: 14px; margin: 6px 0; color: var(--text2); } .dur b { color: var(--text); } .warn { color: var(--warn); font-weight: 700; }
+.eitems { display: flex; flex-direction: column; max-height: 42vh; overflow-y: auto; }
+.eitem { display: flex; align-items: center; gap: 6px; padding: 8px 0; border-bottom: 1px solid var(--line); } .eitem small { display: block; color: var(--text2); font-size: 12px; }
+.eq { min-width: 24px; text-align: center; font-weight: 800; font-size: 17px; }
+.etotal { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; padding: 12px; margin: 10px 0; border-radius: 12px; background: var(--accent-soft); } .etotal b { font-size: 20px; } .etotal span { font-size: 13px; color: var(--text2); }
+.comp { flex-direction: column; align-items: flex-start; } .comp small { font-weight: 400; color: var(--text2); font-size: 12px; margin-top: 3px; }
+.bigtime { font: 800 54px/1.1 ui-monospace, "SF Mono", Menlo, monospace; font-variant-numeric: tabular-nums; text-align: center; flex: 1; margin: 10px 0; }
+.bigtime.sw { color: var(--accent); } .center-row { justify-content: center; } .wrapchips { flex-wrap: wrap; }
+.rr { align-self: center; font-size: 11px; color: var(--text3); white-space: nowrap; }
+.netbadge { font-size: 10px; letter-spacing: 0; padding: 2px 7px; border-radius: 999px; margin-left: 6px; vertical-align: 1px; font-weight: 700; }
+.netbadge.off { background: var(--warn); color: #1a1200; } .netbadge.wait { background: var(--surface2); color: var(--text2); border: 1px solid var(--line); }
+.updbar { position: fixed; left: 10px; right: 10px; top: calc(var(--safe-t) + 70px); z-index: 70; background: var(--text); color: var(--bg); border-radius: 14px; padding: 10px 12px; display: flex; align-items: center; justify-content: space-between; gap: 10px; max-width: 660px; margin: 0 auto; font-weight: 600; font-size: 14px; }
+
 /* feuilles & toasts */
 .sheet-wrap { position: fixed; inset: 0; z-index: 50; background: rgba(0,0,0,0); display: flex; align-items: flex-end; justify-content: center; transition: background .25s; }
 .sheet-wrap.open { background: rgba(0,0,0,.55); }
@@ -247,7 +264,7 @@ img.full { width: 100%; border-radius: 12px; }
 </head>
 <body>
 <div id="splash">FORGE</div>
-<header class="top"><div><div class="brand">FORGE</div><h1 id="title">FORGE</h1></div><a class="icon-btn" href="#/profil" aria-label="Profil et réglages">⚙︎</a></header>
+<header class="top"><div><div class="brand">FORGE <span id="netbadge" class="netbadge" hidden></span></div><h1 id="title">FORGE</h1></div><div class="row gap"><button class="icon-btn" id="chronoBtn" aria-label="Chronomètre et minuteur">⏱</button><a class="icon-btn" href="#/profil" aria-label="Profil et réglages">⚙︎</a></div></header>
 <main id="view"></main>
 <div id="restbar" hidden><div class="t"><small id="restlabel">Repos</small><span id="restleft">0:00</span></div>
   <button data-r="-15" aria-label="Moins 15 secondes">−15</button><button data-r="15" aria-label="Plus 15 secondes">+15</button><button data-r="skip">Passer</button><div id="restfill"></div></div>

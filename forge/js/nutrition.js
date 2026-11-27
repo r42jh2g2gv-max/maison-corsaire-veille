@@ -7,6 +7,8 @@ import { allSessions } from './train.js';
 import { structured, FOOD_SCHEMA, RECIPES_SCHEMA, FORMAT_HINT, extractJSON, fileToBase64 } from './claude.js';
 import { renderPlan, onPlanAction, plannedFor, plannedLabel, toggleEaten } from './plan.js';
 import { healthCard } from './health.js';
+import { ecartSheet, compensation } from './ecart.js';
+import { fetchT, isNetErr, pendingFood, registerHandler } from './offline.js';
 
 let day = today(), ntab = 'journal';
 const sum = (list) => list.reduce((a, e) => ({ kcal: a.kcal + (+e.kcal || 0), p: a.p + (+e.p || 0), c: a.c + (+e.c || 0), f: a.f + (+e.f || 0) }), { kcal: 0, p: 0, c: 0, f: 0 });
@@ -58,13 +60,15 @@ async function journal(el) {
     <button class="btn sm" data-act="adapt" data-v="${adv.adjust}">Appliquer</button></section>` : ''}
   ${adv && !adv.ready ? `<p class="muted small">Pèse-toi 2 à 3 fois par semaine : après 10 jours, FORGE ajuste tes calories selon l’évolution réelle de ton poids.</p>` : ''}
   ${p?.kcalAdjust ? `<p class="muted small">Ajustement actif : ${p.kcalAdjust > 0 ? '+' : ''}${p.kcalAdjust} kcal/jour · <a href="#" data-act="adapt-reset">remettre à zéro</a></p>` : ''}
-  <button class="btn block photo-cta" data-act="fphoto">📷 Photo de mon assiette → calories</button>
+  ${t.comp ? `<p class="small">↘︎ Rattrapage d’un écart : <b>−${t.comp} kcal</b> aujourd’hui · <a href="#" data-act="comp-cancel">annuler</a></p>` : ''}
+  <div class="row gap"><button class="btn grow photo-cta" data-act="fphoto">📷 Photo → calories</button><button class="btn ghost grow" data-act="ecart">🍻 Écart / soirée</button></div>
+  ${tot.kcal > t.kcal + 150 ? `<button class="btn ghost sm block" data-act="comp-check">Tu dépasses de ${Math.round(tot.kcal - t.kcal)} kcal : comment rattraper ?</button>` : ''}
   <section class="card water"><div class="row between"><b>💧 Eau</b><span>${(water * 0.25).toLocaleString('fr-FR')} L / ${Math.max(2, Math.round((+p?.weight || 70) * 0.035 * 4) / 4).toLocaleString('fr-FR')} L</span></div>
     <div class="row gap"><button class="btn ghost sm" data-act="water" data-d="-1">−</button><div class="glasses">${Array.from({ length: Math.max(8, water) }, (_, i) => `<i class="${i < water ? 'on' : ''}"></i>`).join('')}</div><button class="btn sm" data-act="water" data-d="1">+ 25 cl</button></div></section>
   ${MEALS.map(([k, l]) => { const es = entries.filter(e => e.meal === k), s = sum(es); const pl = plannedFor(day, k); return `
     <section class="card meal"><div class="row between"><h3>${l}</h3><span class="muted">${Math.round(s.kcal)} kcal</span></div>
     ${pl && !pl.done ? `<div class="planned"><div><small>Prévu au menu</small><b>${esc(pl.name)}</b><small>${plannedLabel(pl, day, k)}</small></div><button class="btn sm" data-act="eat" data-meal="${k}">✓ Mangé</button></div>` : ''}
-    ${es.map(e => `<button class="fitem" data-act="fedit" data-id="${e.id}"><div><b>${esc(e.name)}</b><small>${e.grams ? Math.round(e.grams) + ' g' : e.portions ? num(e.portions, 2) + ' portion(s)' : ''} · P ${num(e.p, 0)} · G ${num(e.c, 0)} · L ${num(e.f, 0)}</small></div><span>${Math.round(e.kcal)}</span></button>`).join('')}
+    ${es.map(e => `<button class="fitem" data-act="fedit" data-id="${e.id}"><div><b>${esc(e.name)}</b><small>${e.grams ? Math.round(e.grams) + ' g' : e.portions ? num(e.portions, 2) + ' portion(s)' : ''} · P ${num(e.p, 0)} · G ${num(e.c, 0)} · L ${num(e.f, 0)}</small></div><span>${e.pending ? '⏳' : Math.round(e.kcal)}</span></button>`).join('')}
     <button class="btn ghost sm block" data-act="fadd" data-meal="${k}">+ Ajouter</button></section>`; }).join('')}
   ${healthCard(day)}
   <button class="btn ghost block" data-act="copyday">⧉ Copier les repas de la veille</button>`;
@@ -72,7 +76,7 @@ async function journal(el) {
 
 // ————— Sélecteur d'aliment générique —————
 // onPick(f) : f = aliment pour 100 g, ou { recipe: true, ... } (valeurs par portion)
-export function foodPicker({ title, onPick, onClose, tabs: only = ['search', 'scan', 'recipes', 'manual'] }) {
+export function foodPicker({ title, onPick, onClose, offlineMeal = null, tabs: only = ['search', 'scan', 'recipes', 'manual'] }) {
   const LBL = { search: 'Rechercher', scan: 'Scanner', recipes: 'Recettes', manual: 'Manuel' };
   const w = sheet(`<h3>${esc(title)}</h3>
     <div class="seg sm">${only.map((k, i) => `<button class="${i ? '' : 'on'}" data-t="${k}">${LBL[k]}</button>`).join('')}</div>
@@ -104,7 +108,13 @@ export function foodPicker({ title, onPick, onClose, tabs: only = ['search', 'sc
       const lookup = async (code) => {
         $('#scanst', w).textContent = 'Recherche du produit ' + code + '…';
         try { const f = await productOFF(code); stopScan(); pick(f); }
-        catch (e) { $('#scanst', w).textContent = e.message; }
+        catch (e) {
+          if (isNetErr(e) && offlineMeal) {
+            stopScan();
+            $('#scanst', w).innerHTML = `Pas de réseau. Quantité mangée (g) ? <input id="offg" type="number" inputmode="decimal" value="100" class="search"><button class="btn block" id="offok">Mettre en attente</button>`;
+            $('#offok', w).onclick = async () => { await pendingFood({ date: day, meal: offlineMeal, name: `Produit ${code} (en attente)`, grams: +$('#offg', w).value || 100, task: { type: 'barcode', code } }); w.close(); };
+          } else $('#scanst', w).textContent = isNetErr(e) ? 'Pas de réseau pour chercher ce produit.' : e.message;
+        }
       };
       $('#bcgo', w).onclick = () => { const c = $('#bc', w).value.trim(); if (c) lookup(c); };
       startScan($('#vid', w), lookup).catch(e => { $('#scanst', w).textContent = 'Caméra indisponible : ' + e.message + '. Tape le code à la main.'; });
@@ -143,7 +153,7 @@ async function recents() {
 }
 
 function addSheet(meal, rerender) {
-  foodPicker({ title: 'Ajouter — ' + MEALS.find(m => m[0] === meal)[1], onPick: (f, w) => quantity(f, meal, w), onClose: rerender });
+  foodPicker({ title: 'Ajouter — ' + MEALS.find(m => m[0] === meal)[1], onPick: (f, w) => quantity(f, meal, w), onClose: rerender, offlineMeal: meal });
 }
 
 function quantity(f, meal, parent, date = day) {
@@ -196,7 +206,10 @@ function photoSheet(meal, rerender) {
     try {
       const data = await structured(prompt(), FOOD_SCHEMA, await contextText({ days: 3 }), { images: [img], effort: 'medium' });
       w.close(); foodReview(data.items, data.comment, meal, rerender);
-    } catch (e) { toast('⚠️ ' + (e.status === 401 ? 'Clé API invalide' : e.message), 5000); b.disabled = false; b.textContent = 'Analyser avec Claude'; }
+    } catch (e) {
+      if (isNetErr(e)) { await pendingFood({ date: day, meal, name: 'Repas en photo (en attente)', task: { type: 'photo', img, desc: $('#pdesc', w).value } }); w.close(); return; }
+      toast('⚠️ ' + (e.status === 401 ? 'Clé API invalide' : e.message), 5000); b.disabled = false; b.textContent = 'Analyser avec Claude';
+    }
   };
   else {
     $('#pshare', w).onclick = async () => {
@@ -250,20 +263,21 @@ const offMap = (p) => {
 async function searchOFF(q) {
   const fields = 'code,product_name,product_name_fr,brands,nutriments,serving_quantity';
   try {
-    const r = await fetch(`https://search.openfoodfacts.org/search?q=${encodeURIComponent(q)}&page_size=60&langs=fr&fields=${fields}`);
+    const r = await fetchT(`https://search.openfoodfacts.org/search?q=${encodeURIComponent(q)}&page_size=60&langs=fr&fields=${fields}`);
     if (!r.ok) throw new Error();
     const j = await r.json();
     const out = (j.hits || []).map(offMap).filter(f => f && f.name).slice(0, 25);
     if (!out.length) throw new Error();
     return out;
   } catch (e) {
-    const r = await fetch(`https://world.openfoodfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(q)}&search_simple=1&action=process&json=1&page_size=20&fields=${fields}`);
+    const r = await fetchT(`https://world.openfoodfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(q)}&search_simple=1&action=process&json=1&page_size=20&fields=${fields}`);
     const j = await r.json();
     return (j.products || []).map(offMap).filter(Boolean);
   }
 }
-async function productOFF(code) {
-  const r = await fetch(`https://world.openfoodfacts.org/api/v2/product/${encodeURIComponent(code)}.json?fields=code,product_name,product_name_fr,brands,nutriments,serving_quantity`);
+export async function productOFF(code) {
+  if (!navigator.onLine) throw new TypeError('offline');
+  const r = await fetchT(`https://world.openfoodfacts.org/api/v2/product/${encodeURIComponent(code)}.json?fields=code,product_name,product_name_fr,brands,nutriments,serving_quantity`);
   const j = await r.json();
   if (j.status !== 1 || !j.product) throw new Error('Produit inconnu d’Open Food Facts. Utilise l’onglet Manuel.');
   const f = offMap({ ...j.product, code });
@@ -440,6 +454,9 @@ export async function onNutritionAction(act, el, rerender) {
   if (act === 'dnext') { day = shift(day, 1); return rerender(); }
   if (act === 'fadd') return addSheet(el.dataset.meal, rerender);
   if (act === 'fphoto') return photoSheet(guessMeal(), rerender);
+  if (act === 'ecart') return ecartSheet(day, rerender);
+  if (act === 'comp-check') return compensation(day, 0, rerender);
+  if (act === 'comp-cancel') { delete S.comp[day]; await kv.set('comp', S.comp); return rerender(); }
   if (act === 'eat') { await toggleEaten(day, el.dataset.meal); toast('Ajouté au journal ✓'); return rerender(); }
   if (act === 'goal') {
     if (!S.profile) return toast('Crée d’abord ton profil');
@@ -473,3 +490,19 @@ export async function onNutritionAction(act, el, rerender) {
 export async function addFoodItems(items, meal = guessMeal(), date = today()) {
   for (const it of items) await food.put({ id: uid('f'), date, meal, name: it.name, grams: it.grams || null, kcal: Math.round(it.kcal), p: +it.protein || 0, c: +it.carbs || 0, f: +it.fat || 0, src: 'claude' });
 }
+
+// ————— Tâches en attente (salle sans réseau) —————
+registerHandler('barcode', async (t) => {
+  const f = await productOFF(t.code);
+  const e = await food.get(t.foodId); if (!e) return;
+  const g = e.grams || f.serving || 100, m = g / 100;
+  Object.assign(e, { name: f.name, grams: g, kcal: Math.round(f.kcal * m), p: +(f.p * m).toFixed(1), c: +(f.c * m).toFixed(1), f: +(f.f * m).toFixed(1), pending: false, src: 'off',
+    per100: { kcal: f.kcal, p: f.p, c: f.c, f: f.f, brand: f.brand || '', src: 'off' } });
+  await food.put(e);
+});
+registerHandler('photo', async (t) => {
+  if (!S.settings.apiKey) throw new Error('clé API absente');
+  const data = await structured(PHOTO_PROMPT + (t.desc ? ' Précisions : ' + t.desc : ''), FOOD_SCHEMA, await contextText({ days: 3 }), { images: [t.img], effort: 'medium' });
+  await food.del(t.foodId);
+  for (const i of data.items) await food.put({ id: uid('f'), date: t.date, meal: t.meal, name: i.name, grams: i.grams || null, kcal: Math.round(i.kcal), p: +(+i.protein).toFixed(1), c: +(+i.carbs).toFixed(1), f: +(+i.fat).toFixed(1), src: 'photo' });
+});

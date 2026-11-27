@@ -25,3 +25,10 @@ Toutes les données restent sur l’appareil (IndexedDB) ; sauvegarde/restaurati
 - **Apple Watch / Apple Santé** via l’app Raccourcis (pas, calories actives, FC repos, VFC, poids → FORGE ; journal → Santé).
 - **Thermomix / Cookidoo** : import d’une recette Cookidoo par copier-coller, export au format « Mes créations » pour l’envoyer sur le Thermomix.
 - **Menu de la semaine** : plats maison ou tout prêts, portions calculées selon les calories du jour, « mangé » → journal, liste de courses et batch cooking.
+
+## Nouveautés v3
+- **Programmes prédéfinis** (Hybride, Full body, Haut/Bas, Push/Pull/Legs, Sèche, Endurance) calculés selon le **temps max par séance** (30 min à 2 h) et les **jours d’entraînement** ; durée estimée de chaque séance ; séance du jour sur l’accueil.
+- **Écarts** : alcool, fast-food, repas lourd, grignotage, avec unités d’alcool et plan de rattrapage (étalé sur 2 à 4 jours ou minutes de cardio).
+- **Chrono** : minuteur de repos (décompte 3-2-1, bip), chronomètre avec tours, temps de repos réel entre les séries, réglages son/vibration/auto.
+- **Coût de l’API** affiché et suivi chaque mois.
+- **Hors connexion** : l’app s’ouvre sans réseau ; scans et photos mis en attente puis calculés au retour du réseau ; mise à jour de l’app en arrière-plan.

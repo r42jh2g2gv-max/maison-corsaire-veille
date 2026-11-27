@@ -2,12 +2,15 @@
 import { kv, sessions, body, food, recipes } from './db.js';
 import { exById as exByIdBase } from './data.js';
 
-export const S = { profile: null, program: null, programs: [], custom: [], settings: {}, active: null, water: {}, health: {}, plan: {} };
+export const S = { profile: null, program: null, programs: [], custom: [], settings: {}, active: null, water: {}, health: {}, plan: {}, comp: {}, queue: [], usage: {} };
 
 export async function loadState() {
   S.programs = (await kv.get('programs')) || [];
   S.health = (await kv.get('health')) || {};
   S.plan = (await kv.get('plan')) || {};
+  S.comp = (await kv.get('comp')) || {};
+  S.queue = (await kv.get('queue')) || [];
+  S.usage = (await kv.get('usage')) || {};
   S.profile = await kv.get('profile');
   S.program = await kv.get('program');
   S.custom = (await kv.get('customExercises')) || [];
@@ -64,8 +67,8 @@ export function confirmBox(msg, okLabel = 'Confirmer') {
 
 // Bip + vibration (fin de repos)
 let actx;
-export function beep(times = 3) {
-  try {
+export function beep(times = 3, vib = true) {
+  if (S.settings.restSound !== false) try {
     actx = actx || new (window.AudioContext || window.webkitAudioContext)();
     for (let i = 0; i < times; i++) {
       const o = actx.createOscillator(), g = actx.createGain();
@@ -76,7 +79,7 @@ export function beep(times = 3) {
       o.connect(g).connect(actx.destination); o.start(actx.currentTime + i * 0.25); o.stop(actx.currentTime + i * 0.25 + 0.2);
     }
   } catch (e) { /* audio indisponible */ }
-  if (navigator.vibrate) navigator.vibrate([200, 100, 200, 100, 300]);
+  if (vib && S.settings.restVibe !== false && navigator.vibrate) navigator.vibrate([200, 100, 200, 100, 300]);
 }
 export function unlockAudio() { try { actx = actx || new (window.AudioContext || window.webkitAudioContext)(); actx.resume(); } catch (e) { } }
 
@@ -123,11 +126,13 @@ export function targets(p, date) {
     const bump = 150;
     kcal = Math.round((train ? base + bump : base - bump * n / Math.max(1, 7 - n)) / 10) * 10;
   }
+  const comp = date ? (+S.comp?.[date] || 0) : 0; // rattrapage d'un écart
+  kcal -= comp;
   const w = +p.weight;
   const prot = Math.round(w * g.prot);
   const fat = Math.round(w * g.fat);
   const carbs = Math.max(50, Math.round((kcal - prot * 4 - fat * 9) / 4));
-  return { kcal, p: prot, c: carbs, f: fat, tdee: Math.round(tdee), base, dayType, watch };
+  return { kcal, p: prot, c: carbs, f: fat, tdee: Math.round(tdee), base, dayType, watch, comp };
 }
 
 // Ajustement automatique : compare la tendance réelle du poids au rythme visé.
