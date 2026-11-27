@@ -1,6 +1,6 @@
 // FORGE — point d'entrée : navigation, accueil, profil & réglages.
 import { S, loadState, esc, $, $$, toast, sheet, confirmBox, targets, today, num, fmtDate, ACTIVITY, unlockAudio, exById, GOALS, WEEKDAYS, defaultTrainingDays } from './ui.js';
-import { healthCard, importFromClipboard, runShortcut, exportDayText, SHORTCUT_GUIDE_V2, SHORTCUT_TEMPLATE, SC_IN, SC_OUT } from './health.js';
+import { healthCard, importFromClipboard, saveHealth, runShortcut, exportDayText, SHORTCUT_GUIDE_V2, SHORTCUT_TEMPLATE, SC_IN, SC_OUT } from './health.js';
 import { kv, body, food, exportAll, importAll, wipe } from './db.js';
 import { generateProgram, weekInfo, applyBlock, dayForDate, dayMinutes, WEEKDAY_LONG, fitProgramToTime } from './data.js';
 import { initOffline } from './offline.js';
@@ -315,7 +315,24 @@ function healthSync() {
     <p class="small">1. Lance le raccourci : il lit ta montre dans Santé et copie les valeurs.<br>2. Reviens dans FORGE et colle.</p>
     <button class="btn block" id="hrun">1 · Lancer « ${SC_IN} »</button>
     <button class="btn block" id="hpaste">2 · Coller les données</button>
-    <a class="btn ghost block" href="#/profil" data-close>Raccourci pas encore créé ? Le guide</a>`, { onClose: render });
+    <a class="btn ghost block" href="#/profil" data-close>Raccourci pas encore créé ? Le guide</a>
+    <details class="manual"${S.health?.[today()] ? '' : ''}><summary>✍️ Saisir à la main (sans raccourci)</summary>
+      <p class="small muted">Ouvre l’app <b>Forme</b> (anneaux) ou <b>Santé</b> de ton iPhone et recopie les chiffres du jour.</p>
+      <div class="grid2">
+        <label class="mini">Calories actives (Bouger)<input type="number" inputmode="numeric" id="hm-active" placeholder="ex : 550"></label>
+        <label class="mini">Pas<input type="number" inputmode="numeric" id="hm-steps" placeholder="ex : 8500"></label>
+        <label class="mini">FC au repos<input type="number" inputmode="numeric" id="hm-rhr" placeholder="ex : 58"></label>
+        <label class="mini">Poids kg<input type="number" inputmode="decimal" step="0.1" id="hm-weight" placeholder="opt."></label>
+      </div>
+      <button class="btn block" id="hmsave">Enregistrer</button>
+    </details>`, { onClose: render });
+  $('#hmsave', w).onclick = async () => {
+    const v = (id) => { const x = $('#' + id, w).value; return x === '' ? undefined : +x; };
+    const h = { date: today(), active: v('hm-active'), steps: v('hm-steps'), rhr: v('hm-rhr'), weight: v('hm-weight') };
+    Object.keys(h).forEach(k => h[k] === undefined && delete h[k]);
+    if (Object.keys(h).length < 2) return toast('Renseigne au moins un chiffre');
+    await saveHealth(h); toast('Données de la montre enregistrées ✓'); w.close();
+  };
   $('#hrun', w).onclick = () => runShortcut(SC_IN);
   $('#hpaste', w).onclick = async () => {
     try { const h = await importFromClipboard(); if (h) { toast(`Santé importée : ${h.steps ?? '–'} pas, ${h.active ?? '–'} kcal actives${h.weight ? ', ' + h.weight + ' kg' : ''}`, 4000); w.close(); } }

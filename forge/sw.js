@@ -1,7 +1,7 @@
 // FORGE — service worker : l'app s'ouvre instantanément et fonctionne sans réseau (salle de sport).
 // Stratégie : on sert la version en cache tout de suite, et on télécharge la nouvelle en arrière-plan
 // dès qu'il y a du réseau. Changer CACHE à chaque mise à jour déclenche l'installation de la nouvelle version.
-const CACHE = 'forge-v6';
+const CACHE = 'forge-v7';
 const CDN = 'forge-cdn-v1';
 const FILES = ['./', 'index.html', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png', 'icon-maskable-512.png',
   'js/app.js', 'js/ui.js', 'js/db.js', 'js/data.js', 'js/charts.js', 'js/train.js', 'js/progress.js', 'js/nutrition.js',

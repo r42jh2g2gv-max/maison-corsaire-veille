@@ -12,6 +12,9 @@ const KEYS = { date: 'date', pas: 'steps', steps: 'steps', actif: 'active', acti
 const numOf = (v) => { const m = String(v).replace(/\s/g, '').replace(',', '.').match(/-?\d+(\.\d+)?/); return m ? +m[0] : null; };
 
 export function parseHealthText(txt) {
+  // version express : le raccourci copie seulement la somme des calories actives (ex. « 612 » ou « 612,4 kcal »)
+  const bare = String(txt).replace(/\s/g, '').replace(',', '.');
+  if (/^\d+(\.\d+)?(kcal|cal)?$/i.test(bare)) return { date: today(), active: Math.round(parseFloat(bare)) };
   if (!/forge/i.test(txt) && !/pas=|actif=/i.test(txt)) throw new Error('Ce texte ne vient pas du raccourci FORGE');
   const out = {};
   for (const part of txt.split(/[;\n&]/)) {
@@ -90,7 +93,19 @@ export function healthCard(date = today()) {
 export const SHORTCUT_TEMPLATE = 'FORGE;pas=;actif=;fcrepos=;poids=;vfc=';
 
 export const SHORTCUT_GUIDE_V2 = `
-<h3>Créer le raccourci « ${SC_IN} » (≈ 5 min, une seule fois)</h3>
+<div class="express">
+<h3>⚡ Version express (3 actions, 2 min)</h3>
+<p class="small">Récupère les calories brûlées mesurées par ta montre.</p>
+<ol class="small guide">
+<li>Raccourcis → <b>+</b> → touche le nom en haut → <b>Renommer</b> → <code>${SC_IN}</code>.</li>
+<li>Touche <b>Ajouter une action</b>, tape <i>santé</i> dans la recherche → <b>Rechercher des échantillons de santé</b>. Touche le mot bleu du type → choisis <b>Énergie active</b>. Touche <i>Ajouter un filtre</i> → règle-le sur <b>Date de début</b> · <b>est aujourd’hui</b>.</li>
+<li>Recherche <i>statistiques</i> → <b>Calculer les statistiques</b> → touche le mot bleu → <b>Somme</b>.</li>
+<li>Recherche <i>presse-papiers</i> → <b>Copier dans le presse-papiers</b>. Touche <b>OK</b>.</li>
+<li>Touche ▶︎ une fois et <b>autorise l’accès à Santé</b>.</li>
+</ol>
+<p class="small">Pas envie de raccourci ? Utilise « ✍️ Saisir à la main » dans ⌚ Synchroniser avec les chiffres de l’app <b>Forme</b> de ton iPhone.</p>
+</div>
+<h3>Version complète (pas, calories, FC, poids)</h3>
 <p class="small">Apple réserve Santé aux apps de l’App Store : l’app <b>Raccourcis</b> (déjà sur ton iPhone) sert de pont entre ta montre et FORGE.</p>
 <ol class="small guide">
 <li>Ouvre <b>Raccourcis</b> → <b>+</b> en haut à droite. Touche le nom en haut → <b>Renommer</b> → tape exactement <code>${SC_IN}</code>.</li>
