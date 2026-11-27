@@ -12,12 +12,24 @@ export async function loadState() {
   S.queue = (await kv.get('queue')) || [];
   S.usage = (await kv.get('usage')) || {};
   S.profile = await kv.get('profile');
+  await repairWeights();
   S.program = await kv.get('program');
   S.custom = (await kv.get('customExercises')) || [];
   S.settings = (await kv.get('settings')) || {};
   S.active = await kv.get('active');
   S.water = (await kv.get('water')) || {};
 }
+// Réparation : poids importés en grammes (ex. 95000 → 95 kg)
+async function repairWeights() {
+  const fix = (w) => (w > 400 ? Math.round(w / 100) / 10 : w);
+  let n = 0;
+  for (const e of await body.all()) {
+    if (+e.weight > 400) { e.weight = fix(+e.weight); if (e.bf) e.lean = Math.round(e.weight * (1 - e.bf / 100) * 10) / 10; await body.put(e); n++; }
+  }
+  if (S.profile && +S.profile.weight > 400) { S.profile.weight = fix(+S.profile.weight); await kv.set('profile', S.profile); n++; }
+  return n;
+}
+
 export const saveProgram = () => kv.set('program', S.program);
 export const saveActive = () => kv.set('active', S.active);
 export const exById = (id) => exByIdBase(id, S.custom) || { id, name: id, muscle: '—', unit: 'kg', kind: 'hyper', inc: 2.5, met: 5 };

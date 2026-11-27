@@ -330,7 +330,7 @@ async function onProfileChange(act, el) {
 }
 
 // ————— Rechargement forcé (garde les données) —————
-const APP_VERSION = 'v11';
+const APP_VERSION = 'v12';
 export async function hardReload() {
   if (!navigator.onLine) return toast('Il faut du réseau pour télécharger la nouvelle version');
   toast('Mise à jour de FORGE…');
